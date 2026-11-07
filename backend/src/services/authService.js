@@ -1,0 +1,176 @@
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import { getDatabase } from '../config/database.js';
+import { config } from '../config/env.js';
+
+export class AuthService {
+  static register({ email, password, displayName }) {
+    const db = getDatabase();
+    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase().trim());
+    if (existing) {
+      const err = new Error('Email is already registered');
+      err.status = 409;
+      throw err;
+    }
+
+    const salt = bcrypt.genSaltSync(10);
+    const passwordHash = bcrypt.hashSync(password, salt);
+    const id = crypto.randomUUID();
+    const now = Date.now();
+
+    const insertUser = db.transaction(() => {
+      db.prepare(`
+        INSERT INTO users (id, email, password_hash, display_name, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(id, email.toLowerCase().trim(), passwordHash, displayName.trim(), now, now);
+
+      db.prepare(`
+        INSERT INTO user_settings (user_id, updated_at)
+        VALUES (?, ?)
+      `).run(id, now);
+
+      db.prepare(`
+        INSERT INTO user_statistics (user_id, updated_at)
+        VALUES (?, ?)
+      `).run(id, now);
+    });
+
+    insertUser();
+
+    const token = jwt.sign({ id, email: email.toLowerCase().trim(), displayName: displayName.trim() }, config.jwtSecret, {
+      expiresIn: config.jwtExpiresIn
+    });
+
+    return {
+      user: { id, email: email.toLowerCase().trim(), displayName: displayName.trim() },
+      token
+    };
+  }
+
+  static login({ email, password }) {
+    const db = getDatabase();
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase().trim());
+    if (!user) {
+      const err = new Error('Invalid email or password');
+      err.status = 401;
+      throw err;
+    }
+
+    const valid = bcrypt.compareSync(password, user.password_hash);
+    if (!valid) {
+      const err = new Error('Invalid email or password');
+      err.status = 401;
+      throw err;
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email, displayName: user.display_name }, config.jwtSecret, {
+      expiresIn: config.jwtExpiresIn
+    });
+
+    return {
+      user: { id: user.id, email: user.email, displayName: user.display_name, avatarUrl: user.avatar_url },
+      token
+    };
+  }
+
+  static getProfile(userId) {
+    const db = getDatabase();
+    const user = db.prepare('SELECT id, email, display_name, avatar_url, created_at FROM users WHERE id = ?').get(userId);
+    if (!user) {
+      const err = new Error('User not found');
+      err.status = 404;
+      throw err;
+    }
+    return user;
+  }
+
+  static updateProfile(userId, { displayName, avatarUrl, newPassword, currentPassword }) {
+    const db = getDatabase();
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    if (!user) {
+      const err = new Error('User not found');
+      err.status = 404;
+      throw err;
+    }
+
+    if (newPassword) {
+      if (!currentPassword || !bcrypt.compareSync(currentPassword, user.password_hash)) {
+        const err = new Error('Current password is incorrect');
+        err.status = 400;
+        throw err;
+      }
+      const salt = bcrypt.genSaltSync(10);
+      const newHash = bcrypt.hashSync(newPassword, salt);
+      db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?').run(newHash, Date.now(), userId);
+    }
+
+    if (displayName !== undefined || avatarUrl !== undefined) {
+      const name = displayName !== undefined ? displayName.trim() : user.display_name;
+      const avatar = avatarUrl !== undefined ? avatarUrl : user.avatar_url;
+      db.prepare('UPDATE users SET display_name = ?, avatar_url = ?, updated_at = ? WHERE id = ?').run(name, avatar, Date.now(), userId);
+    }
+
+    return this.getProfile(userId);
+  }
+
+  static deleteAccount(userId, password) {
+    const db = getDatabase();
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    if (!user) {
+      const err = new Error('User not found');
+      err.status = 404;
+      throw err;
+    }
+    if (!bcrypt.compareSync(password, user.password_hash)) {
+      const err = new Error('Incorrect password');
+      err.status = 400;
+      throw err;
+    }
+    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+    return { success: true };
+  }
+
+  static requestPasswordReset(email) {
+    const db = getDatabase();
+    const user = db.prepare('SELECT id, email FROM users WHERE email = ?').get(email.toLowerCase().trim());
+    if (!user) {
+      // Don't leak user existence
+      return { message: 'If that email exists, a password reset link has been generated.' };
+    }
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + 3600000; // 1 hour
+
+    db.prepare('INSERT INTO password_reset_tokens (token, user_id, expires_at) VALUES (?, ?, ?)').run(token, user.id, expiresAt);
+    
+    // In local development, print the reset preview link to the logs
+    console.log(`[PASSWORD RESET PREVIEW] User: ${user.email} -> Reset Token: ${token}`);
+
+    return {
+      message: 'If that email exists, a password reset link has been generated.',
+      developmentResetToken: config.nodeEnv === 'development' ? token : undefined
+    };
+  }
+
+  static confirmPasswordReset({ token, newPassword }) {
+    const db = getDatabase();
+    const row = db.prepare('SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0 AND expires_at > ?').get(token, Date.now());
+    if (!row) {
+      const err = new Error('Invalid or expired password reset token');
+      err.status = 400;
+      throw err;
+    }
+
+    const salt = bcrypt.genSaltSync(10);
+    const passwordHash = bcrypt.hashSync(newPassword, salt);
+    const now = Date.now();
+
+    const resetTx = db.transaction(() => {
+      db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?').run(passwordHash, now, row.user_id);
+      db.prepare('UPDATE password_reset_tokens SET used = 1 WHERE token = ?').run(token);
+    });
+    resetTx();
+
+    return { success: true, message: 'Password has been reset successfully. You can now login.' };
+  }
+}

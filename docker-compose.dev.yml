@@ -1,0 +1,36 @@
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: nint-api-dev
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=development
+      - JWT_SECRET=super-secret-nint-jwt-token-change-in-production
+      - JWT_REFRESH_SECRET=super-secret-nint-refresh-token-change-in-production
+      - DATABASE_PATH=/data/nint.db
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - nint_db_dev_data:/data
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: nint-web-dev
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3001/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  nint_db_dev_data:

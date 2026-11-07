@@ -1,0 +1,44 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "matches": {
+      "$matchId": {
+        ".read": true,
+        ".write": "auth != null",
+        "players": {
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid"
+          }
+        },
+        "attacks": {
+          "$attackId": {
+            ".write": "auth != null && newData.child('from').val() == auth.uid"
+          }
+        },
+        "events": {
+          "$eventId": {
+            ".write": "auth != null && newData.child('from').val() == auth.uid"
+          }
+        },
+        "rematch": {
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid"
+          }
+        }
+      }
+    },
+    "rooms": {
+      "$roomCode": {
+        ".read": true,
+        ".write": "auth != null"
+      }
+    },
+    "matchmaking_queue": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    }
+  }
+}

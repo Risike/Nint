@@ -1,0 +1,48 @@
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nint-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-super-secret-nint-jwt-token-change-in-production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-super-secret-nint-refresh-token-change-in-production}
+      - DATABASE_PATH=/data/nint.db
+    volumes:
+      - nint_db_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api
+        - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY:-demo-api-key}
+        - VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN:-nint-demo.firebaseapp.com}
+        - VITE_FIREBASE_DATABASE_URL=${VITE_FIREBASE_DATABASE_URL:-https://nint-demo-default-rtdb.firebaseio.com}
+        - VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID:-nint-demo}
+        - VITE_FIREBASE_STORAGE_BUCKET=${VITE_FIREBASE_STORAGE_BUCKET:-nint-demo.appspot.com}
+        - VITE_FIREBASE_MESSAGING_SENDER_ID=${VITE_FIREBASE_MESSAGING_SENDER_ID:-1234567890}
+        - VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID:-1:1234567890:web:abcdef123456}
+        - VITE_USE_FIREBASE_EMULATOR=${VITE_USE_FIREBASE_EMULATOR:-false}
+    container_name: nint-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  nint_db_data:
