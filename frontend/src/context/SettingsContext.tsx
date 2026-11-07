@@ -23,8 +23,8 @@ export interface SettingsState {
 
 const DEFAULT_SETTINGS: SettingsState = {
   theme: 'dark',
-  das: 133,
-  arr: 10,
+  das: 167, // Official Guideline standard
+  arr: 33,  // Official Guideline standard
   softDropFactor: 20,
   lockDelay: 500,
   soundVolume: 0.7,

@@ -37,6 +37,14 @@ export class SoundManager {
     }
   }
 
+  public playCountdown(num: number) {
+    this.playTone(440, 'triangle', 0.1, 0.3);
+  }
+
+  public playCountdownGo() {
+    this.playTone(880, 'triangle', 0.25, 0.4);
+  }
+
   public playMove() {
     this.playTone(260, 'sine', 0.03, 0.15);
   }

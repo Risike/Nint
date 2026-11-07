@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS user_settings (
     user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     theme TEXT DEFAULT 'dark',
-    das INTEGER DEFAULT 133,
-    arr INTEGER DEFAULT 10,
+    das INTEGER DEFAULT 167,
+    arr INTEGER DEFAULT 33,
     soft_drop_factor INTEGER DEFAULT 20,
     lock_delay INTEGER DEFAULT 500,
     sound_volume REAL DEFAULT 0.7,

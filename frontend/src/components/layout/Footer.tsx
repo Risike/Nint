@@ -16,9 +16,6 @@ export const Footer: React.FC = () => {
       <div>
         <strong>Nint</strong> — “Nint is not Tetris.”
       </div>
-      <div>
-        An original Guideline-compliant online falling-block puzzle game.
-      </div>
     </footer>
   );
 };

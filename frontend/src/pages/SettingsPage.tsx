@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSettings } from '../context/SettingsContext';
-import { Settings, Sliders, Volume2, Keyboard, Eye, RotateCcw } from 'lucide-react';
+import { Volume2, Keyboard, Eye, RotateCcw, Gamepad2 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
   const { settings, updateSettings, resetDefaults } = useSettings();
@@ -29,7 +29,7 @@ export const SettingsPage: React.FC = () => {
         <div>
           <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.4rem' }}>Settings</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Tune your competitive handling, keybinds, audio, and accessibility.
+            Customize your audio, controls, gamepad, and accessibility preferences.
           </p>
         </div>
 
@@ -39,50 +39,16 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        {/* Handling & Timings */}
-        <div className="panel-card" style={{ alignItems: 'stretch', gap: '1.25rem', padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.1rem' }}>
-            <Sliders size={20} color="var(--accent-cyan)" />
-            <span>Handling & Timings</span>
+        {/* Gamepad Info Notice */}
+        <div className="panel-card" style={{ alignItems: 'stretch', gap: '0.8rem', padding: '1.25rem', borderColor: 'rgba(56, 189, 248, 0.3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1rem', color: 'var(--accent-cyan)' }}>
+            <Gamepad2 size={20} />
+            <span>Gamepad / Controller Support Active</span>
           </div>
-
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>DAS (Delayed Auto Shift)</span>
-              <span style={{ fontSize: '0.85rem', fontFamily: 'monospace', color: 'var(--accent-cyan)' }}>{settings.das} ms</span>
-            </div>
-            <input
-              type="range"
-              min="50"
-              max="250"
-              step="5"
-              value={settings.das}
-              onChange={(e) => updateSettings({ das: parseInt(e.target.value, 10) })}
-              style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
-            />
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              Delay before a held left/right key starts repeating.
-            </p>
-          </div>
-
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>ARR (Auto Repeat Rate)</span>
-              <span style={{ fontSize: '0.85rem', fontFamily: 'monospace', color: 'var(--accent-cyan)' }}>{settings.arr} ms</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="50"
-              step="2"
-              value={settings.arr}
-              onChange={(e) => updateSettings({ arr: parseInt(e.target.value, 10) })}
-              style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
-            />
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              Speed of continuous piece movement when DAS is active. 0 is instantaneous.
-            </p>
-          </div>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+            Connect any standard USB or Bluetooth controller (Xbox, PlayStation, Switch Pro, or generic).
+            Use D-Pad / Left Stick to move, A / Cross / B / Circle to rotate, Y / Triangle / D-Pad Up for Hard Drop, D-Pad Down for Soft Drop, and L1 / LB / R1 / RB for Hold.
+          </p>
         </div>
 
         {/* Audio Settings */}

@@ -2,22 +2,27 @@ import React, { useEffect, useRef, useState } from 'react';
 import { GameEngine } from '../game/engine/gameEngine';
 import { AIController } from '../game/ai/aiController';
 import { KeyboardManager } from '../game/input/keyboardManager';
+import { GamepadManager } from '../game/input/gamepadManager';
 import { soundManager } from '../game/audio/soundManager';
 import { PlayfieldCanvas } from '../components/game/PlayfieldCanvas';
 import { HoldDisplay } from '../components/game/HoldDisplay';
 import { QueueDisplay } from '../components/game/QueueDisplay';
 import { TouchControls } from '../components/game/TouchControls';
 import { GameOverModal } from '../components/game/GameOverModal';
+import { CountdownOverlay } from '../components/game/CountdownOverlay';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { ApiClient } from '../services/api';
-import { Bot, User as UserIcon, RotateCcw } from 'lucide-react';
+import { Bot, User as UserIcon, RotateCcw, ArrowLeft, Swords, Shield, Zap, Flame } from 'lucide-react';
 
 export const VersusAiPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { settings } = useSettings();
 
+  const [isSelectingDifficulty, setIsSelectingDifficulty] = useState<boolean>(true);
+  const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
   const [difficulty, setDifficulty] = useState<number>(5);
+
   const [playerEngine, setPlayerEngine] = useState<GameEngine>(() => new GameEngine());
   const [aiEngine, setAiEngine] = useState<GameEngine>(() => new GameEngine());
 
@@ -34,9 +39,16 @@ export const VersusAiPage: React.FC = () => {
 
   const aiControllerRef = useRef<AIController | null>(null);
   const keyboardRef = useRef<KeyboardManager | null>(null);
+  const gamepadRef = useRef<GamepadManager | null>(null);
 
-  const startMatch = () => {
-    // Shared seed for identical piece sequence fairness!
+  const launchWithDifficulty = (level: number) => {
+    setDifficulty(level);
+    setIsSelectingDifficulty(false);
+    startMatch(level);
+  };
+
+  const startMatch = (overrideDiff?: number) => {
+    const activeDiff = overrideDiff ?? difficulty;
     const seed = Math.floor(Math.random() * 1000000);
 
     const pEngine = new GameEngine({
@@ -88,7 +100,7 @@ export const VersusAiPage: React.FC = () => {
     setAiGarbage(0);
 
     // AI Controller
-    aiControllerRef.current = new AIController(aEngine, difficulty);
+    aiControllerRef.current = new AIController(aEngine, activeDiff);
 
     // Keyboard Manager
     if (keyboardRef.current) keyboardRef.current.detach();
@@ -98,19 +110,28 @@ export const VersusAiPage: React.FC = () => {
     km.attach();
     keyboardRef.current = km;
 
-    pEngine.start();
-    aEngine.start();
+    // Gamepad Manager
+    gamepadRef.current = new GamepadManager(pEngine, {
+      onRestart: () => startMatch()
+    });
 
+    // Prepare pieces
+    pEngine.spawnPiece();
+    aEngine.spawnPiece();
     setPlayerQueue([...pEngine.randomizer.peek(5)]);
     setAiQueue([...aEngine.randomizer.peek(5)]);
+
+    // Start 3-second countdown
+    setIsCountingDown(true);
   };
 
-  useEffect(() => {
-    startMatch();
-    return () => {
-      keyboardRef.current?.detach();
-    };
-  }, [difficulty]);
+  const handleCountdownComplete = () => {
+    setIsCountingDown(false);
+    playerEngine.state = 'playing';
+    playerEngine.startTime = Date.now();
+    aiEngine.state = 'playing';
+    aiEngine.startTime = Date.now();
+  };
 
   // Main match update loop
   useEffect(() => {
@@ -121,20 +142,23 @@ export const VersusAiPage: React.FC = () => {
       const delta = time - lastTime;
       lastTime = time;
 
-      if (playerEngine.state === 'playing') {
-        playerEngine.update(delta);
-        keyboardRef.current?.update(delta);
-        setPlayerHold(playerEngine.holdPiece);
-        setPlayerQueue([...playerEngine.randomizer.peek(5)]);
-        setPlayerGarbage(playerEngine.garbageManager.getPendingCount());
-      }
+      if (!isSelectingDifficulty && !isCountingDown) {
+        if (playerEngine.state === 'playing') {
+          playerEngine.update(delta);
+          keyboardRef.current?.update(delta);
+          gamepadRef.current?.update(delta);
+          setPlayerHold(playerEngine.holdPiece);
+          setPlayerQueue([...playerEngine.randomizer.peek(5)]);
+          setPlayerGarbage(playerEngine.garbageManager.getPendingCount());
+        }
 
-      if (aiEngine.state === 'playing') {
-        aiEngine.update(delta);
-        aiControllerRef.current?.update(delta);
-        setAiHold(aiEngine.holdPiece);
-        setAiQueue([...aiEngine.randomizer.peek(5)]);
-        setAiGarbage(aiEngine.garbageManager.getPendingCount());
+        if (aiEngine.state === 'playing') {
+          aiEngine.update(delta);
+          aiControllerRef.current?.update(delta);
+          setAiHold(aiEngine.holdPiece);
+          setAiQueue([...aiEngine.randomizer.peek(5)]);
+          setAiGarbage(aiEngine.garbageManager.getPendingCount());
+        }
       }
 
       animId = requestAnimationFrame(loop);
@@ -142,7 +166,7 @@ export const VersusAiPage: React.FC = () => {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [playerEngine, aiEngine]);
+  }, [playerEngine, aiEngine, isSelectingDifficulty, isCountingDown]);
 
   const handleEndMatch = async (result: 'win' | 'loss') => {
     setMatchResult(result);
@@ -181,9 +205,110 @@ export const VersusAiPage: React.FC = () => {
     return 'Master';
   };
 
+  // Difficulty selection menu
+  if (isSelectingDifficulty) {
+    return (
+      <div style={{ width: '100%', maxWidth: '880px', textAlign: 'center', marginTop: '1rem' }}>
+        <div style={{ marginBottom: '2rem' }}>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>1v1 Versus AI</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+            Select an AI opponent difficulty level. The game begins with a 3-second countdown.
+          </p>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: '1.25rem',
+          textAlign: 'left'
+        }}>
+          {/* Beginner Lv 2 */}
+          <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(2)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ background: 'rgba(34, 197, 94, 0.2)', color: 'var(--accent-green)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
+                <Shield size={24} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Beginner (Lv 2)</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Relaxed Pace</span>
+              </div>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              Slow placement speed (~700ms) with forgiving stacking and basic clears. Great for learning versus mechanics.
+            </p>
+          </div>
+
+          {/* Casual Lv 4 */}
+          <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(4)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
+                <Bot size={24} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Casual (Lv 4)</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Balanced Battle</span>
+              </div>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              Solid flat stacking, downstacks when garbage arrives, and sends regular counter-attacks.
+            </p>
+          </div>
+
+          {/* Intermediate Lv 6 */}
+          <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(6)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ background: 'rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
+                <Zap size={24} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Intermediate (Lv 6)</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Fast Paced</span>
+              </div>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              Maintains an open right-side well for Tetris clears, reacts quickly to attacks, and builds clean stacks.
+            </p>
+          </div>
+
+          {/* Advanced Lv 8 */}
+          <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(8)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ background: 'rgba(236, 72, 153, 0.2)', color: 'var(--accent-pink)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
+                <Flame size={24} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Advanced (Lv 8)</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Aggressive AI</span>
+              </div>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              High PPS (~200ms placements), deep heuristic evaluation, and proactive B2B Tetris attacks.
+            </p>
+          </div>
+
+          {/* Master Lv 10 */}
+          <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(10)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--accent-red)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
+                <Swords size={24} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Grandmaster (Lv 10)</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Peak Competitive AI</span>
+              </div>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              Ultra-fast execution, lookahead optimization, ruthless garbage cancelling, and high APM.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-      {/* AI Difficulty Selector */}
+      {/* Top Bar with Difficulty and Menu return */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -196,19 +321,9 @@ export const VersusAiPage: React.FC = () => {
         flexWrap: 'wrap',
         justifyContent: 'center'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-          <Bot size={20} color="var(--accent-blue)" />
-          <span>AI Difficulty:</span>
-        </div>
-
-        <input
-          type="range"
-          min="1"
-          max="10"
-          value={difficulty}
-          onChange={(e) => setDifficulty(parseInt(e.target.value, 10))}
-          style={{ width: '160px', accentColor: 'var(--accent-blue)' }}
-        />
+        <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.8rem' }} onClick={() => setIsSelectingDifficulty(true)}>
+          <ArrowLeft size={16} /> Difficulty Menu
+        </button>
 
         <div style={{
           background: 'rgba(59, 130, 246, 0.2)',
@@ -218,10 +333,10 @@ export const VersusAiPage: React.FC = () => {
           fontWeight: 800,
           fontSize: '0.85rem'
         }}>
-          Lv {difficulty} ({getDifficultyLabel(difficulty)})
+          Opponent: Lv {difficulty} ({getDifficultyLabel(difficulty)})
         </div>
 
-        <button className="btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }} onClick={startMatch}>
+        <button className="btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }} onClick={() => startMatch()}>
           <RotateCcw size={14} /> Restart Match
         </button>
       </div>
@@ -244,7 +359,10 @@ export const VersusAiPage: React.FC = () => {
               </div>
             </div>
 
-            <PlayfieldCanvas engine={playerEngine} incomingGarbage={playerGarbage} cellSize={24} />
+            <div style={{ position: 'relative' }}>
+              <PlayfieldCanvas engine={playerEngine} incomingGarbage={playerGarbage} cellSize={24} />
+              <CountdownOverlay active={isCountingDown} onComplete={handleCountdownComplete} />
+            </div>
 
             <div className="side-panel" style={{ minWidth: '70px' }}>
               <QueueDisplay queue={playerQueue} count={3} />
@@ -291,7 +409,7 @@ export const VersusAiPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile Touch Controls for player */}
+      {/* Mobile Touch Controls */}
       {settings.touchControlsEnabled && <TouchControls engine={playerEngine} />}
 
       {/* Match Result Modal */}
@@ -300,8 +418,8 @@ export const VersusAiPage: React.FC = () => {
         isVictory={matchResult === 'win'}
         mode="versus_ai"
         stats={playerEngine.getStats()}
-        onRestart={startMatch}
-        onExit={() => setIsGameOverOpen(false)}
+        onRestart={() => startMatch()}
+        onExit={() => setIsSelectingDifficulty(true)}
       />
     </div>
   );

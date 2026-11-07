@@ -173,13 +173,15 @@ export const GARBAGE_ATTACK = {
   COMBO_BONUS: [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6]
 };
 
-// Default timing configuration (ms)
-export const DEFAULT_TIMING = {
-  DAS: 133, // Delayed Auto Shift
-  ARR: 10,  // Auto Repeat Rate
-  SOFT_DROP_FACTOR: 20,
-  LOCK_DELAY: 500, // Lock delay (ms)
-  MAX_LOCK_RESETS: 15,
+// Official Guideline timing configuration (ms) - Tetris Holding LLC Standards
+export const GUIDELINE_TIMING = {
+  DAS: 167, // Official Guideline Delayed Auto Shift (~10 frames at 60Hz)
+  ARR: 33,  // Official Guideline Auto Repeat Rate (~2 frames at 60Hz)
+  SOFT_DROP_FACTOR: 20, // 20x gravity speed
+  LOCK_DELAY: 500, // 0.5s lock delay
+  MAX_LOCK_RESETS: 15, // 15 moves/rotations reset limit
   LINE_CLEAR_DELAY: 200,
   SPAWN_DELAY: 0
 };
+
+export const DEFAULT_TIMING = GUIDELINE_TIMING;

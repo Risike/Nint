@@ -1,17 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GameEngine } from '../game/engine/gameEngine';
 import { KeyboardManager } from '../game/input/keyboardManager';
+import { GamepadManager } from '../game/input/gamepadManager';
 import { soundManager } from '../game/audio/soundManager';
 import { PlayfieldCanvas } from '../components/game/PlayfieldCanvas';
 import { HoldDisplay } from '../components/game/HoldDisplay';
 import { QueueDisplay } from '../components/game/QueueDisplay';
 import { TouchControls } from '../components/game/TouchControls';
 import { GameOverModal } from '../components/game/GameOverModal';
+import { CountdownOverlay } from '../components/game/CountdownOverlay';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { FirebaseRealtimeService } from '../services/firebaseRealtime';
 import { ApiClient } from '../services/api';
-import { Globe, Users, Plus, LogIn, Copy, Check, RotateCcw } from 'lucide-react';
+import { Globe, Users, Plus, LogIn, Copy, Check, RotateCcw, Zap } from 'lucide-react';
 
 export const OnlineVersusPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -21,6 +23,7 @@ export const OnlineVersusPage: React.FC = () => {
   const [roomCode, setRoomCode] = useState<string>('');
   const [inputCode, setInputCode] = useState<string>('');
   const [matchStatus, setMatchStatus] = useState<'lobby' | 'waiting' | 'in_game' | 'finished'>('lobby');
+  const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
 
   const [playerEngine, setPlayerEngine] = useState<GameEngine>(() => new GameEngine());
   const [opponentEngine, setOpponentEngine] = useState<GameEngine>(() => new GameEngine());
@@ -38,6 +41,7 @@ export const OnlineVersusPage: React.FC = () => {
   const [copied, setCopied] = useState<boolean>(false);
 
   const keyboardRef = useRef<KeyboardManager | null>(null);
+  const gamepadRef = useRef<GamepadManager | null>(null);
   const unsubscribeAttacksRef = useRef<(() => void) | null>(null);
 
   const generateRoomCode = () => {
@@ -138,11 +142,24 @@ export const OnlineVersusPage: React.FC = () => {
     km.attach();
     keyboardRef.current = km;
 
-    pEngine.start();
-    oEngine.start();
+    gamepadRef.current = new GamepadManager(pEngine);
+
+    pEngine.spawnPiece();
+    oEngine.spawnPiece();
 
     setPlayerQueue([...pEngine.randomizer.peek(5)]);
     setOpponentQueue([...oEngine.randomizer.peek(5)]);
+
+    // Start 3-second countdown
+    setIsCountingDown(true);
+  };
+
+  const handleCountdownComplete = () => {
+    setIsCountingDown(false);
+    playerEngine.state = 'playing';
+    playerEngine.startTime = Date.now();
+    opponentEngine.state = 'playing';
+    opponentEngine.startTime = Date.now();
   };
 
   useEffect(() => {
@@ -153,10 +170,11 @@ export const OnlineVersusPage: React.FC = () => {
       const delta = time - lastTime;
       lastTime = time;
 
-      if (matchStatus === 'in_game' || matchStatus === 'waiting') {
+      if (!isCountingDown && (matchStatus === 'in_game' || matchStatus === 'waiting')) {
         if (playerEngine.state === 'playing') {
           playerEngine.update(delta);
           keyboardRef.current?.update(delta);
+          gamepadRef.current?.update(delta);
           setPlayerHold(playerEngine.holdPiece);
           setPlayerQueue([...playerEngine.randomizer.peek(5)]);
           setPlayerGarbage(playerEngine.garbageManager.getPendingCount());
@@ -175,7 +193,7 @@ export const OnlineVersusPage: React.FC = () => {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [playerEngine, opponentEngine, matchStatus]);
+  }, [playerEngine, opponentEngine, matchStatus, isCountingDown]);
 
   const handleEndMatch = async (result: 'win' | 'loss') => {
     setMatchResult(result);
@@ -213,50 +231,93 @@ export const OnlineVersusPage: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
       {matchStatus === 'lobby' && (
-        <div className="panel-card" style={{ maxWidth: '480px', width: '100%', padding: '2rem', gap: '1.5rem', textAlign: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <div style={{ background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', padding: '1rem', borderRadius: '50%' }}>
-              <Globe size={40} />
+        <div style={{ width: '100%', maxWidth: '880px', textAlign: 'center', marginTop: '1rem' }}>
+          <div style={{ marginBottom: '2rem' }}>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>Online 1v1 Arena</h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+              Real-time competitive multiplayer. Create a private room or enter a code to join. Matches start with a 3-second countdown.
+            </p>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '1.25rem',
+            textAlign: 'left'
+          }}>
+            {/* Create Room Card */}
+            <div className="panel-card" style={{ padding: '1.75rem', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
+                  <Plus size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Create Private Room</h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Generate 6-letter room code</span>
+                </div>
+              </div>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                Host a private match and share the code with a friend. Both players start synchronously with identical seeds.
+              </p>
+              <button className="btn-primary" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }} onClick={handleCreateRoom}>
+                <Plus size={18} /> Host Room
+              </button>
             </div>
-          </div>
 
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Online 1v1 Battle</h2>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-            Challenge an opponent in real-time. Both players play identical piece sequences with low-latency garbage attacks.
-          </p>
+            {/* Join Room Card */}
+            <div className="panel-card" style={{ padding: '1.75rem', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ background: 'rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
+                  <LogIn size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Join with Room Code</h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Enter your friend's code</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  type="text"
+                  placeholder="ROOM CODE"
+                  value={inputCode}
+                  onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                  style={{
+                    flex: 1,
+                    padding: '0.7rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    letterSpacing: '0.1em'
+                  }}
+                  maxLength={6}
+                />
+                <button className="btn-secondary" style={{ padding: '0.7rem 1.25rem' }} onClick={handleJoinRoom}>
+                  Join
+                </button>
+              </div>
+            </div>
 
-          <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }} onClick={handleCreateRoom}>
-            <Plus size={18} /> Create Private Room
-          </button>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>OR JOIN WITH CODE</span>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              type="text"
-              placeholder="ROOM CODE"
-              value={inputCode}
-              onChange={(e) => setInputCode(e.target.value.toUpperCase())}
-              style={{
-                flex: 1,
-                padding: '0.75rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-color)',
-                background: 'var(--bg-tertiary)',
-                color: 'var(--text-primary)',
-                fontWeight: 700,
-                textAlign: 'center',
-                letterSpacing: '0.1em'
-              }}
-              maxLength={6}
-            />
-            <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} onClick={handleJoinRoom}>
-              <LogIn size={18} /> Join
-            </button>
+            {/* Quick Match Card */}
+            <div className="panel-card" style={{ padding: '1.75rem', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ background: 'rgba(234, 179, 8, 0.2)', color: 'var(--accent-yellow)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
+                  <Zap size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Quick Matchmaking</h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Auto Match</span>
+                </div>
+              </div>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                Instant peer matchup. Jump straight into an active match or auto-host for the next available challenger.
+              </p>
+              <button className="btn-primary" style={{ marginTop: 'auto', background: 'linear-gradient(135deg, var(--accent-yellow), var(--accent-orange))', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }} onClick={handleCreateRoom}>
+                <Zap size={18} /> Quick Match
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -306,7 +367,7 @@ export const OnlineVersusPage: React.FC = () => {
             {/* Player Side */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
               <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                You ({user?.display_name || 'Guest'})
+                You ({user?.display_name || 'Player 1'})
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
                 <div className="side-panel" style={{ minWidth: '80px' }}>
@@ -317,7 +378,10 @@ export const OnlineVersusPage: React.FC = () => {
                   </div>
                 </div>
 
-                <PlayfieldCanvas engine={playerEngine} incomingGarbage={playerGarbage} cellSize={24} />
+                <div style={{ position: 'relative' }}>
+                  <PlayfieldCanvas engine={playerEngine} incomingGarbage={playerGarbage} cellSize={24} />
+                  <CountdownOverlay active={isCountingDown} onComplete={handleCountdownComplete} />
+                </div>
 
                 <div className="side-panel" style={{ minWidth: '70px' }}>
                   <QueueDisplay queue={playerQueue} count={3} />
