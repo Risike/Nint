@@ -1,4 +1,5 @@
 import React from 'react';
+import { Github } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
@@ -16,19 +17,44 @@ export const Footer: React.FC = () => {
       <div>
         <strong>Nint</strong> — “Nint is not Tetris.”
       </div>
-      <div>
-        Created by <strong>Risike</strong>. Licence{' '}
+      <div style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '0.5rem',
+        flexWrap: 'wrap'
+      }}>
+        <span>
+          Created by <strong>Risike</strong>. Licence{' '}
+          <a
+            href="/LICENSE-GPL-3.0.txt"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: 'var(--accent-cyan)',
+              textDecoration: 'underline',
+              fontWeight: 600
+            }}
+          >
+            GPL 3.0
+          </a>
+        </span>
+        <span>•</span>
         <a
-          href="/LICENSE-GPL-3.0.txt"
+          href="https://github.com/Risike/nint"
           target="_blank"
           rel="noopener noreferrer"
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
             color: 'var(--accent-cyan)',
             textDecoration: 'underline',
             fontWeight: 600
           }}
         >
-          GPL 3.0
+          <Github size={14} />
+          GitHub
         </a>
       </div>
     </footer>
