@@ -7,7 +7,7 @@ export interface RendererOptions {
   showGhost?: boolean;
   showGrid?: boolean;
   colorblindMode?: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia';
-  theme?: 'dark' | 'light';
+  theme?: string;
 }
 
 export class CanvasRenderer {
@@ -73,10 +73,27 @@ export class CanvasRenderer {
     // Draw locked blocks
     for (let r = 0; r < BOARD_VISIBLE_HEIGHT; r++) {
       const boardRow = r + BOARD_BUFFER_HEIGHT;
+      const isClearing = engine.clearingRows.includes(boardRow);
       for (let c = 0; c < BOARD_WIDTH; c++) {
         const cell = engine.board[boardRow][c];
         if (cell) {
-          this.drawMino(ctx, c * this.cellSize, r * this.cellSize, cell);
+          if (isClearing) {
+            this.drawClearingMino(ctx, c * this.cellSize, r * this.cellSize, cell, engine.lineClearTimer);
+          } else {
+            this.drawMino(ctx, c * this.cellSize, r * this.cellSize, cell);
+          }
+        }
+      }
+    }
+
+    // Draw horizontal flash beam across clearing rows
+    if (engine.clearingRows.length > 0) {
+      const isFlash = Math.floor(engine.lineClearTimer / 50) % 2 === 0;
+      for (let r = 0; r < BOARD_VISIBLE_HEIGHT; r++) {
+        const boardRow = r + BOARD_BUFFER_HEIGHT;
+        if (engine.clearingRows.includes(boardRow)) {
+          ctx.fillStyle = isFlash ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.12)';
+          ctx.fillRect(0, r * this.cellSize, width, this.cellSize);
         }
       }
     }
@@ -122,6 +139,46 @@ export class CanvasRenderer {
     this.particleSystem.render(ctx);
 
     ctx.restore();
+  }
+
+  private drawClearingMino(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    color: string,
+    timerMs: number
+  ) {
+    const size = this.cellSize;
+    const pad = 1;
+    const r = 3;
+
+    // Flash/blink every 50ms (blink on/off)
+    const isFlash = Math.floor(timerMs / 50) % 2 === 0;
+
+    if (isFlash) {
+      // Pure brilliant white flash block
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, r);
+      ctx.fill();
+
+      // Top bevel highlight
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.fillRect(x + pad, y + pad, size - pad * 2, (size - pad * 2) * 0.35);
+
+      // Bright white border
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    } else {
+      // Original color with bright pulse
+      this.drawMino(ctx, x, y, color);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.beginPath();
+      ctx.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, r);
+      ctx.fill();
+    }
   }
 
   private drawMino(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {

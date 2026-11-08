@@ -7,6 +7,7 @@ interface HUDProps {
   timeMs: number;
   combo: number;
   b2b: boolean;
+  b2bChain?: number;
   pps?: number;
   apm?: number;
 }
@@ -18,6 +19,7 @@ export const HUD: React.FC<HUDProps> = ({
   timeMs,
   combo,
   b2b,
+  b2bChain = 0,
   pps = 0,
   apm = 0
 }) => {
@@ -88,7 +90,7 @@ export const HUD: React.FC<HUDProps> = ({
           textAlign: 'center',
           fontSize: '0.85rem'
         }}>
-          B2B ACTIVE
+          {b2bChain > 1 ? `B2B x${b2bChain}` : 'B2B READY'}
         </div>
       )}
     </div>

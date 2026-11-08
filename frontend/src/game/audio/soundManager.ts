@@ -2,10 +2,69 @@ export class SoundManager {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private sfxVolume: number = 0.7;
+  private musicVolume: number = 0.5;
   private isMuted: boolean = false;
+  private bgmAudio: HTMLAudioElement | null = null;
 
   constructor() {
-    // AudioContext will be initialized upon first user interaction to comply with browser autoplay policies
+    // AudioContext and BGM will be initialized upon first user interaction
+  }
+
+  private initBgm() {
+    if (!this.bgmAudio && typeof Audio !== 'undefined') {
+      try {
+        this.bgmAudio = new Audio('/audio/bgm.mp3');
+        this.bgmAudio.loop = true;
+        this.bgmAudio.volume = this.isMuted ? 0 : this.musicVolume;
+      } catch (e) {
+        console.warn('Failed to initialize BGM audio element:', e);
+      }
+    }
+  }
+
+  public startBgm() {
+    this.initBgm();
+    if (!this.bgmAudio) return;
+    this.bgmAudio.volume = this.isMuted ? 0 : this.musicVolume;
+    this.bgmAudio.currentTime = 0;
+    const playPromise = this.bgmAudio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.warn('BGM autoplay prevented or interrupted:', err);
+      });
+    }
+  }
+
+  public pauseBgm() {
+    if (this.bgmAudio && !this.bgmAudio.paused) {
+      this.bgmAudio.pause();
+    }
+  }
+
+  public resumeBgm() {
+    if (this.bgmAudio && this.bgmAudio.paused) {
+      this.bgmAudio.volume = this.isMuted ? 0 : this.musicVolume;
+      const playPromise = this.bgmAudio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('BGM resume prevented:', err);
+        });
+      }
+    }
+  }
+
+  public stopBgm() {
+    if (this.bgmAudio) {
+      this.bgmAudio.pause();
+      this.bgmAudio.currentTime = 0;
+    }
+  }
+
+  public setMusicVolume(volume: number) {
+    this.musicVolume = Math.max(0, Math.min(1, volume));
+    if (this.bgmAudio) {
+      this.bgmAudio.volume = this.isMuted ? 0 : this.musicVolume;
+    }
   }
 
   private initContext() {
@@ -34,6 +93,9 @@ export class SoundManager {
     this.isMuted = muted;
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : this.sfxVolume, this.ctx.currentTime);
+    }
+    if (this.bgmAudio) {
+      this.bgmAudio.volume = this.isMuted ? 0 : this.musicVolume;
     }
   }
 

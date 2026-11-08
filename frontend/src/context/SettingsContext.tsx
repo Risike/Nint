@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { DEFAULT_KEYBINDINGS, KeyBindings } from '../game/input/keyboardManager';
+import { DEFAULT_GAMEPAD_BINDINGS, GamepadBindings } from '../game/input/gamepadManager';
 import { soundManager } from '../game/audio/soundManager';
 import { ApiClient } from '../services/api';
 import { LocalStorageManager } from '../services/storage';
 import { useAuth } from './AuthContext';
 
 export interface SettingsState {
-  theme: 'dark' | 'light';
+  theme: string; // e.g., 'dark-01', 'light-03', etc.
   das: number;
   arr: number;
   softDropFactor: number;
@@ -19,10 +20,11 @@ export interface SettingsState {
   colorblindMode: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia';
   reducedMotion: boolean;
   keybindings: KeyBindings;
+  gamepadBindings: GamepadBindings;
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
-  theme: 'dark',
+  theme: 'dark-01', // default to first dark theme
   das: 167, // Official Guideline standard
   arr: 33,  // Official Guideline standard
   softDropFactor: 20,
@@ -34,7 +36,8 @@ const DEFAULT_SETTINGS: SettingsState = {
   touchControlsEnabled: true,
   colorblindMode: 'none',
   reducedMotion: false,
-  keybindings: DEFAULT_KEYBINDINGS
+  keybindings: DEFAULT_KEYBINDINGS,
+  gamepadBindings: DEFAULT_GAMEPAD_BINDINGS
 };
 
 interface SettingsContextType {
@@ -57,11 +60,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     document.documentElement.setAttribute('data-theme', settings.theme);
   }, [settings.theme]);
 
-  // Apply sound volume
+  // Apply sound and music volume
   useEffect(() => {
     soundManager.setVolume(settings.soundVolume);
+    soundManager.setMusicVolume(settings.musicVolume);
     soundManager.setMuted(settings.isMuted);
-  }, [settings.soundVolume, settings.isMuted]);
+  }, [settings.soundVolume, settings.musicVolume, settings.isMuted]);
 
   // Sync settings from backend when authenticated
   useEffect(() => {
@@ -72,8 +76,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             setSettings((prev) => ({
               ...prev,
               theme: remote.theme || prev.theme,
-              das: remote.das ?? prev.das,
-              arr: remote.arr ?? prev.arr,
               soundVolume: remote.sound_volume ?? prev.soundVolume,
               keybindings: remote.keybindings || prev.keybindings,
               ghostPiece: remote.ghost_piece !== undefined ? Boolean(remote.ghost_piece) : prev.ghostPiece,

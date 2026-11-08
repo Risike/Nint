@@ -7,7 +7,7 @@ export interface ClearResult {
   garbageSent: number;
   text: string;
   isB2B: boolean;
-  b2bCount: number;
+  b2bChain: number;
   comboCount: number;
   isPerfectClear: boolean;
   tSpin: TSpinType;
@@ -19,6 +19,7 @@ export class ScoringSystem {
     tSpin,
     currentLevel,
     isB2BActive,
+    currentB2BChain = 0,
     currentCombo,
     isPerfectClear
   }: {
@@ -26,6 +27,7 @@ export class ScoringSystem {
     tSpin: TSpinType;
     currentLevel: number;
     isB2BActive: boolean;
+    currentB2BChain?: number;
     currentCombo: number;
     isPerfectClear: boolean;
   }): ClearResult {
@@ -89,22 +91,32 @@ export class ScoringSystem {
     let scoreGained = baseScore * currentLevel;
     let garbageSent = baseGarbage;
 
-    // Back-to-Back handling
+    // Back-to-Back (B2B) handling strictly adhering to Tetris Guideline
     let newB2B = isB2BActive;
-    let b2bApplied = false;
+    let newB2BChain = currentB2BChain;
 
     if (linesCleared > 0) {
       if (isDifficult) {
         if (isB2BActive) {
+          // Consecutive difficult clear gets 1.5x score bonus and +1 garbage bonus
           scoreGained = Math.floor(scoreGained * SCORING.B2B_MULTIPLIER);
           garbageSent += GARBAGE_ATTACK.B2B_BONUS;
-          b2bApplied = true;
+          newB2BChain = currentB2BChain + 1;
           label = `B2B ${label}`;
+        } else {
+          // First difficult clear arms B2B
+          newB2BChain = 1;
         }
         newB2B = true;
       } else {
-        newB2B = false; // Ordinary clear (Single, Double, Triple) breaks B2B chain
+        // Normal Single, Double, Triple breaks B2B chain
+        newB2B = false;
+        newB2BChain = 0;
       }
+    } else {
+      // Placing a piece with 0 lines cleared DOES NOT break B2B in Guideline
+      newB2B = isB2BActive;
+      newB2BChain = currentB2BChain;
     }
 
     // Combo calculation
@@ -126,7 +138,7 @@ export class ScoringSystem {
       let pcScore = SCORING.PERFECT_CLEAR_SINGLE;
       if (linesCleared === 2) pcScore = SCORING.PERFECT_CLEAR_DOUBLE;
       if (linesCleared === 3) pcScore = SCORING.PERFECT_CLEAR_TRIPLE;
-      if (linesCleared === 4) pcScore = b2bApplied ? SCORING.PERFECT_CLEAR_B2B_TETRIS : SCORING.PERFECT_CLEAR_TETRIS;
+      if (linesCleared === 4) pcScore = (newB2BChain > 1) ? SCORING.PERFECT_CLEAR_B2B_TETRIS : SCORING.PERFECT_CLEAR_TETRIS;
       scoreGained += pcScore * currentLevel;
       garbageSent += GARBAGE_ATTACK.PERFECT_CLEAR;
     }
@@ -137,7 +149,7 @@ export class ScoringSystem {
       garbageSent,
       text: label,
       isB2B: newB2B,
-      b2bCount: b2bApplied ? 1 : 0,
+      b2bChain: newB2BChain,
       comboCount: newCombo,
       isPerfectClear,
       tSpin

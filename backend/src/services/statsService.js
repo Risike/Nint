@@ -6,7 +6,7 @@ export class StatsService {
     const db = getDatabase();
     const stats = db.prepare('SELECT * FROM user_statistics WHERE user_id = ?').get(userId);
     const personalBests = db.prepare('SELECT mode, metric, value, achieved_at FROM personal_bests WHERE user_id = ?').all(userId);
-    const recentMatches = db.prepare('SELECT * FROM match_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 10').all(userId);
+    const recentMatches = db.prepare('SELECT * FROM match_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 100').all(userId);
 
     const winRate = stats && stats.games_played > 0
       ? ((stats.wins / Math.max(1, stats.wins + stats.losses)) * 100).toFixed(1)
@@ -34,7 +34,13 @@ export class StatsService {
       opponentLines = 0,
       duration = 0,
       garbageSent = 0,
-      garbageReceived = 0
+      garbageReceived = 0,
+      piecesPlaced = 0,
+      tetrises = 0,
+      tSpins = 0,
+      perfectClears = 0,
+      maxCombo = 0,
+      maxB2B = 0
     } = matchData;
 
     const id = crypto.randomUUID();
@@ -62,14 +68,26 @@ export class StatsService {
           wins = wins + ?,
           losses = losses + ?,
           total_lines = total_lines + ?,
+          total_pieces = total_pieces + ?,
           total_playtime_ms = total_playtime_ms + ?,
+          total_tetrises = total_tetrises + ?,
+          total_tspins = total_tspins + ?,
+          total_perfect_clears = total_perfect_clears + ?,
+          highest_combo = MAX(highest_combo, ?),
+          highest_b2b = MAX(highest_b2b, ?),
           updated_at = ?
         WHERE user_id = ?
       `).run(
         isWin ? 1 : 0,
         isLoss ? 1 : 0,
         playerLines,
+        piecesPlaced,
         duration,
+        tetrises,
+        tSpins,
+        perfectClears,
+        maxCombo,
+        maxB2B,
         now,
         userId
       );

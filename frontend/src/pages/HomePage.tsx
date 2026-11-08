@@ -28,7 +28,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
         </p>
         <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginTop: '0.4rem', maxWidth: '600px', margin: '0.4rem auto 0' }}>
           A modern, high-performance, Guideline-compliant online falling-block puzzle game.
-          Clean handling, SRS rotation, 7-bag randomizer, 1v1 battle AI, and online multiplayer.
         </p>
 
         {isGuest && (
@@ -53,7 +52,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
         textAlign: 'left'
       }}>
         {/* Marathon */}
-        <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('marathon')}>
+        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('marathon')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
               <Flame size={24} />
@@ -69,7 +68,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
         </div>
 
         {/* Sprint */}
-        <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('sprint')}>
+        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('sprint')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div style={{ background: 'rgba(234, 179, 8, 0.2)', color: 'var(--accent-yellow)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
               <Zap size={24} />
@@ -85,7 +84,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
         </div>
 
         {/* Ultra */}
-        <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('ultra')}>
+        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('ultra')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div style={{ background: 'rgba(236, 72, 153, 0.2)', color: 'var(--accent-pink)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
               <Timer size={24} />
@@ -100,14 +99,14 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
           </p>
         </div>
 
-        {/* 1v1 AI */}
-        <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('versus_ai')}>
+        {/* Player vs CPU */}
+        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('versus_ai')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div style={{ background: 'rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
               <Swords size={24} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>1v1 Versus AI</h3>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Player vs CPU</h3>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>10 Difficulty Tiers</span>
             </div>
           </div>
@@ -116,14 +115,14 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
           </p>
         </div>
 
-        {/* Online 1v1 */}
-        <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('online')}>
+        {/* Online Player vs Player */}
+        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('online')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-            <div style={{ background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
+            <div style={{ background: 'rgba(168, 85, 247, 0.2)', color: 'var(--accent-green)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
               <Globe size={24} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Online 1v1 Realtime</h3>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Online Player vs Player</h3>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Live Room & Matchmaking</span>
             </div>
           </div>
@@ -133,7 +132,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
         </div>
 
         {/* Practice / Zen */}
-        <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('zen')}>
+        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('zen')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div style={{ background: 'rgba(168, 85, 247, 0.2)', color: 'var(--accent-purple)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
               <Play size={24} />

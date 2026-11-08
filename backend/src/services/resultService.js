@@ -2,11 +2,15 @@ import crypto from 'crypto';
 import { getDatabase } from '../config/database.js';
 
 export class ResultService {
-  static validateSubmission({ mode, score, lines, duration, piecesPlaced, pps }) {
+  static validateSubmission({ mode, score = 0, lines = 0, duration, piecesPlaced = 0, pps = 0 }) {
+    if (typeof duration !== 'number' || duration <= 0) return { valid: false, reason: 'Invalid duration' };
+
+    // Zen mode only tracks playtime - no further constraints needed
+    if (mode === 'zen') return { valid: true };
+
     // Basic type & positive checks
     if (typeof score !== 'number' || score < 0) return { valid: false, reason: 'Invalid score' };
     if (typeof lines !== 'number' || lines < 0) return { valid: false, reason: 'Invalid lines' };
-    if (typeof duration !== 'number' || duration <= 0) return { valid: false, reason: 'Invalid duration' };
     if (typeof piecesPlaced !== 'number' || piecesPlaced < 0) return { valid: false, reason: 'Invalid pieces placed' };
 
     // Human limit sanity checks (anti-cheat)
@@ -51,6 +55,26 @@ export class ResultService {
 
     const validation = this.validateSubmission({ mode, score, lines, duration, piecesPlaced, pps });
     const verified = validation.valid ? 1 : 0;
+
+    // Zen Mode: only playtime is recorded, no leaderboard or other statistics
+    if (mode === 'zen') {
+      if (!verified) {
+        return { id: null, verified: false, validationReason: validation.reason };
+      }
+      const now = Date.now();
+      db.prepare(`
+        UPDATE user_statistics SET
+          total_playtime_ms = total_playtime_ms + ?,
+          updated_at = ?
+        WHERE user_id = ?
+      `).run(duration, now, userId);
+
+      return {
+        id: crypto.randomUUID(),
+        verified: true,
+        zen: true
+      };
+    }
 
     const id = crypto.randomUUID();
     const now = Date.now();

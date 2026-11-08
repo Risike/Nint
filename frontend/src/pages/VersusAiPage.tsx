@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { GameEngine } from '../game/engine/gameEngine';
 import { AIController } from '../game/ai/aiController';
 import { KeyboardManager } from '../game/input/keyboardManager';
-import { GamepadManager } from '../game/input/gamepadManager';
+import { GamepadManager, DEFAULT_GAMEPAD_BINDINGS } from '../game/input/gamepadManager';
 import { soundManager } from '../game/audio/soundManager';
 import { PlayfieldCanvas } from '../components/game/PlayfieldCanvas';
 import { HoldDisplay } from '../components/game/HoldDisplay';
@@ -13,11 +13,14 @@ import { CountdownOverlay } from '../components/game/CountdownOverlay';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { ApiClient } from '../services/api';
+import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
+import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
 import { Bot, User as UserIcon, RotateCcw, ArrowLeft, Swords, Shield, Zap, Flame } from 'lucide-react';
 
 export const VersusAiPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { settings } = useSettings();
+  const cellSize = useDynamicCellSize(true);
 
   const [isSelectingDifficulty, setIsSelectingDifficulty] = useState<boolean>(true);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
@@ -34,21 +37,58 @@ export const VersusAiPage: React.FC = () => {
   const [playerGarbage, setPlayerGarbage] = useState<number>(0);
   const [aiGarbage, setAiGarbage] = useState<number>(0);
 
+  const [playerLinesDisplay, setPlayerLinesDisplay] = useState<number>(0);
+  const [aiLinesDisplay, setAiLinesDisplay] = useState<number>(0);
+
   const [matchResult, setMatchResult] = useState<'win' | 'loss' | null>(null);
   const [isGameOverOpen, setIsGameOverOpen] = useState<boolean>(false);
+  const [lastStats, setLastStats] = useState<any>(null);
+
+  const isPlaying = !isSelectingDifficulty && !isGameOverOpen && (playerEngine.state === 'playing' || isCountingDown);
+  useGamepadActive(isPlaying);
+
+  useGamepadBack(() => {
+    if (isGameOverOpen) {
+      setIsGameOverOpen(false);
+      setIsSelectingDifficulty(true);
+      return true;
+    }
+    if (!isSelectingDifficulty) {
+      setIsSelectingDifficulty(true);
+      return true;
+    }
+    return false;
+  }, [isGameOverOpen, isSelectingDifficulty]);
+
+  useEffect(() => {
+    return () => {
+      soundManager.stopBgm();
+    };
+  }, []);
+
+  const playerEngineRef = useRef<GameEngine>(new GameEngine());
+  const aiEngineRef = useRef<GameEngine>(new GameEngine());
+  const difficultyRef = useRef<number>(5);
+  const matchStartTimeRef = useRef<number>(0);
+  const matchEndedRef = useRef<boolean>(false);
 
   const aiControllerRef = useRef<AIController | null>(null);
   const keyboardRef = useRef<KeyboardManager | null>(null);
   const gamepadRef = useRef<GamepadManager | null>(null);
 
   const launchWithDifficulty = (level: number) => {
+    difficultyRef.current = level;
     setDifficulty(level);
     setIsSelectingDifficulty(false);
     startMatch(level);
   };
 
   const startMatch = (overrideDiff?: number) => {
-    const activeDiff = overrideDiff ?? difficulty;
+    soundManager.stopBgm();
+    const activeDiff = overrideDiff ?? difficultyRef.current;
+    difficultyRef.current = activeDiff;
+    setDifficulty(activeDiff);
+
     const seed = Math.floor(Math.random() * 1000000);
 
     const pEngine = new GameEngine({
@@ -62,6 +102,11 @@ export const VersusAiPage: React.FC = () => {
       seed,
       lockDelay: 500
     });
+
+    playerEngineRef.current = pEngine;
+    aiEngineRef.current = aEngine;
+    matchEndedRef.current = false;
+    matchStartTimeRef.current = 0;
 
     // Cross-link garbage pipelines
     pEngine.events.onGarbageSent = (amount) => {
@@ -86,14 +131,25 @@ export const VersusAiPage: React.FC = () => {
       soundManager.playClear(res.linesCleared);
       if (res.comboCount > 0) soundManager.playCombo(res.comboCount);
       setPlayerGarbage(pEngine.garbageManager.getPendingCount());
+      setPlayerLinesDisplay(pEngine.lines);
     };
 
-    // Game over listeners
-    pEngine.events.onGameOver = () => handleEndMatch('loss');
-    aEngine.events.onGameOver = () => handleEndMatch('win');
+    aEngine.events.onPieceLock = () => {
+      setAiGarbage(aEngine.garbageManager.getPendingCount());
+    };
+    aEngine.events.onLineClear = (res) => {
+      setAiGarbage(aEngine.garbageManager.getPendingCount());
+      setAiLinesDisplay(aEngine.lines);
+    };
+
+    // Game over listeners bound directly to active instances
+    pEngine.events.onGameOver = () => handleEndMatch('loss', pEngine, aEngine, activeDiff);
+    aEngine.events.onGameOver = () => handleEndMatch('win', pEngine, aEngine, activeDiff);
 
     setPlayerEngine(pEngine);
     setAiEngine(aEngine);
+    setPlayerLinesDisplay(0);
+    setAiLinesDisplay(0);
     setMatchResult(null);
     setIsGameOverOpen(false);
     setPlayerGarbage(0);
@@ -111,13 +167,13 @@ export const VersusAiPage: React.FC = () => {
     keyboardRef.current = km;
 
     // Gamepad Manager
-    gamepadRef.current = new GamepadManager(pEngine, {
+    gamepadRef.current = new GamepadManager(pEngine, settings.gamepadBindings || DEFAULT_GAMEPAD_BINDINGS, {
       onRestart: () => startMatch()
     });
 
-    // Prepare pieces
-    pEngine.spawnPiece();
-    aEngine.spawnPiece();
+    // Before countdown: show exact upcoming pieces with the 1st falling piece on top
+    pEngine.activePiece = null;
+    aEngine.activePiece = null;
     setPlayerQueue([...pEngine.randomizer.peek(5)]);
     setAiQueue([...aEngine.randomizer.peek(5)]);
 
@@ -127,10 +183,22 @@ export const VersusAiPage: React.FC = () => {
 
   const handleCountdownComplete = () => {
     setIsCountingDown(false);
-    playerEngine.state = 'playing';
-    playerEngine.startTime = Date.now();
-    aiEngine.state = 'playing';
-    aiEngine.startTime = Date.now();
+    matchStartTimeRef.current = Date.now();
+
+    const pEngine = playerEngineRef.current;
+    const aEngine = aiEngineRef.current;
+
+    pEngine.state = 'playing';
+    pEngine.startTime = Date.now();
+    pEngine.spawnPiece();
+    setPlayerQueue([...pEngine.randomizer.peek(5)]);
+
+    aEngine.state = 'playing';
+    aEngine.startTime = Date.now();
+    aEngine.spawnPiece();
+    setAiQueue([...aEngine.randomizer.peek(5)]);
+
+    soundManager.startBgm();
   };
 
   // Main match update loop
@@ -142,22 +210,27 @@ export const VersusAiPage: React.FC = () => {
       const delta = time - lastTime;
       lastTime = time;
 
+      const pEng = playerEngineRef.current;
+      const aEng = aiEngineRef.current;
+
       if (!isSelectingDifficulty && !isCountingDown) {
-        if (playerEngine.state === 'playing') {
-          playerEngine.update(delta);
+        if (pEng && pEng.state === 'playing') {
+          pEng.update(delta);
           keyboardRef.current?.update(delta);
           gamepadRef.current?.update(delta);
-          setPlayerHold(playerEngine.holdPiece);
-          setPlayerQueue([...playerEngine.randomizer.peek(5)]);
-          setPlayerGarbage(playerEngine.garbageManager.getPendingCount());
+          setPlayerHold(pEng.holdPiece);
+          setPlayerQueue([...pEng.randomizer.peek(5)]);
+          setPlayerGarbage(pEng.garbageManager.getPendingCount());
+          setPlayerLinesDisplay(pEng.lines);
         }
 
-        if (aiEngine.state === 'playing') {
-          aiEngine.update(delta);
+        if (aEng && aEng.state === 'playing') {
+          aEng.update(delta);
           aiControllerRef.current?.update(delta);
-          setAiHold(aiEngine.holdPiece);
-          setAiQueue([...aiEngine.randomizer.peek(5)]);
-          setAiGarbage(aiEngine.garbageManager.getPendingCount());
+          setAiHold(aEng.holdPiece);
+          setAiQueue([...aEng.randomizer.peek(5)]);
+          setAiGarbage(aEng.garbageManager.getPendingCount());
+          setAiLinesDisplay(aEng.lines);
         }
       }
 
@@ -166,9 +239,23 @@ export const VersusAiPage: React.FC = () => {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [playerEngine, aiEngine, isSelectingDifficulty, isCountingDown]);
+  }, [isSelectingDifficulty, isCountingDown]);
 
-  const handleEndMatch = async (result: 'win' | 'loss') => {
+  const handleEndMatch = async (
+    result: 'win' | 'loss',
+    pEngine: GameEngine = playerEngineRef.current,
+    aEngine: GameEngine = aiEngineRef.current,
+    diff: number = difficultyRef.current
+  ) => {
+    soundManager.stopBgm();
+    if (matchEndedRef.current) return;
+    matchEndedRef.current = true;
+
+    pEngine.state = 'gameover';
+    aEngine.state = 'gameover';
+
+    const pStats = pEngine.getStats();
+    setLastStats(pStats);
     setMatchResult(result);
     setIsGameOverOpen(true);
 
@@ -178,18 +265,28 @@ export const VersusAiPage: React.FC = () => {
       soundManager.playGameOver();
     }
 
+    const duration = pEngine.totalPlayTimeMs > 0
+      ? pEngine.totalPlayTimeMs
+      : (matchStartTimeRef.current > 0 ? Date.now() - matchStartTimeRef.current : 0);
+
     if (isAuthenticated) {
       try {
         await ApiClient.recordMatch({
-          opponentName: `AI Level ${difficulty}`,
+          opponentName: `AI Level ${diff}`,
           opponentType: 'ai',
-          difficulty,
+          difficulty: diff,
           result,
-          playerScore: playerEngine.score,
-          playerLines: playerEngine.lines,
-          opponentScore: aiEngine.score,
-          opponentLines: aiEngine.lines,
-          duration: playerEngine.totalPlayTimeMs
+          playerScore: pEngine.score,
+          playerLines: pEngine.lines,
+          opponentScore: aEngine.score,
+          opponentLines: aEngine.lines,
+          duration: Math.round(duration),
+          piecesPlaced: pStats.piecesPlaced || 0,
+          tetrises: pStats.tetrises || 0,
+          tSpins: pStats.tSpins || 0,
+          perfectClears: pStats.perfectClears || 0,
+          maxCombo: pStats.maxCombo || 0,
+          maxB2B: pStats.maxB2B || 0
         });
       } catch (e) {
         console.warn('Failed to record match history:', e);
@@ -210,7 +307,7 @@ export const VersusAiPage: React.FC = () => {
     return (
       <div style={{ width: '100%', maxWidth: '880px', textAlign: 'center', marginTop: '1rem' }}>
         <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>1v1 Versus AI</h1>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>Player vs CPU</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
             Select an AI opponent difficulty level. The game begins with a 3-second countdown.
           </p>
@@ -223,7 +320,7 @@ export const VersusAiPage: React.FC = () => {
           textAlign: 'left'
         }}>
           {/* Beginner Lv 2 */}
-          <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(2)}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(2)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(34, 197, 94, 0.2)', color: 'var(--accent-green)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Shield size={24} />
@@ -239,7 +336,7 @@ export const VersusAiPage: React.FC = () => {
           </div>
 
           {/* Casual Lv 4 */}
-          <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(4)}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(4)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Bot size={24} />
@@ -255,7 +352,7 @@ export const VersusAiPage: React.FC = () => {
           </div>
 
           {/* Intermediate Lv 6 */}
-          <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(6)}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(6)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Zap size={24} />
@@ -271,7 +368,7 @@ export const VersusAiPage: React.FC = () => {
           </div>
 
           {/* Advanced Lv 8 */}
-          <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(8)}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(8)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(236, 72, 153, 0.2)', color: 'var(--accent-pink)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Flame size={24} />
@@ -287,7 +384,7 @@ export const VersusAiPage: React.FC = () => {
           </div>
 
           {/* Master Lv 10 */}
-          <div className="panel-card" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(10)}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(10)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--accent-red)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Swords size={24} />
@@ -342,7 +439,7 @@ export const VersusAiPage: React.FC = () => {
       </div>
 
       {/* Dual Arena: Player vs AI */}
-      <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', flexWrap: 'nowrap', alignItems: 'flex-start', maxWidth: '100%', overflowX: 'auto', padding: '0 0.5rem' }}>
         {/* Player Side */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.95rem' }}>
@@ -355,17 +452,17 @@ export const VersusAiPage: React.FC = () => {
               <HoldDisplay piece={playerHold} canHold={playerEngine.canHold} />
               <div className="panel-card" style={{ padding: '0.5rem' }}>
                 <div className="stat-label">Lines</div>
-                <div className="stat-value" style={{ fontSize: '1.2rem' }}>{playerEngine.lines}</div>
+                <div className="stat-value" style={{ fontSize: '1.2rem' }}>{playerLinesDisplay}</div>
               </div>
             </div>
 
             <div style={{ position: 'relative' }}>
-              <PlayfieldCanvas engine={playerEngine} incomingGarbage={playerGarbage} cellSize={24} />
+              <PlayfieldCanvas engine={playerEngine} incomingGarbage={playerGarbage} cellSize={cellSize} />
               <CountdownOverlay active={isCountingDown} onComplete={handleCountdownComplete} />
             </div>
 
             <div className="side-panel" style={{ minWidth: '70px' }}>
-              <QueueDisplay queue={playerQueue} count={3} />
+              <QueueDisplay queue={playerQueue} count={5} />
             </div>
           </div>
         </div>
@@ -396,14 +493,14 @@ export const VersusAiPage: React.FC = () => {
               <HoldDisplay piece={aiHold} canHold={aiEngine.canHold} />
               <div className="panel-card" style={{ padding: '0.5rem' }}>
                 <div className="stat-label">Lines</div>
-                <div className="stat-value" style={{ fontSize: '1.2rem' }}>{aiEngine.lines}</div>
+                <div className="stat-value" style={{ fontSize: '1.2rem' }}>{aiLinesDisplay}</div>
               </div>
             </div>
 
-            <PlayfieldCanvas engine={aiEngine} incomingGarbage={aiGarbage} cellSize={24} />
+            <PlayfieldCanvas engine={aiEngine} incomingGarbage={aiGarbage} cellSize={cellSize} />
 
             <div className="side-panel" style={{ minWidth: '70px' }}>
-              <QueueDisplay queue={aiQueue} count={3} />
+              <QueueDisplay queue={aiQueue} count={5} />
             </div>
           </div>
         </div>
@@ -417,7 +514,8 @@ export const VersusAiPage: React.FC = () => {
         isOpen={isGameOverOpen}
         isVictory={matchResult === 'win'}
         mode="versus_ai"
-        stats={playerEngine.getStats()}
+        stats={lastStats || playerEngineRef.current.getStats()}
+        customMessage={matchResult === 'win' ? `Victory against AI Level ${difficulty}!` : `Defeat against AI Level ${difficulty}`}
         onRestart={() => startMatch()}
         onExit={() => setIsSelectingDifficulty(true)}
       />

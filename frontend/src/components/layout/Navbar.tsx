@@ -1,7 +1,8 @@
 import React from 'react';
-import { Gamepad2, Trophy, BarChart3, Settings, User, Moon, Sun, Volume2, VolumeX, Swords, Globe } from 'lucide-react';
+import { Gamepad2, Trophy, BarChart3, Settings, User, Volume2, VolumeX, Swords, Globe } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
+import { useGamepadNav } from '../../context/GamepadNavContext';
 
 interface NavbarProps {
   activeTab: string;
@@ -10,22 +11,50 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
   const { user, isAuthenticated, logout } = useAuth();
-  const { settings, toggleTheme, updateSettings } = useSettings();
+  const { settings, updateSettings } = useSettings();
+  const { gamepadConnected } = useGamepadNav();
 
   return (
     <nav className="navbar">
       <a href="#" className="nav-brand" onClick={(e) => { e.preventDefault(); setActiveTab('home'); }}>
         <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="100" height="100" rx="20" fill="#0f172a"/>
-          <rect x="20" y="20" width="18" height="60" rx="4" fill="#06b6d4"/>
-          <rect x="62" y="20" width="18" height="60" rx="4" fill="#8b5cf6"/>
-          <path d="M 38 20 L 62 60 L 62 80 L 38 40 Z" fill="#ec4899"/>
+          <rect width="100" height="100" rx="22" fill="#0b0f19"/>
+          <rect x="1" y="1" width="98" height="98" rx="21" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5"/>
+          
+          {/* Left Column (Cyan I & Blue J) */}
+          <rect x="15" y="15" width="16" height="16" rx="3" fill="#06b6d4" stroke="#22d3ee" strokeWidth="0.8"/>
+          <rect x="16.5" y="16.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+          <rect x="15" y="33" width="16" height="16" rx="3" fill="#06b6d4" stroke="#22d3ee" strokeWidth="0.8"/>
+          <rect x="16.5" y="34.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+          <rect x="15" y="51" width="16" height="16" rx="3" fill="#3b82f6" stroke="#60a5fa" strokeWidth="0.8"/>
+          <rect x="16.5" y="52.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+          <rect x="15" y="69" width="16" height="16" rx="3" fill="#3b82f6" stroke="#60a5fa" strokeWidth="0.8"/>
+          <rect x="16.5" y="70.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+
+          {/* Diagonal Bridge (Orange L & Purple T) */}
+          <rect x="33" y="33" width="16" height="16" rx="3" fill="#f97316" stroke="#fb923c" strokeWidth="0.8"/>
+          <rect x="34.5" y="34.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+          <rect x="51" y="51" width="16" height="16" rx="3" fill="#a855f7" stroke="#c084fc" strokeWidth="0.8"/>
+          <rect x="52.5" y="52.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+
+          {/* Right Column (Yellow O & Red Z) */}
+          <rect x="69" y="15" width="16" height="16" rx="3" fill="#eab308" stroke="#fde047" strokeWidth="0.8"/>
+          <rect x="70.5" y="16.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+          <rect x="69" y="33" width="16" height="16" rx="3" fill="#eab308" stroke="#fde047" strokeWidth="0.8"/>
+          <rect x="70.5" y="34.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+          <rect x="69" y="51" width="16" height="16" rx="3" fill="#ef4444" stroke="#f87171" strokeWidth="0.8"/>
+          <rect x="70.5" y="52.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+          <rect x="69" y="69" width="16" height="16" rx="3" fill="#ef4444" stroke="#f87171" strokeWidth="0.8"/>
+          <rect x="70.5" y="70.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
         </svg>
         <span>Nint</span>
         <span className="tagline">“Nint is not Tetris.”</span>
       </a>
 
       <div className="nav-links">
+        {gamepadConnected && (
+          <span className="gamepad-nav-badge" title="Navigate tabs with LB/LT">LB</span>
+        )}
         <button
           className={`nav-item ${activeTab === 'solo' ? 'active' : ''}`}
           onClick={() => setActiveTab('solo')}
@@ -36,13 +65,13 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
           className={`nav-item ${activeTab === 'versus_ai' ? 'active' : ''}`}
           onClick={() => setActiveTab('versus_ai')}
         >
-          1v1 AI
+          Player vs CPU
         </button>
         <button
           className={`nav-item ${activeTab === 'online' ? 'active' : ''}`}
           onClick={() => setActiveTab('online')}
         >
-          Online 1v1
+          Online Player vs Player
         </button>
         <button
           className={`nav-item ${activeTab === 'leaderboards' ? 'active' : ''}`}
@@ -62,6 +91,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
         >
           Settings
         </button>
+        {gamepadConnected && (
+          <span className="gamepad-nav-badge" title="Navigate tabs with RB/RT">RB</span>
+        )}
       </div>
 
       <div className="nav-actions">
@@ -72,15 +104,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
           aria-label="Toggle Sound"
         >
           {settings.isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-        </button>
-
-        <button
-          className="icon-btn"
-          onClick={toggleTheme}
-          title={settings.theme === 'dark' ? 'Light mode' : 'Dark mode'}
-          aria-label="Toggle Theme"
-        >
-          {settings.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
         {isAuthenticated ? (

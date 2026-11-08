@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Trophy, RotateCcw, Home, CheckCircle2 } from 'lucide-react';
+import { useGamepadNav, useGamepadBack } from '../../context/GamepadNavContext';
 
 interface GameOverModalProps {
   isOpen: boolean;
   isVictory?: boolean;
+  customMessage?: string;
   mode: string;
   stats: {
     score: number;
@@ -26,12 +28,30 @@ interface GameOverModalProps {
 export const GameOverModal: React.FC<GameOverModalProps> = ({
   isOpen,
   isVictory = false,
+  customMessage,
   mode,
   stats,
   isSaved = false,
   onRestart,
   onExit
 }) => {
+  const { setFocusedElement } = useGamepadNav();
+  const playAgainBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  useGamepadBack(() => {
+    if (isOpen) {
+      onExit();
+      return true;
+    }
+    return false;
+  }, [isOpen, onExit]);
+
+  useEffect(() => {
+    if (isOpen && playAgainBtnRef.current) {
+      setFocusedElement(playAgainBtnRef.current);
+    }
+  }, [isOpen, setFocusedElement]);
+
   if (!isOpen) return null;
 
   const formatDuration = (ms: number) => {
@@ -56,6 +76,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         <h2 className="modal-title" style={{ color: isVictory ? 'var(--accent-green)' : 'var(--text-primary)' }}>
           {isVictory ? 'VICTORY!' : 'GAME OVER'}
         </h2>
+        {customMessage && (
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '-0.5rem', marginBottom: '0.5rem' }}>
+            {customMessage}
+          </p>
+        )}
 
         <div style={{
           display: 'grid',
@@ -109,10 +134,14 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
         </div>
 
-        {isSaved && (
+        {isSaved ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: 'var(--accent-green)', fontSize: '0.85rem' }}>
             <CheckCircle2 size={16} />
             <span>Score saved to leaderboard!</span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            <span>Log in to submit scores to the leaderboard</span>
           </div>
         )}
 
@@ -120,7 +149,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           <button className="btn-secondary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }} onClick={onExit}>
             <Home size={18} /> Menu
           </button>
-          <button className="btn-primary" style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }} onClick={onRestart}>
+          <button ref={playAgainBtnRef} className="btn-primary" style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }} onClick={onRestart}>
             <RotateCcw size={18} /> Play Again
           </button>
         </div>

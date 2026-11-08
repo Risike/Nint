@@ -1,9 +1,52 @@
 import { GameEngine } from '../engine/gameEngine';
 
+export interface GamepadBindings {
+  moveLeft: number[];
+  moveRight: number[];
+  softDrop: number[];
+  hardDrop: number[];
+  rotateCW: number[];
+  rotateCCW: number[];
+  hold: number[];
+  pause: number[];
+  restart: number[];
+}
+
+export const DEFAULT_GAMEPAD_BINDINGS: GamepadBindings = {
+  moveLeft: [14],    // D-Pad Left
+  moveRight: [15],   // D-Pad Right
+  softDrop: [13],    // D-Pad Down
+  hardDrop: [3, 12], // Y / Triangle, D-Pad Up
+  rotateCW: [0],     // A / Cross
+  rotateCCW: [1, 2], // B / Circle, X / Square
+  hold: [4, 5],      // LB / L1, RB / R1
+  pause: [9],        // Start / Options
+  restart: [8]       // Back / Share
+};
+
+export const GAMEPAD_BUTTON_NAMES: Record<number, string> = {
+  0: 'A / Cross',
+  1: 'B / Circle',
+  2: 'X / Square',
+  3: 'Y / Triangle',
+  4: 'LB / L1',
+  5: 'RB / R1',
+  6: 'LT / L2',
+  7: 'RT / R2',
+  8: 'Back / Share',
+  9: 'Start / Options',
+  10: 'L3 Click',
+  11: 'R3 Click',
+  12: 'D-Pad Up',
+  13: 'D-Pad Down',
+  14: 'D-Pad Left',
+  15: 'D-Pad Right'
+};
+
 export class GamepadManager {
   private engine: GameEngine;
+  private bindings: GamepadBindings;
   private prevButtons: boolean[] = [];
-  private prevAxes: number[] = [];
 
   private dasTimer: number = 0;
   private arrTimer: number = 0;
@@ -14,11 +57,17 @@ export class GamepadManager {
 
   constructor(
     engine: GameEngine,
+    bindings: GamepadBindings = DEFAULT_GAMEPAD_BINDINGS,
     callbacks?: { onPause?: () => void; onRestart?: () => void }
   ) {
     this.engine = engine;
+    this.bindings = bindings;
     this.onPauseCallback = callbacks?.onPause;
     this.onRestartCallback = callbacks?.onRestart;
+  }
+
+  public setBindings(newBindings: Partial<GamepadBindings>) {
+    this.bindings = { ...this.bindings, ...newBindings };
   }
 
   public update(deltaMs: number) {
@@ -27,56 +76,60 @@ export class GamepadManager {
     const gamepads = navigator.getGamepads();
     if (!gamepads) return;
 
-    // Check first connected gamepad
     const gp = Array.from(gamepads).find(g => g && g.connected);
     if (!gp) return;
 
     const buttons = gp.buttons.map(b => (typeof b === 'object' ? b.pressed : b === 1.0));
     const axes = gp.axes;
 
-    // Detect button presses (rising edge)
-    const justPressed = (idx: number) => buttons[idx] && !this.prevButtons[idx];
+    const justPressed = (btnIndices: number[]) => {
+      return btnIndices.some(idx => buttons[idx] && !this.prevButtons[idx]);
+    };
 
-    // Pause: Button 9 (Start / Options)
-    if (justPressed(9)) {
+    const isPressed = (btnIndices: number[]) => {
+      return btnIndices.some(idx => buttons[idx]);
+    };
+
+    // Pause
+    if (justPressed(this.bindings.pause)) {
       this.onPauseCallback?.();
     }
 
-    // Restart: Button 8 (Select / Back)
-    if (justPressed(8)) {
+    // Restart
+    if (justPressed(this.bindings.restart)) {
       this.onRestartCallback?.();
     }
 
     if (this.engine.state === 'playing') {
-      // Rotate CW: Button 0 (A / Cross) or Button 12 (D-Pad Up if used for rotate in some mappings, but Button 0 is standard)
-      if (justPressed(0)) {
+      // Rotate CW
+      if (justPressed(this.bindings.rotateCW)) {
         this.engine.rotateCW();
       }
 
-      // Rotate CCW: Button 1 (B / Circle) or Button 2 (X / Square)
-      if (justPressed(1) || justPressed(2)) {
+      // Rotate CCW
+      if (justPressed(this.bindings.rotateCCW)) {
         this.engine.rotateCCW();
       }
 
-      // Hard Drop: Button 3 (Y / Triangle) or Button 12 (D-Pad Up)
-      if (justPressed(3) || justPressed(12)) {
+      // Hard Drop
+      if (justPressed(this.bindings.hardDrop)) {
         this.engine.hardDrop();
       }
 
-      // Hold: Button 4 (LB / L1) or Button 5 (RB / R1)
-      if (justPressed(4) || justPressed(5)) {
+      // Hold
+      if (justPressed(this.bindings.hold)) {
         this.engine.hold();
       }
 
-      // Soft Drop: Button 13 (D-Pad Down) or Left Stick Down (axes[1] > 0.5)
-      const isSoftDrop = buttons[13] || (axes[1] && axes[1] > 0.5);
+      // Soft Drop: Bound buttons or Left Analog Stick Down
+      const isSoftDrop = isPressed(this.bindings.softDrop) || (axes[1] && axes[1] > 0.5);
       if (isSoftDrop) {
         this.engine.softDrop();
       }
 
-      // Horizontal direction state: D-Pad Left (14) or axes[0] < -0.5 vs D-Pad Right (15) or axes[0] > 0.5
-      const isLeft = buttons[14] || (axes[0] && axes[0] < -0.5);
-      const isRight = buttons[15] || (axes[0] && axes[0] > 0.5);
+      // Horizontal Movement: Bound buttons or Left Stick
+      const isLeft = isPressed(this.bindings.moveLeft) || (axes[0] && axes[0] < -0.5);
+      const isRight = isPressed(this.bindings.moveRight) || (axes[0] && axes[0] > 0.5);
 
       if (isLeft && !isRight) {
         if (this.activeDirection !== 'left') {
@@ -120,6 +173,5 @@ export class GamepadManager {
     }
 
     this.prevButtons = buttons;
-    this.prevAxes = Array.from(axes);
   }
 }

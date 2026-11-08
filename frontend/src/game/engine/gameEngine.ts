@@ -23,7 +23,11 @@ export interface GameEngineOptions {
   maxLockResets?: number;
   startingLevel?: number;
   gravityCurve?: (level: number) => number; // ms per drop step
+  fixedGravity?: boolean; // If true, dropInterval does not increase on level-up
+  immortal?: boolean; // Zen mode: soft reset board on top-out instead of stopping
+  startingGarbageLines?: number; // Pre-fill with downstack practice lines
   enableGarbage?: boolean;
+  lineClearDelay?: number; // Duration of line clear flash in ms (default 240ms)
 }
 
 export type GameState = 'ready' | 'playing' | 'paused' | 'gameover' | 'completed';
@@ -35,6 +39,8 @@ export interface GameEvents {
   onPieceRotate?: () => void;
   onPieceLock?: () => void;
   onLineClear?: (result: ClearResult) => void;
+  onLineClearFinish?: (clearedRows: number[]) => void;
+  onPerfectClear?: () => void;
   onGarbageSent?: (amount: number) => void;
   onGarbageReceived?: (amount: number) => void;
   onGameOver?: (reason: string) => void;
@@ -60,6 +66,7 @@ export class GameEngine {
   public perfectClearsCount: number = 0;
   public maxCombo: number = 0;
   public maxB2B: number = 0;
+  public b2bChain: number = 0;
 
   public b2bActive: boolean = false;
   public comboCount: number = -1;
@@ -72,6 +79,11 @@ export class GameEngine {
   public arr: number;
   public lockDelay: number;
   public maxLockResets: number;
+  public fixedGravity: boolean = false;
+  public immortal: boolean = false;
+  public lineClearDelay: number = 240;
+  public clearingRows: number[] = [];
+  public lineClearTimer: number = 0;
   private gravityCurve: (level: number) => number;
 
   private dropInterval: number = 1000;
@@ -100,11 +112,29 @@ export class GameEngine {
     this.lockDelay = options.lockDelay ?? DEFAULT_TIMING.LOCK_DELAY;
     this.maxLockResets = options.maxLockResets ?? DEFAULT_TIMING.MAX_LOCK_RESETS;
     this.level = options.startingLevel ?? 1;
+    this.fixedGravity = Boolean(options.fixedGravity);
+    this.immortal = Boolean(options.immortal);
+    this.lineClearDelay = options.lineClearDelay ?? 240;
 
     this.gravityCurve = options.gravityCurve ?? GameEngine.defaultGravityCurve;
     this.dropInterval = this.gravityCurve(this.level);
 
     this.board = this.createEmptyBoard();
+
+    if (options.startingGarbageLines && options.startingGarbageLines > 0) {
+      this.populateStartingGarbage(options.startingGarbageLines);
+    }
+  }
+
+  public populateStartingGarbage(linesCount: number) {
+    const count = Math.min(18, Math.max(1, linesCount));
+    for (let i = 0; i < count; i++) {
+      const rowIndex = BOARD_TOTAL_HEIGHT - 1 - i;
+      const hole = Math.floor(Math.random() * BOARD_WIDTH);
+      const row = new Array(BOARD_WIDTH).fill('#64748b');
+      row[hole] = null;
+      this.board[rowIndex] = row;
+    }
   }
 
   public static defaultGravityCurve(level: number): number {
@@ -222,6 +252,7 @@ export class GameEngine {
     if (this.state !== 'playing' || !this.activePiece) return false;
     if (this.isValidPosition(this.activePiece, this.activeRotation, this.activeX - 1, this.activeY)) {
       this.activeX--;
+      this.lastActionWasRotation = false;
       this.onPieceMoved();
       return true;
     }
@@ -232,6 +263,7 @@ export class GameEngine {
     if (this.state !== 'playing' || !this.activePiece) return false;
     if (this.isValidPosition(this.activePiece, this.activeRotation, this.activeX + 1, this.activeY)) {
       this.activeX++;
+      this.lastActionWasRotation = false;
       this.onPieceMoved();
       return true;
     }
@@ -242,6 +274,7 @@ export class GameEngine {
     if (this.state !== 'playing' || !this.activePiece) return false;
     if (this.isValidPosition(this.activePiece, this.activeRotation, this.activeX, this.activeY + 1)) {
       this.activeY++;
+      this.lastActionWasRotation = false;
       this.score += 1; // 1 point per soft drop cell
       this.dropTimer = 0;
       this.onPieceMoved();
@@ -254,6 +287,9 @@ export class GameEngine {
     if (this.state !== 'playing' || !this.activePiece) return 0;
     const ghostY = this.getGhostY();
     const droppedDistance = ghostY - this.activeY;
+    if (droppedDistance > 0) {
+      this.lastActionWasRotation = false;
+    }
     this.activeY = ghostY;
     this.score += droppedDistance * 2; // 2 points per hard drop cell
     this.lockPiece();
@@ -339,6 +375,19 @@ export class GameEngine {
     const blocks = this.getActiveBlocks();
     const color = PIECES[this.activePiece].color;
 
+    // T-Spin Check before writing minos to the board
+    let tSpinType: TSpinType = 'none';
+    if (this.activePiece === 'T') {
+      tSpinType = TSpinDetector.checkTSpin(
+        this.board,
+        this.activeX,
+        this.activeY,
+        this.activeRotation,
+        this.lastActionWasRotation,
+        this.lastKickIndex
+      );
+    }
+
     // Check if piece locked entirely above visible area (Row < 20) -> Lock out
     let allAboveVisible = true;
     for (const b of blocks) {
@@ -358,37 +407,12 @@ export class GameEngine {
       return;
     }
 
-    // T-Spin Check
-    let tSpinType: TSpinType = 'none';
-    if (this.activePiece === 'T') {
-      tSpinType = TSpinDetector.checkTSpin(
-        this.board,
-        this.activeX,
-        this.activeY,
-        this.activeRotation,
-        this.lastActionWasRotation,
-        this.lastKickIndex
-      );
-    }
-
     // Line Clear detection
     const clearedRowIndices: number[] = [];
     for (let r = 0; r < BOARD_TOTAL_HEIGHT; r++) {
       if (this.board[r].every(cell => cell !== null)) {
         clearedRowIndices.push(r);
       }
-    }
-
-    // Remove cleared rows and insert empty rows at top
-    for (const r of clearedRowIndices) {
-      this.board.splice(r, 1);
-      this.board.unshift(new Array(BOARD_WIDTH).fill(null));
-    }
-
-    // Check for Perfect Clear
-    const isPerfectClear = this.board.every(row => row.every(cell => cell === null));
-    if (isPerfectClear) {
-      this.perfectClearsCount++;
     }
 
     const linesCleared = clearedRowIndices.length;
@@ -405,27 +429,31 @@ export class GameEngine {
       tSpin: tSpinType,
       currentLevel: this.level,
       isB2BActive: this.b2bActive,
+      currentB2BChain: this.b2bChain,
       currentCombo: this.comboCount,
-      isPerfectClear
+      isPerfectClear: false // Checked after lines collapse in finishLineClear
     });
 
     this.score += result.scoreGained;
     this.lines += linesCleared;
     this.b2bActive = result.isB2B;
+    this.b2bChain = result.b2bChain;
     this.comboCount = result.comboCount;
 
     if (this.comboCount > this.maxCombo) {
       this.maxCombo = this.comboCount;
     }
-    if (this.b2bActive && result.b2bCount > this.maxB2B) {
-      this.maxB2B = result.b2bCount;
+    if (this.b2bChain > this.maxB2B) {
+      this.maxB2B = this.b2bChain;
     }
 
     // Level progression (every 10 lines)
     const newLevel = Math.floor(this.lines / 10) + 1;
     if (newLevel !== this.level) {
       this.level = newLevel;
-      this.dropInterval = this.gravityCurve(this.level);
+      if (!this.fixedGravity) {
+        this.dropInterval = this.gravityCurve(this.level);
+      }
     }
 
     this.events.onScoreUpdate?.(this.score, this.lines, this.level);
@@ -443,8 +471,62 @@ export class GameEngine {
       }
     }
 
-    // 2. If no lines were cleared and pending garbage exists, push incoming garbage into the board
-    if (linesCleared === 0 && this.garbageManager.getPendingCount() > 0) {
+    if (linesCleared > 0) {
+      // Enter Line Clear Delay & Flash Animation:
+      // Rows remain on board during the delay to flash/blink, then collapse in finishLineClear()
+      this.clearingRows = [...clearedRowIndices];
+      this.lineClearTimer = this.lineClearDelay;
+      this.activePiece = null;
+    } else {
+      // 2. If no lines were cleared and pending garbage exists, push incoming garbage into the board
+      if (this.garbageManager.getPendingCount() > 0) {
+        const { insertedLines, toppedOut } = this.garbageManager.insertGarbage(this.board);
+        if (toppedOut) {
+          this.gameOver('top_out');
+          return;
+        }
+        if (insertedLines > 0) {
+          this.events.onGarbageReceived?.(insertedLines);
+        }
+      }
+
+      this.canHold = true;
+      this.spawnPiece();
+    }
+  }
+
+  public finishLineClear() {
+    if (this.clearingRows.length === 0) return;
+
+    // Remove cleared rows and insert empty rows at top
+    // First remove all cleared rows from bottom to top so indices don't shift
+    const sorted = [...this.clearingRows].sort((a, b) => b - a);
+    for (const r of sorted) {
+      this.board.splice(r, 1);
+    }
+    // Then insert the exact same number of empty rows at the top
+    for (let i = 0; i < sorted.length; i++) {
+      this.board.unshift(new Array(BOARD_WIDTH).fill(null));
+    }
+
+    // Check for Perfect Clear after lines are eliminated
+    const isPerfectClear = this.board.every(row => row.every(cell => cell === null));
+    if (isPerfectClear) {
+      this.perfectClearsCount++;
+      const pcBonus = 3000 * this.level;
+      this.score += pcBonus;
+      this.events.onScoreUpdate?.(this.score, this.lines, this.level);
+      this.events.onPerfectClear?.();
+    }
+
+    const finished = [...this.clearingRows];
+    this.clearingRows = [];
+    this.lineClearTimer = 0;
+
+    this.events.onLineClearFinish?.(finished);
+
+    // If pending garbage arrived during the line clear delay, insert it now before next piece spawns
+    if (this.garbageManager.getPendingCount() > 0) {
       const { insertedLines, toppedOut } = this.garbageManager.insertGarbage(this.board);
       if (toppedOut) {
         this.gameOver('top_out');
@@ -460,9 +542,20 @@ export class GameEngine {
   }
 
   public update(deltaMs: number) {
-    if (this.state !== 'playing' || !this.activePiece) return;
+    if (this.state !== 'playing') return;
 
     this.totalPlayTimeMs += deltaMs;
+
+    // Line clear animation in progress: blink and pause piece spawning
+    if (this.clearingRows.length > 0) {
+      this.lineClearTimer -= deltaMs;
+      if (this.lineClearTimer <= 0) {
+        this.finishLineClear();
+      }
+      return;
+    }
+
+    if (!this.activePiece) return;
 
     // Check if resting on ground
     const onGround = !this.isValidPosition(this.activePiece, this.activeRotation, this.activeX, this.activeY + 1);
@@ -483,12 +576,21 @@ export class GameEngine {
       if (this.dropTimer >= this.dropInterval) {
         this.dropTimer = 0;
         this.activeY++;
+        this.lastActionWasRotation = false;
         this.onPieceMoved();
       }
     }
   }
 
   public gameOver(reason: string = 'top_out') {
+    if (this.immortal) {
+      // Zen mode: soft reset board on top-out, preserve stats and continue seamlessly
+      this.board = this.createEmptyBoard();
+      this.spawnPiece();
+      this.events.onPieceSpawn?.(this.activePiece!);
+      return;
+    }
+
     this.state = 'gameover';
     this.endTime = Date.now();
     this.events.onStateChange?.(this.state);

@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { BarChart2, Trophy, Clock, Zap, Target, Swords } from 'lucide-react';
+import { LocalStorageManager } from '../services/storage';
+import { BarChart2, Trophy, Clock, Zap, Target, Swords, Flame, Timer, Bot, Users } from 'lucide-react';
 
 export const StatsPage: React.FC = () => {
   const { isAuthenticated, isGuest } = useAuth();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [historyTab, setHistoryTab] = useState<'cpu' | 'pvp'>('cpu');
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -19,52 +21,222 @@ export const StatsPage: React.FC = () => {
     }
   }, [isAuthenticated]);
 
-  if (isGuest) {
-    return (
-      <div className="panel-card" style={{ maxWidth: '500px', padding: '2rem', textAlign: 'center', margin: '2rem auto' }}>
-        <BarChart2 size={40} color="var(--accent-blue)" style={{ margin: '0 auto 1rem' }} />
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '0.5rem' }}>Guest Statistics</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
-          You are currently playing in guest mode. Detailed historical statistics, match history, and personal best tracking are saved to the server when you create an account.
-        </p>
-      </div>
-    );
-  }
+  const guestResults = !isAuthenticated ? LocalStorageManager.getItem<any[]>('guest_results', []) : [];
+
+  const formatPlaytime = (ms: number) => {
+    if (!ms || ms <= 0) return '0s';
+    const totalSecs = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+    if (mins > 0) {
+      return `${mins}m ${secs}s`;
+    }
+    return `${secs}s`;
+  };
+
+  const formatDuration = (ms: number) => {
+    if (!ms || ms <= 0) return '—';
+    const totalSec = (ms / 1000).toFixed(2);
+    return `${totalSec}s`;
+  };
+
+  // Helper to extract personal bests (authenticated from server or computed from guest_results)
+  const getSoloPersonalBests = () => {
+    if (isAuthenticated && data?.personalBests) {
+      const serverBests: Record<string, { score?: number; time?: number; date?: number }> = {};
+      data.personalBests.forEach((pb: any) => {
+        if (!serverBests[pb.mode]) serverBests[pb.mode] = {};
+        if (pb.metric === 'score') {
+          serverBests[pb.mode].score = pb.value;
+          serverBests[pb.mode].date = pb.achieved_at;
+        } else if (pb.metric === 'time_ms') {
+          serverBests[pb.mode].time = pb.value;
+          serverBests[pb.mode].date = pb.achieved_at;
+        }
+      });
+      return serverBests;
+    }
+
+    // Guest fallback: compute from local storage
+    const localBests: Record<string, { score?: number; time?: number; date?: number }> = {};
+    guestResults.forEach((r: any) => {
+      const modeKey = r.mode;
+      if (!localBests[modeKey]) localBests[modeKey] = {};
+      if (r.score !== undefined && (localBests[modeKey].score === undefined || r.score > (localBests[modeKey].score || 0))) {
+        localBests[modeKey].score = r.score;
+        localBests[modeKey].date = r.date;
+      }
+      if (r.duration !== undefined && r.duration > 0 && (localBests[modeKey].time === undefined || r.duration < (localBests[modeKey].time || Infinity))) {
+        localBests[modeKey].time = r.duration;
+        localBests[modeKey].date = r.date;
+      }
+    });
+    return localBests;
+  };
 
   if (loading) {
     return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading stats...</div>;
   }
 
   const stats = data?.stats || {};
-  const personalBests = data?.personalBests || [];
   const recentMatches = data?.recentMatches || [];
+  const soloBests = getSoloPersonalBests();
 
-  const formatPlaytime = (ms: number) => {
-    const totalMinutes = Math.floor(ms / 60000);
-    const hours = Math.floor(totalMinutes / 60);
-    const mins = totalMinutes % 60;
-    return `${hours}h ${mins}m`;
-  };
+  const guestStats = !isAuthenticated ? guestResults.reduce((acc: any, r: any) => {
+    acc.playtime = (acc.playtime || 0) + (r.duration || 0); // Zen playtime is counted
+    if (r.mode !== 'zen') {
+      acc.gamesPlayed = (acc.gamesPlayed || 0) + 1;
+      acc.lines = (acc.lines || 0) + (r.lines || 0);
+      acc.tetrises = (acc.tetrises || 0) + (r.tetrises || 0);
+      acc.tspins = (acc.tspins || 0) + (r.tSpins || 0);
+      acc.perfectClears = (acc.perfectClears || 0) + (r.perfectClears || 0);
+      acc.maxCombo = Math.max(acc.maxCombo || 0, r.maxCombo || 0);
+      acc.maxB2B = Math.max(acc.maxB2B || 0, r.maxB2B || 0);
+    }
+    return acc;
+  }, {}) : {};
+
+  const soloModes = [
+    {
+      id: 'marathon_150',
+      title: 'Marathon (150 Lines)',
+      description: 'Score attack & gravity endurance',
+      icon: <Flame size={20} color="var(--accent-cyan)" />,
+      badgeBg: 'rgba(6, 182, 212, 0.15)',
+      primaryMetric: 'score' as const,
+      color: 'var(--accent-cyan)'
+    },
+    {
+      id: 'sprint_40',
+      title: 'Sprint (40 Lines)',
+      description: 'Clear 40 lines as fast as possible',
+      icon: <Timer size={20} color="var(--accent-orange)" />,
+      badgeBg: 'rgba(249, 115, 22, 0.15)',
+      primaryMetric: 'time' as const,
+      color: 'var(--accent-orange)'
+    },
+    {
+      id: 'ultra_3m',
+      title: 'Ultra (3 Minutes)',
+      description: 'Max score within 3 minutes',
+      icon: <Zap size={20} color="var(--accent-yellow)" />,
+      badgeBg: 'rgba(234, 179, 8, 0.15)',
+      primaryMetric: 'score' as const,
+      color: 'var(--accent-yellow)'
+    }
+  ];
 
   return (
     <div style={{ width: '100%', maxWidth: '960px' }}>
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.4rem' }}>Your Statistics</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          Lifetime performance overview and recent match records.
+          Personal bests, lifetime performance overview and match records.
         </p>
       </div>
 
-      {/* Metric Cards Grid */}
+      {isGuest && (
+        <div className="panel-card" style={{ padding: '1rem 1.25rem', marginBottom: '2rem', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderColor: 'rgba(59, 130, 246, 0.3)' }}>
+          <BarChart2 size={28} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Playing as Guest</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+              Your best scores are temporarily tracked in this browser. Log in or create an account to save them to the global leaderboards permanently!
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Solo Modes Best Scores & Times */}
+      <div style={{ marginBottom: '2.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+          <Trophy size={20} color="var(--accent-yellow)" />
+          <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>Solo Personal Bests</h2>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '1rem'
+        }}>
+          {soloModes.map((m) => {
+            const best = soloBests[m.id];
+            return (
+              <div
+                key={m.id}
+                className="panel-card"
+                style={{
+                  padding: '1.25rem',
+                  alignItems: 'stretch',
+                  gap: '0.75rem',
+                  borderTop: `3px solid ${m.color}`
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <div style={{ background: m.badgeBg, padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                    {m.icon}
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>{m.title}</h3>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{m.description}</span>
+                  </div>
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '0.75rem',
+                  background: 'var(--bg-tertiary)',
+                  padding: '0.85rem',
+                  borderRadius: 'var(--radius-sm)',
+                  marginTop: '0.25rem'
+                }}>
+                  <div>
+                    <div className="stat-label" style={{ fontSize: '0.7rem' }}>Best Score</div>
+                    <div style={{ fontWeight: 800, fontSize: '1.25rem', color: m.primaryMetric === 'score' ? m.color : 'var(--text-primary)' }}>
+                      {best?.score !== undefined ? best.score.toLocaleString() : '—'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="stat-label" style={{ fontSize: '0.7rem' }}>Best Time</div>
+                    <div style={{ fontWeight: 800, fontSize: '1.25rem', color: m.primaryMetric === 'time' ? m.color : 'var(--text-primary)' }}>
+                      {best?.time !== undefined ? formatDuration(best.time) : '—'}
+                    </div>
+                  </div>
+                </div>
+
+                {best?.date && (
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+                    Achieved: {new Date(best.date).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Lifetime Overview Metric Cards Grid */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+        <Target size={20} color="var(--accent-purple)" />
+        <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>Lifetime Performance</h2>
+      </div>
+
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '1rem',
-        marginBottom: '2rem'
+        marginBottom: '2.5rem'
       }}>
         <div className="panel-card">
           <div className="stat-label">Games Played</div>
-          <div className="stat-value">{stats.games_played || 0}</div>
+          <div className="stat-value">{stats.games_played ?? (guestStats.gamesPlayed || 0)}</div>
         </div>
 
         <div className="panel-card">
@@ -79,83 +251,188 @@ export const StatsPage: React.FC = () => {
 
         <div className="panel-card">
           <div className="stat-label">Total Lines Cleared</div>
-          <div className="stat-value">{stats.total_lines?.toLocaleString() || 0}</div>
+          <div className="stat-value">{(stats.total_lines ?? guestStats.lines ?? 0).toLocaleString()}</div>
         </div>
 
         <div className="panel-card">
           <div className="stat-label">Total Playtime</div>
           <div className="stat-value" style={{ fontSize: '1.25rem' }}>
-            {formatPlaytime(stats.total_playtime_ms || 0)}
+            {formatPlaytime(stats.total_playtime_ms || guestStats.playtime || 0)}
           </div>
         </div>
 
         <div className="panel-card">
           <div className="stat-label">Tetrises Made</div>
           <div className="stat-value" style={{ color: 'var(--accent-cyan)' }}>
-            {stats.total_tetrises || 0}
+            {stats.total_tetrises ?? guestStats.tetrises ?? 0}
           </div>
         </div>
 
         <div className="panel-card">
           <div className="stat-label">T-Spins Executed</div>
           <div className="stat-value" style={{ color: 'var(--accent-purple)' }}>
-            {stats.total_tspins || 0}
+            {stats.total_tspins ?? guestStats.tspins ?? 0}
           </div>
         </div>
 
         <div className="panel-card">
           <div className="stat-label">Max Combo / Max B2B</div>
           <div className="stat-value" style={{ fontSize: '1.25rem' }}>
-            x{stats.highest_combo || 0} / {stats.highest_b2b || 0}
+            x{stats.highest_combo ?? guestStats.maxCombo ?? 0} / {stats.highest_b2b ?? guestStats.maxB2B ?? 0}
           </div>
         </div>
 
         <div className="panel-card">
           <div className="stat-label">Perfect Clears</div>
           <div className="stat-value" style={{ color: 'var(--accent-yellow)' }}>
-            {stats.total_perfect_clears || 0}
+            {stats.total_perfect_clears ?? guestStats.perfectClears ?? 0}
           </div>
         </div>
       </div>
 
-      {/* Match History Table */}
-      <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '0.8rem' }}>Recent Match History</h2>
-      <div className="panel-card" style={{ padding: 0, overflow: 'hidden' }}>
-        {recentMatches.length === 0 ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            No versus matches recorded yet. Jump into 1v1 AI or Online 1v1!
-          </div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-            <thead>
-              <tr style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                <th style={{ padding: '0.6rem 1rem' }}>Result</th>
-                <th style={{ padding: '0.6rem 1rem' }}>Opponent</th>
-                <th style={{ padding: '0.6rem 1rem' }}>Your Lines</th>
-                <th style={{ padding: '0.6rem 1rem' }}>Opponent Lines</th>
-                <th style={{ padding: '0.6rem 1rem' }}>Duration</th>
-                <th style={{ padding: '0.6rem 1rem' }}>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentMatches.map((m: any) => (
-                <tr key={m.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  <td style={{ padding: '0.6rem 1rem', fontWeight: 800, color: m.result === 'win' ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                    {m.result.toUpperCase()}
-                  </td>
-                  <td style={{ padding: '0.6rem 1rem' }}>{m.opponent_name}</td>
-                  <td style={{ padding: '0.6rem 1rem' }}>{m.player_lines}</td>
-                  <td style={{ padding: '0.6rem 1rem' }}>{m.opponent_lines}</td>
-                  <td style={{ padding: '0.6rem 1rem' }}>{(m.duration / 1000).toFixed(1)}s</td>
-                  <td style={{ padding: '0.6rem 1rem', color: 'var(--text-muted)' }}>
-                    {new Date(m.created_at).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+      {/* Match History Section with Tabs */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Swords size={20} color="var(--accent-blue)" />
+          <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>Recent Match History</h2>
+        </div>
+
+        {/* Two Tabs: Player vs CPU & Online PvP */}
+        <div style={{
+          display: 'flex',
+          background: 'var(--bg-tertiary)',
+          padding: '4px',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-color)',
+          gap: '4px'
+        }}>
+          <button
+            onClick={() => setHistoryTab('cpu')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.4rem 0.9rem',
+              borderRadius: 'var(--radius-sm)',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              background: historyTab === 'cpu' ? 'var(--accent-purple)' : 'transparent',
+              color: historyTab === 'cpu' ? '#ffffff' : 'var(--text-secondary)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <Bot size={15} />
+            <span>Player vs CPU</span>
+            <span style={{
+              fontSize: '0.75rem',
+              padding: '0.1rem 0.4rem',
+              borderRadius: '999px',
+              background: historyTab === 'cpu' ? 'rgba(255, 255, 255, 0.25)' : 'var(--bg-secondary)',
+              color: historyTab === 'cpu' ? '#ffffff' : 'var(--text-muted)'
+            }}>
+              {recentMatches.filter((m: any) => m.opponent_type === 'ai').length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setHistoryTab('pvp')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.4rem 0.9rem',
+              borderRadius: 'var(--radius-sm)',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              background: historyTab === 'pvp' ? 'var(--accent-cyan)' : 'transparent',
+              color: historyTab === 'pvp' ? '#0b0f19' : 'var(--text-secondary)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <Users size={15} />
+            <span>Online 1v1</span>
+            <span style={{
+              fontSize: '0.75rem',
+              padding: '0.1rem 0.4rem',
+              borderRadius: '999px',
+              background: historyTab === 'pvp' ? 'rgba(0, 0, 0, 0.2)' : 'var(--bg-secondary)',
+              color: historyTab === 'pvp' ? '#0b0f19' : 'var(--text-muted)'
+            }}>
+              {recentMatches.filter((m: any) => m.opponent_type === 'human' || m.opponent_type !== 'ai').length}
+            </span>
+          </button>
+        </div>
       </div>
+
+      {(() => {
+        const filteredMatches = recentMatches.filter((m: any) =>
+          historyTab === 'cpu' ? m.opponent_type === 'ai' : (m.opponent_type === 'human' || m.opponent_type !== 'ai')
+        );
+
+        return (
+          <div className="panel-card" style={{ padding: 0, overflow: 'hidden' }}>
+            {filteredMatches.length === 0 ? (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                {historyTab === 'cpu' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                    <Bot size={32} style={{ opacity: 0.5 }} />
+                    <p style={{ margin: 0, fontWeight: 600 }}>No Player vs CPU matches recorded yet.</p>
+                    <span style={{ fontSize: '0.8rem' }}>Jump into Player vs CPU to challenge the bot!</span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                    <Users size={32} style={{ opacity: 0.5 }} />
+                    <p style={{ margin: 0, fontWeight: 600 }}>No Online 1v1 matches recorded yet.</p>
+                    <span style={{ fontSize: '0.8rem' }}>Create a room or join a friend in Online Player vs Player!</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '0.6rem 1rem' }}>Result</th>
+                    <th style={{ padding: '0.6rem 1rem' }}>Opponent</th>
+                    <th style={{ padding: '0.6rem 1rem' }}>Your Lines</th>
+                    <th style={{ padding: '0.6rem 1rem' }}>Opponent Lines</th>
+                    <th style={{ padding: '0.6rem 1rem' }}>Duration</th>
+                    <th style={{ padding: '0.6rem 1rem' }}>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMatches.map((m: any) => (
+                    <tr key={m.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '0.6rem 1rem', fontWeight: 800, color: m.result === 'win' ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                        {m.result.toUpperCase()}
+                      </td>
+                      <td style={{ padding: '0.6rem 1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          {m.opponent_type === 'ai' ? (
+                            <Bot size={14} color="var(--accent-purple)" />
+                          ) : (
+                            <Users size={14} color="var(--accent-cyan)" />
+                          )}
+                          <span>{m.opponent_name}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.6rem 1rem' }}>{m.player_lines}</td>
+                      <td style={{ padding: '0.6rem 1rem' }}>{m.opponent_lines}</td>
+                      <td style={{ padding: '0.6rem 1rem' }}>{(m.duration / 1000).toFixed(1)}s</td>
+                      <td style={{ padding: '0.6rem 1rem', color: 'var(--text-muted)' }}>
+                        {new Date(m.created_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 };

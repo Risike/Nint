@@ -1,15 +1,23 @@
-:root {
+/* ============================================================
+   THEME DEFINITIONS — 5 Dark + 5 Light
+   The default (:root) matches dark-01 (Midnight).
+   Each theme is activated via data-theme="..." on <html>.
+   ============================================================ */
+
+/* ── Base / Default: Dark Midnight (dark-01) ─────────────── */
+:root,
+[data-theme="dark-01"] {
   --bg-primary: #0a0e17;
   --bg-secondary: #111827;
   --bg-tertiary: #1f2937;
   --bg-card: rgba(17, 24, 39, 0.85);
   --border-color: rgba(255, 255, 255, 0.1);
   --border-focus: #38bdf8;
-  
+
   --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
   --accent-cyan: #06b6d4;
   --accent-blue: #3b82f6;
   --accent-purple: #a855f7;
@@ -26,11 +34,112 @@
   --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
 }
 
-[data-theme="light"] {
+/* ── Dark 02: Ocean ──────────────────────────────────────── */
+[data-theme="dark-02"] {
+  --bg-primary: #0b1628;
+  --bg-secondary: #0f2140;
+  --bg-tertiary: #163058;
+  --bg-card: rgba(15, 33, 64, 0.88);
+  --border-color: rgba(56, 189, 248, 0.15);
+  --border-focus: #38bdf8;
+
+  --text-primary: #f0f9ff;
+  --text-secondary: #bae6fd;
+  --text-muted: #7dd3fc;
+
+  --accent-cyan: #22d3ee;
+  --accent-blue: #38bdf8;
+  --accent-purple: #818cf8;
+  --accent-pink: #f472b6;
+  --accent-green: #34d399;
+  --accent-orange: #fb923c;
+  --accent-red: #f87171;
+  --accent-yellow: #fbbf24;
+
+  --shadow-lg: 0 10px 25px -5px rgba(0, 20, 60, 0.6), 0 8px 10px -6px rgba(0, 20, 60, 0.5);
+}
+
+/* ── Dark 03: Forest ─────────────────────────────────────── */
+[data-theme="dark-03"] {
+  --bg-primary: #0a1410;
+  --bg-secondary: #11201a;
+  --bg-tertiary: #1a3028;
+  --bg-card: rgba(17, 32, 26, 0.88);
+  --border-color: rgba(16, 185, 129, 0.15);
+  --border-focus: #10b981;
+
+  --text-primary: #f0fdf4;
+  --text-secondary: #a7f3d0;
+  --text-muted: #6ee7b7;
+
+  --accent-cyan: #2dd4bf;
+  --accent-blue: #22d3ee;
+  --accent-purple: #a78bfa;
+  --accent-pink: #f472b6;
+  --accent-green: #10b981;
+  --accent-orange: #fb923c;
+  --accent-red: #f87171;
+  --accent-yellow: #fbbf24;
+
+  --shadow-lg: 0 10px 25px -5px rgba(0, 30, 15, 0.6), 0 8px 10px -6px rgba(0, 30, 15, 0.5);
+}
+
+/* ── Dark 04: Ember ──────────────────────────────────────── */
+[data-theme="dark-04"] {
+  --bg-primary: #18100b;
+  --bg-secondary: #271a10;
+  --bg-tertiary: #3b2517;
+  --bg-card: rgba(39, 26, 16, 0.88);
+  --border-color: rgba(251, 146, 60, 0.15);
+  --border-focus: #f97316;
+
+  --text-primary: #fffaf5;
+  --text-secondary: #fed7aa;
+  --text-muted: #fdba74;
+
+  --accent-cyan: #22d3ee;
+  --accent-blue: #60a5fa;
+  --accent-purple: #c084fc;
+  --accent-pink: #fb7185;
+  --accent-green: #4ade80;
+  --accent-orange: #f97316;
+  --accent-red: #ef4444;
+  --accent-yellow: #fbbf24;
+
+  --shadow-lg: 0 10px 25px -5px rgba(40, 15, 0, 0.6), 0 8px 10px -6px rgba(40, 15, 0, 0.5);
+}
+
+/* ── Dark 05: Amethyst ───────────────────────────────────── */
+[data-theme="dark-05"] {
+  --bg-primary: #110b1e;
+  --bg-secondary: #1a1030;
+  --bg-tertiary: #281a48;
+  --bg-card: rgba(26, 16, 48, 0.88);
+  --border-color: rgba(168, 85, 247, 0.15);
+  --border-focus: #a855f7;
+
+  --text-primary: #faf5ff;
+  --text-secondary: #ddd6fe;
+  --text-muted: #c4b5fd;
+
+  --accent-cyan: #22d3ee;
+  --accent-blue: #818cf8;
+  --accent-purple: #a855f7;
+  --accent-pink: #e879f9;
+  --accent-green: #34d399;
+  --accent-orange: #fb923c;
+  --accent-red: #f87171;
+  --accent-yellow: #fbbf24;
+
+  --shadow-lg: 0 10px 25px -5px rgba(30, 0, 50, 0.6), 0 8px 10px -6px rgba(30, 0, 50, 0.5);
+}
+
+/* ── Light 01: Clean ─────────────────────────────────────── */
+[data-theme="light-01"] {
   --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
   --bg-tertiary: #e2e8f0;
-  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-card: rgba(255, 255, 255, 0.92);
   --border-color: rgba(0, 0, 0, 0.1);
   --border-focus: #0284c7;
 
@@ -38,9 +147,121 @@
   --text-secondary: #475569;
   --text-muted: #94a3b8;
 
-  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --accent-cyan: #0891b2;
+  --accent-blue: #2563eb;
+  --accent-purple: #7c3aed;
+  --accent-pink: #db2777;
+  --accent-green: #059669;
+  --accent-orange: #ea580c;
+  --accent-red: #dc2626;
+  --accent-yellow: #ca8a04;
+
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
 }
 
+/* ── Light 02: Sky ───────────────────────────────────────── */
+[data-theme="light-02"] {
+  --bg-primary: #f0f9ff;
+  --bg-secondary: #e0f2fe;
+  --bg-tertiary: #bae6fd;
+  --bg-card: rgba(224, 242, 254, 0.92);
+  --border-color: rgba(14, 116, 144, 0.12);
+  --border-focus: #0ea5e9;
+
+  --text-primary: #0c4a6e;
+  --text-secondary: #0369a1;
+  --text-muted: #0284c7;
+
+  --accent-cyan: #06b6d4;
+  --accent-blue: #0ea5e9;
+  --accent-purple: #7c3aed;
+  --accent-pink: #db2777;
+  --accent-green: #059669;
+  --accent-orange: #ea580c;
+  --accent-red: #dc2626;
+  --accent-yellow: #ca8a04;
+
+  --shadow-lg: 0 10px 25px -5px rgba(0, 50, 100, 0.08), 0 8px 10px -6px rgba(0, 50, 100, 0.04);
+}
+
+/* ── Light 03: Mint ──────────────────────────────────────── */
+[data-theme="light-03"] {
+  --bg-primary: #ecfdf5;
+  --bg-secondary: #d1fae5;
+  --bg-tertiary: #a7f3d0;
+  --bg-card: rgba(209, 250, 229, 0.92);
+  --border-color: rgba(5, 150, 105, 0.12);
+  --border-focus: #059669;
+
+  --text-primary: #064e3b;
+  --text-secondary: #047857;
+  --text-muted: #059669;
+
+  --accent-cyan: #0d9488;
+  --accent-blue: #2563eb;
+  --accent-purple: #7c3aed;
+  --accent-pink: #db2777;
+  --accent-green: #059669;
+  --accent-orange: #ea580c;
+  --accent-red: #dc2626;
+  --accent-yellow: #ca8a04;
+
+  --shadow-lg: 0 10px 25px -5px rgba(0, 60, 30, 0.08), 0 8px 10px -6px rgba(0, 60, 30, 0.04);
+}
+
+/* ── Light 04: Peach ─────────────────────────────────────── */
+[data-theme="light-04"] {
+  --bg-primary: #fff7ed;
+  --bg-secondary: #ffedd5;
+  --bg-tertiary: #fed7aa;
+  --bg-card: rgba(255, 237, 213, 0.92);
+  --border-color: rgba(234, 88, 12, 0.12);
+  --border-focus: #ea580c;
+
+  --text-primary: #7c2d12;
+  --text-secondary: #9a3412;
+  --text-muted: #c2410c;
+
+  --accent-cyan: #0891b2;
+  --accent-blue: #2563eb;
+  --accent-purple: #7c3aed;
+  --accent-pink: #db2777;
+  --accent-green: #059669;
+  --accent-orange: #ea580c;
+  --accent-red: #dc2626;
+  --accent-yellow: #ca8a04;
+
+  --shadow-lg: 0 10px 25px -5px rgba(60, 20, 0, 0.08), 0 8px 10px -6px rgba(60, 20, 0, 0.04);
+}
+
+/* ── Light 05: Lavender ──────────────────────────────────── */
+[data-theme="light-05"] {
+  --bg-primary: #f5f3ff;
+  --bg-secondary: #ede9fe;
+  --bg-tertiary: #ddd6fe;
+  --bg-card: rgba(237, 233, 254, 0.92);
+  --border-color: rgba(124, 58, 237, 0.12);
+  --border-focus: #7c3aed;
+
+  --text-primary: #3b0764;
+  --text-secondary: #5b21b6;
+  --text-muted: #7c3aed;
+
+  --accent-cyan: #0891b2;
+  --accent-blue: #3b82f6;
+  --accent-purple: #7c3aed;
+  --accent-pink: #db2777;
+  --accent-green: #059669;
+  --accent-orange: #ea580c;
+  --accent-red: #dc2626;
+  --accent-yellow: #ca8a04;
+
+  --shadow-lg: 0 10px 25px -5px rgba(30, 0, 60, 0.08), 0 8px 10px -6px rgba(30, 0, 60, 0.04);
+}
+
+/* ============================================================
+   GLOBAL RESETS
+   ============================================================ */
 * {
   box-sizing: border-box;
   margin: 0;

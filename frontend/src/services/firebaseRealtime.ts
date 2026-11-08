@@ -8,7 +8,6 @@ import {
   onValue,
   off,
   push,
-  serverTimestamp,
   onDisconnect,
   Database
 } from 'firebase/database';
@@ -30,6 +29,17 @@ export interface RemotePlayerState {
   score: number;
   lines: number;
   alive: boolean;
+  connected?: boolean;
+  board?: string; // serialized JSON array
+  activePiece?: {
+    type: string;
+    x: number;
+    y: number;
+    rotation: number;
+  } | null;
+  holdPiece?: string | null;
+  queue?: string[];
+  clearingRows?: number[];
   lastSeen: number;
 }
 
@@ -54,7 +64,7 @@ export class FirebaseRealtimeService {
         this.isConfigured = false;
       }
     } catch (e) {
-      console.warn('Firebase initialization notice (running in local simulation mode):', e);
+      console.warn('Firebase initialization notice:', e);
       this.isConfigured = false;
     }
 
@@ -83,11 +93,13 @@ export class FirebaseRealtimeService {
   }
 
   // Create an online room
-  public static async createRoom(roomCode: string, displayName: string): Promise<string> {
-    const matchId = 'match_' + Date.now();
+  public static async createRoom(roomCode: string, displayName: string): Promise<{ matchId: string; seed: number }> {
+    const matchId = 'match_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const uid = this.getUid();
+    const seed = Math.floor(Math.random() * 1000000);
 
     if (this.isConfigured && this.db) {
+      // Setup room entry
       const roomRef = ref(this.db, `rooms/${roomCode}`);
       await set(roomRef, {
         matchId,
@@ -96,10 +108,15 @@ export class FirebaseRealtimeService {
         createdAt: Date.now()
       });
 
+      // Clear room on disconnect
+      onDisconnect(roomRef).remove().catch(() => {});
+
+      // Setup match entry
       const matchRef = ref(this.db, `matches/${matchId}`);
       await set(matchRef, {
         matchId,
-        seed: Math.floor(Math.random() * 1000000),
+        roomCode,
+        seed,
         status: 'waiting',
         createdAt: Date.now(),
         players: {
@@ -109,52 +126,105 @@ export class FirebaseRealtimeService {
             score: 0,
             lines: 0,
             alive: true,
+            connected: true,
             lastSeen: Date.now()
           }
         }
       });
+
+      // On host disconnect, mark as left
+      const hostPlayerRef = ref(this.db, `matches/${matchId}/players/${uid}`);
+      onDisconnect(hostPlayerRef).update({
+        connected: false,
+        alive: false,
+        lastSeen: Date.now()
+      }).catch(() => {});
     }
 
-    return matchId;
+    return { matchId, seed };
   }
 
   // Join an online room
   public static async joinRoom(roomCode: string, displayName: string): Promise<{ matchId: string; seed: number }> {
     const uid = this.getUid();
 
-    if (this.isConfigured && this.db) {
-      const roomRef = ref(this.db, `rooms/${roomCode}`);
-      const snapshot = await get(roomRef);
-      if (!snapshot.exists()) {
-        throw new Error('Room not found. Check the code and try again.');
-      }
-      const roomData = snapshot.val();
-      const matchId = roomData.matchId;
-
-      const playerRef = ref(this.db, `matches/${matchId}/players/${uid}`);
-      await set(playerRef, {
-        displayName,
-        ready: true,
-        score: 0,
-        lines: 0,
-        alive: true,
-        lastSeen: Date.now()
-      });
-
-      // Update room to active
-      await update(ref(this.db, `matches/${matchId}`), {
-        status: 'active',
-        startedAt: Date.now()
-      });
-
-      const matchSnap = await get(ref(this.db, `matches/${matchId}`));
-      const matchData = matchSnap.val();
-
-      return { matchId, seed: matchData.seed || 12345 };
+    if (!this.isConfigured || !this.db) {
+      throw new Error('Firebase is not configured. Please check your .env settings.');
     }
 
-    // Local simulation fallback for testing room join
-    return { matchId: 'sim_' + roomCode, seed: 12345 };
+    const roomRef = ref(this.db, `rooms/${roomCode}`);
+    const snapshot = await get(roomRef);
+    if (!snapshot.exists()) {
+      throw new Error(`Room "${roomCode}" not found. Verify the code.`);
+    }
+
+    const roomData = snapshot.val();
+    const matchId = roomData.matchId;
+
+    const matchSnap = await get(ref(this.db, `matches/${matchId}`));
+    if (!matchSnap.exists()) {
+      throw new Error('Match expired or no longer available.');
+    }
+
+    const matchData = matchSnap.val();
+
+    // Register second player
+    const playerRef = ref(this.db, `matches/${matchId}/players/${uid}`);
+    await set(playerRef, {
+      displayName,
+      ready: true,
+      score: 0,
+      lines: 0,
+      alive: true,
+      connected: true,
+      lastSeen: Date.now()
+    });
+
+    // On guest disconnect, mark as left
+    onDisconnect(playerRef).update({
+      connected: false,
+      alive: false,
+      lastSeen: Date.now()
+    }).catch(() => {});
+
+    // Mark room and match status as active
+    await update(ref(this.db, `matches/${matchId}`), {
+      status: 'active',
+      startedAt: Date.now()
+    });
+
+    await update(roomRef, {
+      status: 'active'
+    });
+
+    return { matchId, seed: matchData.seed || 12345 };
+  }
+
+  // Listen for match status once (triggered only on status change)
+  public static listenToMatchStart(matchId: string, onStart: (matchData: any) => void): () => void {
+    if (!this.isConfigured || !this.db) {
+      return () => {};
+    }
+
+    const statusRef = ref(this.db, `matches/${matchId}/status`);
+    let hasStarted = false;
+
+    const listener = onValue(statusRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const status = snapshot.val();
+        if (status === 'active' && !hasStarted) {
+          hasStarted = true;
+          // Fetch full match data once to get opponent info
+          get(ref(this.db!, `matches/${matchId}`)).then((snap) => {
+            if (snap.exists()) {
+              onStart(snap.val());
+            }
+          });
+        }
+      }
+    });
+
+    return () => off(statusRef, 'value', listener);
   }
 
   // Send garbage attack event
@@ -193,7 +263,7 @@ export class FirebaseRealtimeService {
     return () => off(attacksRef, 'value', listener);
   }
 
-  // Update live player state (score, lines, alive)
+  // Update live player state (score, lines, board, queue, hold, alive, connected)
   public static async updateState(matchId: string, data: Partial<RemotePlayerState>) {
     if (this.isConfigured && this.db) {
       const uid = this.getUid();
@@ -205,12 +275,50 @@ export class FirebaseRealtimeService {
     }
   }
 
-  // Request rematch
-  public static async requestRematch(matchId: string) {
+  // Listen to remote opponent state
+  public static listenToOpponent(matchId: string, onOpponentUpdate: (opponent: RemotePlayerState) => void): () => void {
+    if (!this.isConfigured || !this.db) {
+      return () => {};
+    }
+
+    const uid = this.getUid();
+    const playersRef = ref(this.db, `matches/${matchId}/players`);
+
+    const listener = onValue(playersRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const players = snapshot.val();
+        for (const [pUid, pState] of Object.entries<any>(players)) {
+          if (pUid !== uid) {
+            onOpponentUpdate(pState);
+            break;
+          }
+        }
+      }
+    });
+
+    return () => off(playersRef, 'value', listener);
+  }
+
+  // Clean room when leaving
+  public static async leaveRoom(roomCode: string, matchId: string) {
     if (this.isConfigured && this.db) {
-      const uid = this.getUid();
-      const rematchRef = ref(this.db, `matches/${matchId}/rematch/${uid}`);
-      await set(rematchRef, true);
+      try {
+        const uid = this.getUid();
+        if (matchId) {
+          // Explicitly mark player as disconnected so remaining opponent gets victory
+          const playerRef = ref(this.db, `matches/${matchId}/players/${uid}`);
+          await update(playerRef, {
+            connected: false,
+            alive: false,
+            lastSeen: Date.now()
+          });
+        }
+        if (roomCode) {
+          await set(ref(this.db, `rooms/${roomCode}`), null);
+        }
+      } catch (e) {
+        console.warn('Error cleaning up room:', e);
+      }
     }
   }
 }

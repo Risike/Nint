@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../../game/engine/gameEngine';
 import { CanvasRenderer } from '../../game/rendering/canvasRenderer';
 import { useSettings } from '../../context/SettingsContext';
+import { useDynamicCellSize } from '../../hooks/useDynamicCellSize';
 
 interface PlayfieldCanvasProps {
   engine: GameEngine;
@@ -12,8 +13,10 @@ interface PlayfieldCanvasProps {
 export const PlayfieldCanvas: React.FC<PlayfieldCanvasProps> = ({
   engine,
   incomingGarbage = 0,
-  cellSize = 28
+  cellSize: propCellSize
 }) => {
+  const dynamicCellSize = useDynamicCellSize(false);
+  const cellSize = propCellSize ?? dynamicCellSize;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<CanvasRenderer | null>(null);
   const { settings } = useSettings();
@@ -38,6 +41,18 @@ export const PlayfieldCanvas: React.FC<PlayfieldCanvasProps> = ({
           const midY = (20 * cellSize) / 2;
           const color = result.text.includes('TETRIS') || result.text.includes('B2B') ? '#ec4899' : '#38bdf8';
           rendererRef.current.particleSystem.addFloatingText(result.text, midX, midY, color, 22);
+        }
+
+        // Emit clear particles across clearing rows
+        if (engine.clearingRows.length > 0) {
+          for (const row of engine.clearingRows) {
+            const visibleRow = row - 20; // BOARD_BUFFER_HEIGHT
+            if (visibleRow >= 0 && visibleRow < 20) {
+              const y = (visibleRow + 0.5) * cellSize;
+              const color = result.linesCleared === 4 ? '#ec4899' : '#06b6d4';
+              rendererRef.current.particleSystem.addClearParticles(y, 10 * cellSize, color);
+            }
+          }
         }
       }
       originalOnLineClear?.(result);

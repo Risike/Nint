@@ -39,7 +39,7 @@ services:
     container_name: nint-web
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8105:80"
     depends_on:
       api:
         condition: service_healthy

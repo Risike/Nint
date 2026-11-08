@@ -122,4 +122,25 @@ export class ApiClient {
       body: JSON.stringify(data)
     });
   }
+
+  public static sendBeaconRecordMatch(data: any) {
+    const token = this.getToken();
+    if (!token) return;
+    const url = `${API_BASE}/matches/record`;
+    const payload = JSON.stringify(data);
+
+    try {
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: payload,
+        keepalive: true
+      }).catch(() => {});
+    } catch (e) {
+      console.warn('sendBeaconRecordMatch failed:', e);
+    }
+  }
 }

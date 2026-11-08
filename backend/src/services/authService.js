@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { getDatabase } from '../config/database.js';
 import { config } from '../config/env.js';
+import { sendPasswordResetEmail } from './mailService.js';
 
 export class AuthService {
   static register({ email, password, displayName }) {
@@ -131,25 +132,29 @@ export class AuthService {
     return { success: true };
   }
 
-  static requestPasswordReset(email) {
+  static async requestPasswordReset(email) {
     const db = getDatabase();
-    const user = db.prepare('SELECT id, email FROM users WHERE email = ?').get(email.toLowerCase().trim());
+    const user = db.prepare('SELECT id, email, display_name FROM users WHERE email = ?').get(email.toLowerCase().trim());
     if (!user) {
       // Don't leak user existence
-      return { message: 'If that email exists, a password reset link has been generated.' };
+      return { message: 'If that email exists, a password reset link has been sent.' };
     }
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = Date.now() + 3600000; // 1 hour
 
+    // Remove any existing unused tokens for this user
+    db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ? AND used = 0').run(user.id);
     db.prepare('INSERT INTO password_reset_tokens (token, user_id, expires_at) VALUES (?, ?, ?)').run(token, user.id, expiresAt);
-    
-    // In local development, print the reset preview link to the logs
-    console.log(`[PASSWORD RESET PREVIEW] User: ${user.email} -> Reset Token: ${token}`);
 
-    return {
-      message: 'If that email exists, a password reset link has been generated.',
-      developmentResetToken: config.nodeEnv === 'development' ? token : undefined
-    };
+    // Development fallback link printed in terminal
+    console.log(`\n🔗 [RESET PASSWORD LINK]: ${config.appBaseUrl}/reset-password?token=${token}\n`);
+
+    // Send the reset email (async — don't await to block response)
+    sendPasswordResetEmail(user.email, token, user.display_name).catch((err) => {
+      console.error('[MAIL] Failed to send password reset email:', err.message);
+    });
+
+    return { message: 'If that email exists, a password reset link has been sent.' };
   }
 
   static confirmPasswordReset({ token, newPassword }) {

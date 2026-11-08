@@ -189,3 +189,67 @@ describe('Garbage Manager', () => {
     expect(gm.getPendingCount()).toBe(0);
   });
 });
+
+describe('Line Clear Logic and Timing', () => {
+  it('clears full rows after line clear delay', () => {
+    const engine = new GameEngine({ lineClearDelay: 240 });
+    engine.start();
+
+    // Fill row 39 completely
+    for (let c = 0; c < BOARD_WIDTH; c++) {
+      engine.board[39][c] = '#ff0000';
+    }
+
+    // Place active piece at top away from row 39, then trigger lockPiece
+    engine.lockPiece();
+
+    expect(engine.clearingRows).toEqual([39]);
+    expect(engine.lineClearTimer).toBe(240);
+    expect(engine.activePiece).toBeNull();
+    // Row 39 is still on board during flash
+    expect(engine.board[39].every(cell => cell !== null)).toBe(true);
+
+    // Update by 100ms
+    engine.update(100);
+    expect(engine.clearingRows).toEqual([39]);
+    expect(engine.lineClearTimer).toBe(140);
+    expect(engine.activePiece).toBeNull();
+
+    // Update by 150ms (total 250ms > 240ms)
+    engine.update(150);
+    expect(engine.clearingRows.length).toBe(0);
+    expect(engine.activePiece).not.toBeNull();
+    // Row 39 should now be empty (row above collapsed down)
+    expect(engine.board[39].every(cell => cell === null)).toBe(true);
+  });
+});
+
+describe('Multi-line Clear (Tetris & Double)', () => {
+  it('clears all 4 lines of a Tetris and shifts upper blocks down properly', () => {
+    const engine = new GameEngine();
+    engine.start();
+
+    // Fill rows 36, 37, 38, 39 completely
+    for (let r = 36; r <= 39; r++) {
+      for (let c = 0; c < BOARD_WIDTH; c++) {
+        engine.board[r][c] = '#cyan';
+      }
+    }
+    // Put marker blocks on rows 34 and 35
+    engine.board[34][2] = '#marker34';
+    engine.board[35][4] = '#marker35';
+
+    engine.lockPiece();
+    expect(engine.clearingRows).toEqual([36, 37, 38, 39]);
+
+    // Finish animation
+    engine.update(300);
+
+    expect(engine.clearingRows.length).toBe(0);
+    // Rows 36, 37 should be empty, marker34 moved to row 38, marker35 moved to row 39
+    expect(engine.board[39][4]).toBe('#marker35');
+    expect(engine.board[38][2]).toBe('#marker34');
+    expect(engine.board[34].every(c => c === null)).toBe(true);
+    expect(engine.board[35].every(c => c === null)).toBe(true);
+  });
+});

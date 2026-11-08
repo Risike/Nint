@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
     sound_volume REAL DEFAULT 0.7,
     music_volume REAL DEFAULT 0.5,
     keybindings TEXT, -- JSON string
+    gamepad_bindings TEXT, -- JSON string
     touch_controls_enabled INTEGER DEFAULT 1,
     ghost_piece INTEGER DEFAULT 1,
     skin TEXT DEFAULT 'default',
