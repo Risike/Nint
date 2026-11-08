@@ -9,6 +9,7 @@ import {
   off,
   push,
   onDisconnect,
+  runTransaction,
   Database
 } from 'firebase/database';
 import { getAuth, signInAnonymously, Auth } from 'firebase/auth';
@@ -414,6 +415,116 @@ export class FirebaseRealtimeService {
     });
 
     return () => off(nextMatchRef, 'value', listener);
+  }
+
+  // Quick Search Matchmaking:
+  // Finds an existing waiting host, or creates a waiting entry and waits for an opponent.
+  public static async startQuickMatch(
+    displayName: string,
+    onOpponentJoined: (matchData: any, seed: number, matchId: string) => void
+  ): Promise<{
+    type: 'joined' | 'waiting';
+    matchId: string;
+    seed: number;
+    roomCode: string;
+    cancel?: () => Promise<void>;
+  }> {
+    await this.authenticate(displayName);
+    const uid = this.getUid();
+
+    if (!this.isConfigured || !this.db) {
+      throw new Error('Firebase is not configured. Please check your network or configuration.');
+    }
+
+    // 1. Check if there is already a waiting player in matchmaking_queue
+    const queueRef = ref(this.db, 'matchmaking_queue');
+    const snapshot = await get(queueRef);
+
+    if (snapshot.exists()) {
+      const queue = snapshot.val();
+      const now = Date.now();
+
+      // Find first valid waiting player who is not ourselves and was created within the last 60 seconds
+      for (const [key, entry] of Object.entries<any>(queue)) {
+        if (entry && entry.uid !== uid && (now - (entry.createdAt || 0) < 60000)) {
+          // Atomically attempt to claim this waiting player's room
+          const targetEntryRef = ref(this.db, `matchmaking_queue/${key}`);
+          try {
+            const tx = await runTransaction(targetEntryRef, (current) => {
+              if (current === null) {
+                // Already claimed by another player
+                return;
+              }
+              // Claim by clearing this entry from the queue
+              return null;
+            });
+
+            if (tx.committed && tx.snapshot.val() === null) {
+              // Successfully claimed! Join their room
+              const { matchId, seed } = await this.joinRoom(entry.roomCode, displayName);
+              return {
+                type: 'joined',
+                matchId,
+                seed,
+                roomCode: entry.roomCode
+              };
+            }
+          } catch (e) {
+            console.warn('Contested quick search entry:', e);
+          }
+        }
+      }
+    }
+
+    // 2. If no available waiting player was found, create a room and wait in the queue:
+    const roomCode = 'Q' + Math.random().toString(36).substring(2, 7).toUpperCase();
+    const { matchId, seed } = await this.createRoom(roomCode, displayName);
+
+    const myQueueEntryRef = ref(this.db, `matchmaking_queue/${uid}`);
+    await set(myQueueEntryRef, {
+      uid,
+      displayName,
+      roomCode,
+      matchId,
+      seed,
+      createdAt: Date.now()
+    });
+
+    // Auto-remove from matchmaking queue on disconnect
+    onDisconnect(myQueueEntryRef).remove().catch(() => {});
+
+    // Listen for someone joining our room
+    let unsubscribeMatch: (() => void) | null = null;
+    unsubscribeMatch = this.listenToMatchStart(matchId, (matchData) => {
+      // Opponent joined! Clean up from queue
+      set(myQueueEntryRef, null).catch(() => {});
+      if (unsubscribeMatch) {
+        unsubscribeMatch();
+        unsubscribeMatch = null;
+      }
+      onOpponentJoined(matchData, seed, matchId);
+    });
+
+    const cancel = async () => {
+      if (unsubscribeMatch) {
+        unsubscribeMatch();
+        unsubscribeMatch = null;
+      }
+      try {
+        await set(myQueueEntryRef, null);
+        await this.leaveRoom(roomCode, matchId);
+      } catch (e) {
+        console.warn('Error cancelling quick search:', e);
+      }
+    };
+
+    return {
+      type: 'waiting',
+      matchId,
+      seed,
+      roomCode,
+      cancel
+    };
   }
 
   // Clean room when leaving

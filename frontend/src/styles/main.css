@@ -316,6 +316,19 @@ html {
   }
 }
 
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-icon {
+  animation: spin 1.4s linear infinite;
+}
+
 .gamepad-helper-item {
   display: flex;
   align-items: center;

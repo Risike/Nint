@@ -14,7 +14,7 @@ import { FirebaseRealtimeService, RemotePlayerState } from '../services/firebase
 import { ApiClient } from '../services/api';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
-import { Users, Plus, LogIn, Copy, Check } from 'lucide-react';
+import { Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2 } from 'lucide-react';
 
 export const OnlineVersusPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -24,7 +24,8 @@ export const OnlineVersusPage: React.FC = () => {
   const [matchId, setMatchId] = useState<string | null>(null);
   const [roomCode, setRoomCode] = useState<string>('');
   const [inputCode, setInputCode] = useState<string>('');
-  const [matchStatus, setMatchStatus] = useState<'lobby' | 'waiting' | 'in_game' | 'finished'>('lobby');
+  const [matchStatus, setMatchStatus] = useState<'lobby' | 'waiting' | 'quick_searching' | 'in_game' | 'finished'>('lobby');
+  const [quickSearchSeconds, setQuickSearchSeconds] = useState<number>(0);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
   const [opponentName, setOpponentName] = useState<string>('Opponent');
 
@@ -59,6 +60,10 @@ export const OnlineVersusPage: React.FC = () => {
       handleLeaveRoom();
       return true;
     }
+    if (matchStatus === 'quick_searching') {
+      handleCancelQuickSearch();
+      return true;
+    }
     if (matchStatus === 'waiting' || matchStatus === 'in_game') {
       handleLeaveRoom();
       return true;
@@ -68,6 +73,7 @@ export const OnlineVersusPage: React.FC = () => {
 
   const keyboardRef = useRef<KeyboardManager | null>(null);
   const gamepadRef = useRef<GamepadManager | null>(null);
+  const cancelQuickSearchRef = useRef<(() => Promise<void>) | null>(null);
   const unsubscribeAttacksRef = useRef<(() => void) | null>(null);
   const unsubscribeOpponentRef = useRef<(() => void) | null>(null);
   const unsubscribeMatchRef = useRef<(() => void) | null>(null);
@@ -167,6 +173,86 @@ export const OnlineVersusPage: React.FC = () => {
       cleanupSubscriptions();
     };
   }, []);
+
+  // Quick Search Timer
+  useEffect(() => {
+    if (matchStatus !== 'quick_searching') {
+      setQuickSearchSeconds(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setQuickSearchSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [matchStatus]);
+
+  // Quick Search Matchmaking Action
+  const handleQuickSearch = async () => {
+    setErrorMsg(null);
+    cleanupSubscriptions();
+    gameStartedRef.current = false;
+    setMatchStatus('quick_searching');
+    soundManager.playRotate();
+
+    try {
+      const displayName = user?.display_name || 'Player';
+      const result = await FirebaseRealtimeService.startQuickMatch(
+        displayName,
+        (matchData, seed, mId) => {
+          // Opponent matched with our waiting room!
+          if (gameStartedRef.current) return;
+          gameStartedRef.current = true;
+          cancelQuickSearchRef.current = null;
+
+          const myUid = FirebaseRealtimeService.getUid();
+          if (matchData.players) {
+            for (const [uid, p] of Object.entries<any>(matchData.players)) {
+              if (uid !== myUid) {
+                setOpponentName(p.displayName || 'Opponent');
+                break;
+              }
+            }
+          }
+          startLiveGame(seed, mId);
+        }
+      );
+
+      if (result.type === 'joined') {
+        // We were matched immediately with an existing player!
+        setIsHost(false);
+        isHostRef.current = false;
+        setMatchId(result.matchId);
+        setRoomCode(result.roomCode);
+        setOpponentName('Opponent');
+        gameStartedRef.current = true;
+        cancelQuickSearchRef.current = null;
+        startLiveGame(result.seed, result.matchId);
+      } else {
+        // We are the waiting host in the queue
+        setIsHost(true);
+        isHostRef.current = true;
+        setMatchId(result.matchId);
+        setRoomCode(result.roomCode);
+        cancelQuickSearchRef.current = result.cancel || null;
+      }
+    } catch (e: any) {
+      console.warn('Quick search failed:', e);
+      setErrorMsg(e.message || 'Quick search failed to connect.');
+      setMatchStatus('lobby');
+    }
+  };
+
+  const handleCancelQuickSearch = async () => {
+    soundManager.playMove();
+    if (cancelQuickSearchRef.current) {
+      await cancelQuickSearchRef.current();
+      cancelQuickSearchRef.current = null;
+    }
+    cleanupSubscriptions();
+    setMatchStatus('lobby');
+    setMatchId(null);
+    setRoomCode('');
+  };
 
   const generateRoomCode = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -587,6 +673,10 @@ export const OnlineVersusPage: React.FC = () => {
 
   const handleLeaveRoom = () => {
     soundManager.stopBgm();
+    if (cancelQuickSearchRef.current) {
+      cancelQuickSearchRef.current().catch(() => {});
+      cancelQuickSearchRef.current = null;
+    }
     // Forfeit and notify opponent via Firebase
     forfeitAndLeave();
 
@@ -623,11 +713,11 @@ export const OnlineVersusPage: React.FC = () => {
       )}
 
       {matchStatus === 'lobby' && (
-        <div style={{ width: '100%', maxWidth: '880px', textAlign: 'center', marginTop: '1rem' }}>
+        <div style={{ width: '100%', maxWidth: '980px', textAlign: 'center', marginTop: '1rem' }}>
           <div style={{ marginBottom: '2rem' }}>
             <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>Online Player vs Player</h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-              Real-time competitive multiplayer. Create a private room and share your code, or enter a code to join.
+              Real-time competitive multiplayer. Quick match with any online player or create a private room for a friend.
             </p>
           </div>
 
@@ -637,6 +727,63 @@ export const OnlineVersusPage: React.FC = () => {
             gap: '1.25rem',
             textAlign: 'left'
           }}>
+            {/* Quick Match / Quick Search Card */}
+            <div
+              className="panel-card"
+              style={{
+                padding: '1.75rem',
+                gap: '1rem',
+                display: 'flex',
+                flexDirection: 'column',
+                border: '2px solid rgba(6, 182, 212, 0.45)',
+                background: 'linear-gradient(180deg, rgba(6, 182, 212, 0.08) 0%, var(--bg-card) 100%)',
+                boxShadow: '0 8px 24px rgba(6, 182, 212, 0.15)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
+                    <Zap size={24} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Quick Search</h3>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>Instant 1v1 Matchmaking</span>
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.05em',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '999px',
+                  background: 'var(--accent-cyan)',
+                  color: '#000'
+                }}>
+                  RECOMMENDED
+                </span>
+              </div>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+                Jump straight into action! Instantly match against another player currently in quick search without exchanging codes.
+              </p>
+              <button
+                className="btn-primary"
+                style={{
+                  marginTop: 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  padding: '0.75rem',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #06b6d4, #a855f7)'
+                }}
+                onClick={handleQuickSearch}
+              >
+                <Zap size={18} /> Quick Play
+              </button>
+            </div>
+
             {/* Create Room Card */}
             <div className="panel-card" style={{ padding: '1.75rem', gap: '1rem', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -651,7 +798,7 @@ export const OnlineVersusPage: React.FC = () => {
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
                 Host a private match and share the code with a friend. The game waits until your friend joins before starting.
               </p>
-              <button className="btn-primary" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }} onClick={handleCreateRoom}>
+              <button className="btn-secondary" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.7rem' }} onClick={handleCreateRoom}>
                 <Plus size={18} /> Host Room
               </button>
             </div>
@@ -697,6 +844,80 @@ export const OnlineVersusPage: React.FC = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Search Waiting Screen */}
+      {matchStatus === 'quick_searching' && (
+        <div style={{
+          width: '100%',
+          maxWidth: '560px',
+          textAlign: 'center',
+          marginTop: '3rem',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '1.5rem'
+        }}>
+          <div className="panel-card" style={{ padding: '2.5rem', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}>
+            <div style={{
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '84px',
+              height: '84px',
+              borderRadius: '50%',
+              background: 'rgba(6, 182, 212, 0.15)',
+              border: '2px solid rgba(6, 182, 212, 0.4)',
+              color: 'var(--accent-cyan)'
+            }}>
+              <Search size={38} />
+            </div>
+
+            <div>
+              <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+                Searching for Opponent...
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                Looking for another player in Quick Match queue. The match will launch automatically!
+              </p>
+              <div style={{
+                marginTop: '1rem',
+                fontFamily: 'monospace',
+                fontSize: '1.35rem',
+                fontWeight: 800,
+                color: 'var(--accent-cyan)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                background: 'var(--bg-tertiary)',
+                padding: '0.35rem 0.85rem',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-color)'
+              }}>
+                <Loader2 size={18} className="spin-icon" style={{ animation: 'spin 1.5s linear infinite' }} />
+                <span>{Math.floor(quickSearchSeconds / 60)}:{(quickSearchSeconds % 60 < 10 ? '0' : '') + (quickSearchSeconds % 60)}</span>
+              </div>
+            </div>
+
+            <button
+              className="btn-secondary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.65rem 1.75rem',
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                color: 'var(--accent-red)',
+                borderColor: 'rgba(239, 68, 68, 0.4)'
+              }}
+              onClick={handleCancelQuickSearch}
+            >
+              <X size={18} /> Cancel Search
+            </button>
           </div>
         </div>
       )}
