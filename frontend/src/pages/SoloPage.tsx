@@ -115,15 +115,33 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     };
   }, [mode, engine]);
 
-  // Handle direct navigation to zen mode from homepage
+  // Handle direct navigation to a mode from homepage
+  const pendingInitialModeRef = useRef<string | null | undefined>(null);
   useEffect(() => {
-    if (initialMode === 'zen') {
+    pendingInitialModeRef.current = initialMode;
+  }, [initialMode]);
+
+  useEffect(() => {
+    const m = pendingInitialModeRef.current;
+    if (!m) return;
+    if (m === 'zen') {
       setMode('zen');
       setIsSelectingMode(false);
       setIsConfiguringZen(true);
       onClearInitialMode?.();
+    } else if (m === 'marathon' || m === 'sprint' || m === 'ultra') {
+      const validMode = m as 'marathon' | 'sprint' | 'ultra';
+      setMode(validMode);
+      setIsSelectingMode(false);
+      setIsConfiguringZen(false);
+      onClearInitialMode?.();
+      // Use a microtask to ensure state is set before initGame reads it
+      setTimeout(() => {
+        initGame(validMode);
+      }, 0);
     }
-  }, [initialMode, onClearInitialMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMode]);
 
   const launchSelectedMode = (selectedMode: 'marathon' | 'sprint' | 'ultra' | 'zen' | 'custom') => {
     setMode(selectedMode);
@@ -503,7 +521,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div
+                role="button"
+                tabIndex={0}
                 onClick={() => setZenFixedGravity(true)}
+                onKeyDown={(e) => e.key === 'Enter' && setZenFixedGravity(true)}
                 style={{
                   padding: '1rem',
                   borderRadius: 'var(--radius-sm)',
@@ -519,7 +540,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
               </div>
 
               <div
+                role="button"
+                tabIndex={0}
                 onClick={() => setZenFixedGravity(false)}
+                onKeyDown={(e) => e.key === 'Enter' && setZenFixedGravity(false)}
                 style={{
                   padding: '1rem',
                   borderRadius: 'var(--radius-sm)',
@@ -543,7 +567,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div
+                role="button"
+                tabIndex={0}
                 onClick={() => setZenImmortal(true)}
+                onKeyDown={(e) => e.key === 'Enter' && setZenImmortal(true)}
                 style={{
                   padding: '1rem',
                   borderRadius: 'var(--radius-sm)',
@@ -561,7 +588,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
               </div>
 
               <div
+                role="button"
+                tabIndex={0}
                 onClick={() => setZenImmortal(false)}
+                onKeyDown={(e) => e.key === 'Enter' && setZenImmortal(false)}
                 style={{
                   padding: '1rem',
                   borderRadius: 'var(--radius-sm)',
