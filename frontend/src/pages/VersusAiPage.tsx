@@ -7,7 +7,6 @@ import { soundManager } from '../game/audio/soundManager';
 import { PlayfieldCanvas } from '../components/game/PlayfieldCanvas';
 import { HoldDisplay } from '../components/game/HoldDisplay';
 import { QueueDisplay } from '../components/game/QueueDisplay';
-import { TouchControls } from '../components/game/TouchControls';
 import { GameOverModal } from '../components/game/GameOverModal';
 import { CountdownOverlay } from '../components/game/CountdownOverlay';
 import { useAuth } from '../context/AuthContext';
@@ -505,9 +504,6 @@ export const VersusAiPage: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Mobile Touch Controls */}
-      {settings.touchControlsEnabled && <TouchControls engine={playerEngine} />}
 
       {/* Match Result Modal */}
       <GameOverModal

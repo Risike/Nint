@@ -315,19 +315,6 @@ export const SettingsPage: React.FC = () => {
               style={{ width: '18px', height: '18px', accentColor: 'var(--accent-purple)' }}
             />
           </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Mobile Touch Controls</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Displays on-screen D-pad and action buttons.</div>
-            </div>
-            <input
-              type="checkbox"
-              checked={settings.touchControlsEnabled}
-              onChange={(e) => updateSettings({ touchControlsEnabled: e.target.checked })}
-              style={{ width: '18px', height: '18px', accentColor: 'var(--accent-purple)' }}
-            />
-          </div>
         </div>
       </div>
     </div>

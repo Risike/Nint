@@ -7,7 +7,6 @@ import { PlayfieldCanvas } from '../components/game/PlayfieldCanvas';
 import { HoldDisplay } from '../components/game/HoldDisplay';
 import { QueueDisplay } from '../components/game/QueueDisplay';
 import { HUD } from '../components/game/HUD';
-import { TouchControls } from '../components/game/TouchControls';
 import { GameOverModal } from '../components/game/GameOverModal';
 import { CountdownOverlay } from '../components/game/CountdownOverlay';
 import { useAuth } from '../context/AuthContext';
@@ -1007,9 +1006,6 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           </div>
         </div>
       </div>
-
-      {/* Mobile Touch Controls */}
-      {settings.touchControlsEnabled && <TouchControls engine={engine} />}
 
       {/* Results / Game Over Modal */}
       <GameOverModal

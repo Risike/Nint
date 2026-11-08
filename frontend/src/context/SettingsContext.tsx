@@ -16,7 +16,6 @@ export interface SettingsState {
   musicVolume: number;
   isMuted: boolean;
   ghostPiece: boolean;
-  touchControlsEnabled: boolean;
   colorblindMode: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia';
   reducedMotion: boolean;
   keybindings: KeyBindings;
@@ -33,7 +32,6 @@ const DEFAULT_SETTINGS: SettingsState = {
   musicVolume: 0.5,
   isMuted: false,
   ghostPiece: true,
-  touchControlsEnabled: true,
   colorblindMode: 'none',
   reducedMotion: false,
   keybindings: DEFAULT_KEYBINDINGS,
@@ -78,8 +76,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               theme: remote.theme || prev.theme,
               soundVolume: remote.sound_volume ?? prev.soundVolume,
               keybindings: remote.keybindings || prev.keybindings,
-              ghostPiece: remote.ghost_piece !== undefined ? Boolean(remote.ghost_piece) : prev.ghostPiece,
-              touchControlsEnabled: remote.touch_controls_enabled !== undefined ? Boolean(remote.touch_controls_enabled) : prev.touchControlsEnabled
+              ghostPiece: remote.ghost_piece !== undefined ? Boolean(remote.ghost_piece) : prev.ghostPiece
             }));
           }
         })
@@ -99,8 +96,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           arr: merged.arr,
           sound_volume: merged.soundVolume,
           keybindings: merged.keybindings,
-          ghost_piece: merged.ghostPiece ? 1 : 0,
-          touch_controls_enabled: merged.touchControlsEnabled ? 1 : 0
+          ghost_piece: merged.ghostPiece ? 1 : 0
         }).catch(console.warn);
       }
 
