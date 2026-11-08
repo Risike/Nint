@@ -38,7 +38,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
       setNewsSaved(true);
       setTimeout(() => setNewsSaved(false), 3000);
     } catch (e: any) {
-      setNewsError(e?.message || 'Erreur lors de la sauvegarde du message.');
+      setNewsError(e?.message || 'Failed to save news message.');
     }
     setNewsLoading(false);
   };
@@ -58,7 +58,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
       setShowLeaderboardConfirm(false);
       setTimeout(() => setLeaderboardCleared(false), 3000);
     } catch (e: any) {
-      setLeaderboardError(e?.message || 'Erreur lors de la réinitialisation des leaderboards.');
+      setLeaderboardError(e?.message || 'Failed to clear leaderboards.');
     }
     setLeaderboardClearing(false);
   };
@@ -79,7 +79,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
       const results = await ApiClient.adminSearchUsers(searchQuery);
       setSearchResults(results);
     } catch (e: any) {
-      setActionError(e?.message || 'Erreur lors de la recherche.');
+      setActionError(e?.message || 'Failed to search users.');
     }
     setSearchLoading(false);
   };
@@ -95,12 +95,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
     setActionError(null);
     try {
       await ApiClient.adminClearUserStats(userId);
-      setActionSuccess('Statistiques du joueur réinitialisées avec succès.');
+      setActionSuccess('Player stats cleared successfully.');
       setTimeout(() => setActionSuccess(null), 3000);
       setConfirmAction(null);
       handleSearch();
     } catch (e: any) {
-      setActionError(e?.message || 'Erreur lors de la réinitialisation des stats.');
+      setActionError(e?.message || 'Failed to clear user stats.');
     }
   };
 
@@ -108,12 +108,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
     setActionError(null);
     try {
       await ApiClient.adminDeleteUser(userId);
-      setActionSuccess('Compte supprimé avec succès.');
+      setActionSuccess('User account deleted successfully.');
       setTimeout(() => setActionSuccess(null), 3000);
       setConfirmAction(null);
       setSearchResults(prev => prev.filter(u => u.id !== userId));
     } catch (e: any) {
-      setActionError(e?.message || 'Erreur lors de la suppression du compte.');
+      setActionError(e?.message || 'Failed to delete user account.');
     }
   };
 
@@ -121,8 +121,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
     return (
       <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
         <Shield size={48} style={{ color: 'var(--accent-red)', marginBottom: '1rem' }} />
-        <h2 style={{ color: 'var(--text-primary)' }}>Accès Refusé</h2>
-        <p style={{ color: 'var(--text-muted)' }}>Vous devez être administrateur pour accéder à cette page.</p>
+        <h2 style={{ color: 'var(--text-primary)' }}>Access Denied</h2>
+        <p style={{ color: 'var(--text-muted)' }}>You must have administrator privileges to view this page.</p>
       </div>
     );
   }
@@ -141,10 +141,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
         </div>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-            Panneau d'Administration
+            Admin Panel
           </h1>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-            Gestion de la plateforme Nint, des utilisateurs et des leaderboards
+            Platform configuration, user management, and leaderboard controls
           </p>
         </div>
       </div>
@@ -176,16 +176,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
           <Newspaper size={20} style={{ color: 'var(--accent-cyan)' }} />
           <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            Message d'actualité (Home Page)
+            Homepage Announcement / News
           </h2>
         </div>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-          Ce message apparaît dans un bandeau en haut de la page d'accueil pour tous les joueurs. Laissez vide pour masquer le bandeau.
+          This announcement is displayed as a banner on top of the home page for all players. Leave empty to hide the banner.
         </p>
         <textarea
           value={newsMessage}
           onChange={(e) => setNewsMessage(e.target.value)}
-          placeholder="Entrez le message à afficher sur la page d'accueil (ex: Tournoi ce samedi à 20h !)..."
+          placeholder="Enter announcement message to display on the home page (e.g. Weekend Tournament starts Saturday at 8 PM UTC!)..."
           rows={3}
           style={{
             width: '100%', padding: '0.75rem',
@@ -205,11 +205,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
             disabled={newsLoading}
             style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
           >
-            {newsLoading ? 'Enregistrement...' : 'Enregistrer le message'}
+            {newsLoading ? 'Saving...' : 'Save Announcement'}
           </button>
           {newsSaved && (
             <span style={{ color: 'var(--accent-green)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <CheckCircle size={14} /> Enregistré avec succès !
+              <CheckCircle size={14} /> Saved successfully!
             </span>
           )}
         </div>
@@ -220,11 +220,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
           <BarChart3 size={20} style={{ color: 'var(--accent-cyan)' }} />
           <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            Leaderboards globaux
+            Global Leaderboards
           </h2>
         </div>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-          Efface tous les scores enregistrés et records personnels (Marathon, Sprint, Ultra) de tous les utilisateurs. Cette action est irréversible.
+          Wipes all recorded scores and personal bests (Marathon, Sprint, Ultra) across all players. This action cannot be undone.
         </p>
 
         {leaderboardError && (
@@ -241,7 +241,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
               cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.4rem'
             }}
           >
-            <Trash2 size={14} /> Vider tous les leaderboards
+            <Trash2 size={14} /> Wipe All Leaderboards
           </button>
         ) : (
           <div style={{
@@ -249,10 +249,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
             border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: 'var(--radius-sm)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem', color: 'var(--accent-red)', fontWeight: 600, fontSize: '0.9rem' }}>
-              <AlertTriangle size={16} /> Confirmer la suppression complète des leaderboards ?
+              <AlertTriangle size={16} /> Confirm leaderboard wipe?
             </div>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-              Tous les résultats de jeux et records personnels de tous les joueurs seront définitivement supprimés.
+              All solo game results and personal bests will be permanently erased for every player.
             </p>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
@@ -265,7 +265,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                   cursor: 'pointer', fontWeight: 600
                 }}
               >
-                {leaderboardClearing ? 'Nettoyage en cours...' : 'Oui, tout vider'}
+                {leaderboardClearing ? 'Wiping...' : 'Yes, Wipe Everything'}
               </button>
               <button
                 onClick={() => setShowLeaderboardConfirm(false)}
@@ -276,7 +276,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                   cursor: 'pointer'
                 }}
               >
-                Annuler
+                Cancel
               </button>
             </div>
           </div>
@@ -284,7 +284,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
 
         {leaderboardCleared && (
           <div style={{ color: 'var(--accent-green)', fontSize: '0.85rem', marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            <CheckCircle size={14} /> Les leaderboards ont été réinitialisés avec succès !
+            <CheckCircle size={14} /> Leaderboards wiped successfully!
           </div>
         )}
       </div>
@@ -294,11 +294,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
           <Search size={20} style={{ color: 'var(--accent-cyan)' }} />
           <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            Gestion des Utilisateurs
+            User Management
           </h2>
         </div>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-          Recherchez un utilisateur par nom ou email pour réinitialiser ses statistiques ou supprimer son compte.
+          Search players by display name or email to clear their statistics or delete their account.
         </p>
 
         <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
@@ -306,7 +306,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filtrer par nom ou adresse email..."
+            placeholder="Filter by name or email address..."
             style={{
               flex: 1, padding: '0.6rem 0.85rem',
               background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
@@ -321,7 +321,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
             style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
             <Search size={14} />
-            {searchLoading ? 'Recherche...' : 'Rechercher'}
+            {searchLoading ? 'Searching...' : 'Search'}
           </button>
         </form>
 
@@ -336,13 +336,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem', color: 'var(--accent-red)', fontWeight: 700, fontSize: '0.95rem' }}>
               <AlertTriangle size={18} />
               {confirmAction.type === 'clear_stats'
-                ? `Vider les statistiques de ${confirmAction.displayName} (${confirmAction.email}) ?`
-                : `Supprimer définitivement le compte de ${confirmAction.displayName} (${confirmAction.email}) ?`}
+                ? `Reset statistics for ${confirmAction.displayName} (${confirmAction.email})?`
+                : `Permanently delete account for ${confirmAction.displayName} (${confirmAction.email})?`}
             </div>
             <p style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', marginBottom: '0.85rem' }}>
               {confirmAction.type === 'clear_stats'
-                ? 'Cette action remettra le ratio W/L, le rating ELO à 1000, et effacera tout son historique de matchs et de scores. Le compte reste actif.'
-                : 'Attention : Cette action supprimera le compte, les paramètres, scores et tout l’historique associé. Cette action est irréversible.'}
+                ? 'This will reset their W/L ratio, restore ELO rating to 1000, and clear all match history and scores. The account remains active.'
+                : 'Warning: This permanently deletes this user account, including settings, scores, and all associated match history. This action cannot be undone.'}
             </p>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
@@ -356,7 +356,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                   cursor: 'pointer', fontWeight: 600
                 }}
               >
-                {confirmAction.type === 'clear_stats' ? 'Confirmer : Vider les stats' : 'Confirmer : Supprimer le compte'}
+                {confirmAction.type === 'clear_stats' ? 'Confirm: Clear Stats' : 'Confirm: Delete Account'}
               </button>
               <button
                 onClick={() => setConfirmAction(null)}
@@ -367,7 +367,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                   cursor: 'pointer'
                 }}
               >
-                Annuler
+                Cancel
               </button>
             </div>
           </div>
@@ -376,7 +376,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
         {/* User list */}
         {searchResults.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-            Aucun utilisateur trouvé.
+            No users found.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -414,7 +414,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                     <strong style={{ color: 'var(--accent-cyan)' }}>{u.rating}</strong>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Matchs: </span>
+                    <span style={{ color: 'var(--text-muted)' }}>Matches: </span>
                     <strong>{u.games_played}</strong>
                   </div>
                   <div>
@@ -426,7 +426,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                 <div style={{ display: 'flex', gap: '0.4rem', marginLeft: 'auto' }}>
                   <button
                     onClick={() => setConfirmAction({ type: 'clear_stats', userId: u.id, email: u.email, displayName: u.display_name })}
-                    title="Vider les statistiques de cet utilisateur"
+                    title="Clear this user's stats"
                     style={{
                       padding: '0.4rem 0.75rem', fontSize: '0.78rem',
                       background: 'rgba(234, 179, 8, 0.15)', color: '#eab308',
@@ -434,12 +434,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                       cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600
                     }}
                   >
-                    <RotateCcw size={12} /> Vider stats
+                    <RotateCcw size={12} /> Clear Stats
                   </button>
                   {u.is_admin !== 1 && (
                     <button
                       onClick={() => setConfirmAction({ type: 'delete', userId: u.id, email: u.email, displayName: u.display_name })}
-                      title="Supprimer définitivement ce compte"
+                      title="Delete this account permanently"
                       style={{
                         padding: '0.4rem 0.75rem', fontSize: '0.78rem',
                         background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-red)',
@@ -447,7 +447,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                         cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600
                       }}
                     >
-                      <UserX size={12} /> Supprimer
+                      <UserX size={12} /> Delete
                     </button>
                   )}
                 </div>
