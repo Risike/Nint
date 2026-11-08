@@ -1,6 +1,49 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { soundManager } from '../game/audio/soundManager';
 
+// Helper to smoothly and accurately scroll an element into the visible viewport,
+// taking into account sticky navbar (~75px) and fixed bottom gamepad bar (~80px)
+export const scrollElementIntoViewSmart = (el: HTMLElement | null) => {
+  if (!el || typeof window === 'undefined') return;
+
+  // 1. Check if element is inside an inner scroll container (e.g. modal)
+  let parent = el.parentElement;
+  while (parent && parent !== document.body && parent !== document.documentElement) {
+    const style = window.getComputedStyle(parent);
+    const overflowY = style.overflowY;
+    if ((overflowY === 'auto' || overflowY === 'scroll') && parent.scrollHeight > parent.clientHeight) {
+      const containerRect = parent.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const topMargin = 20;
+      const bottomMargin = 20;
+
+      if (elRect.top < containerRect.top + topMargin) {
+        parent.scrollTop -= (containerRect.top + topMargin - elRect.top);
+      } else if (elRect.bottom > containerRect.bottom - bottomMargin) {
+        parent.scrollTop += (elRect.bottom - (containerRect.bottom - bottomMargin));
+      }
+      return;
+    }
+    parent = parent.parentElement;
+  }
+
+  // 2. Main window scroll (handles sticky navbar and fixed gamepad helper bar)
+  const rect = el.getBoundingClientRect();
+  const navbarHeight = 85; // sticky navbar + margin
+  const bottomBarHeight = 90; // fixed gamepad helper bar + bottom edge margin
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+  if (rect.top < navbarHeight) {
+    // Hidden underneath navbar at the top: scroll up to reveal
+    const delta = rect.top - navbarHeight;
+    window.scrollBy({ top: delta, behavior: 'smooth' });
+  } else if (rect.bottom > viewportHeight - bottomBarHeight) {
+    // Hidden underneath bottom edge or gamepad bar at the bottom: scroll down to reveal
+    const delta = rect.bottom - (viewportHeight - bottomBarHeight);
+    window.scrollBy({ top: delta, behavior: 'smooth' });
+  }
+};
+
 interface BackHandlerRecord {
   id: string;
   handler: () => boolean | void;
@@ -109,8 +152,8 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
     if (el) {
       el.setAttribute('data-gamepad-focused', 'true');
       el.classList.add('gamepad-focused');
-      // Ensure smooth visibility
-      el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+      // Ensure smooth visibility with proper clearance for sticky navbar & bottom helper bar
+      scrollElementIntoViewSmart(el);
     }
   }, []);
 

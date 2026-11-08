@@ -15,7 +15,7 @@ import { useSettings } from '../context/SettingsContext';
 import { ApiClient } from '../services/api';
 import { LocalStorageManager } from '../services/storage';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
-import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
+import { useGamepadActive, useGamepadBack, scrollElementIntoViewSmart } from '../context/GamepadNavContext';
 import { Play, Pause, RotateCcw, ArrowLeft, Flame, Zap, Timer, Smile, Sliders, Shield, RefreshCw } from 'lucide-react';
 
 interface SoloPageProps {
@@ -151,6 +151,15 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   useEffect(() => {
     if (isConfiguringZen) setZenFocusSection(0);
   }, [isConfiguringZen]);
+
+  // Keep zen focused section in visible viewport (clearing sticky navbar and gamepad bar)
+  useEffect(() => {
+    if (!isConfiguringZen) return;
+    const target = document.querySelector(`[data-zen-section="${zenFocusSection}"]`) as HTMLElement;
+    if (target) {
+      scrollElementIntoViewSmart(target);
+    }
+  }, [zenFocusSection, isConfiguringZen]);
 
   // Dedicated gamepad loop for zen config panel (bypasses spatial nav entirely)
   useEffect(() => {
@@ -689,7 +698,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
         <div className="panel-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
           {/* Section 0 — Starting Speed / Level */}
-          <div style={zenSec(0)}>
+          <div data-zen-section="0" style={zenSec(0)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <label style={{ fontWeight: 700, fontSize: '0.95rem' }}>Starting Speed / Level</label>
               <span style={{ color: 'var(--accent-cyan)', fontWeight: 800, fontSize: '0.95rem' }}>
@@ -735,7 +744,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           </div>
 
           {/* Section 1 — Speed Progression */}
-          <div style={zenSec(1)}>
+          <div data-zen-section="1" style={zenSec(1)}>
             <label style={{ display: 'block', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
               Speed Progression
             </label>
@@ -760,7 +769,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           </div>
 
           {/* Section 2 — Anti-Game Over */}
-          <div style={zenSec(2)}>
+          <div data-zen-section="2" style={zenSec(2)}>
             <label style={{ display: 'block', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
               Anti-Game Over (Zen Immortality)
             </label>
@@ -785,7 +794,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           </div>
 
           {/* Section 3 — Downstack Practice */}
-          <div style={zenSec(3)}>
+          <div data-zen-section="3" style={zenSec(3)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
               <label style={{ fontWeight: 700, fontSize: '0.95rem' }}>Downstack Practice (Starting Lines)</label>
               <span style={{ color: 'var(--accent-yellow)', fontWeight: 800, fontSize: '0.9rem' }}>
@@ -819,7 +828,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           </div>
 
           {/* Section 4 — Lock Delay */}
-          <div style={zenSec(4)}>
+          <div data-zen-section="4" style={zenSec(4)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
               <label style={{ fontWeight: 700, fontSize: '0.95rem' }}>Lock Delay</label>
               <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{zenLockDelay}ms</span>
@@ -855,6 +864,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           {/* Sections 5 & 6 — Action Buttons */}
           <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
             <button
+              data-zen-section="5"
               className="btn-secondary"
               onClick={() => { setIsConfiguringZen(false); setIsSelectingMode(true); }}
               style={{
@@ -868,6 +878,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
               <span>Back to Modes</span>
             </button>
             <button
+              data-zen-section="6"
               className="btn-primary"
               onClick={startZenGame}
               style={{
