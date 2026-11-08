@@ -142,9 +142,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     initGame('zen');
   };
 
-  const initGame = (targetMode: 'marathon' | 'sprint' | 'ultra' | 'zen' | 'custom' = mode) => {
+  const initGame = (targetMode?: 'marathon' | 'sprint' | 'ultra' | 'zen' | 'custom') => {
     soundManager.stopBgm();
-    const isZen = targetMode === 'zen';
+    const activeMode = (typeof targetMode === 'string') ? targetMode : mode;
+    const isZen = activeMode === 'zen';
     const startingLevel = isZen ? zenLevel : 1;
     const fixedGravity = isZen ? zenFixedGravity : false;
     const immortal = isZen ? zenImmortal : false;
@@ -212,7 +213,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     }
 
     const km = new KeyboardManager(newEngine, settings.keybindings, {
-      onRestart: () => initGame(targetMode),
+      onRestart: () => initGame(activeMode),
       onPause: () => {
         if (newEngine.state === 'playing') newEngine.pause();
         else if (newEngine.state === 'paused') newEngine.resume();
@@ -222,7 +223,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     keyboardManagerRef.current = km;
 
     gamepadManagerRef.current = new GamepadManager(newEngine, settings.gamepadBindings || DEFAULT_GAMEPAD_BINDINGS, {
-      onRestart: () => initGame(targetMode),
+      onRestart: () => initGame(activeMode),
       onPause: () => {
         if (newEngine.state === 'playing') newEngine.pause();
         else if (newEngine.state === 'paused') newEngine.resume();
@@ -292,6 +293,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     setIsGameOverModalOpen(true);
     if (!victory) {
       soundManager.playGameOver();
+    } else {
+      soundManager.playClear(4);
     }
 
     const stats = engine.getStats();
@@ -798,7 +801,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
         mode={mode}
         stats={currentStats}
         isSaved={isSaved}
-        onRestart={initGame}
+        onRestart={() => initGame()}
         onExit={() => setIsSelectingMode(true)}
       />
     </div>

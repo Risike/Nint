@@ -439,8 +439,9 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
 
             prevButtons = buttons;
           } else {
-            // When gameplay active, reset previous buttons so returning to UI doesn't misfire
-            prevButtons = [];
+            // While gameplay is active, keep tracking buttons state so returning to UI
+            // does NOT falsely detect already-pressed buttons as "just pressed"
+            prevButtons = gp.buttons.map(b => (typeof b === 'object' ? b.pressed : b === 1.0));
             lastDirection = null;
             dpadTimer = 0;
           }

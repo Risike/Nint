@@ -37,22 +37,46 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 }) => {
   const { setFocusedElement } = useGamepadNav();
   const playAgainBtnRef = useRef<HTMLButtonElement | null>(null);
+  const [canInteract, setCanInteract] = React.useState(false);
 
   useGamepadBack(() => {
     if (isOpen) {
-      onExit();
+      if (canInteract) {
+        onExit();
+      }
       return true;
     }
     return false;
-  }, [isOpen, onExit]);
+  }, [isOpen, canInteract, onExit]);
 
   useEffect(() => {
-    if (isOpen && playAgainBtnRef.current) {
-      setFocusedElement(playAgainBtnRef.current);
+    if (isOpen) {
+      setCanInteract(false);
+      const timer = setTimeout(() => {
+        setCanInteract(true);
+        if (playAgainBtnRef.current) {
+          setFocusedElement(playAgainBtnRef.current);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setCanInteract(false);
     }
   }, [isOpen, setFocusedElement]);
 
   if (!isOpen) return null;
+
+  const handleRestart = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!canInteract) return;
+    onRestart();
+  };
+
+  const handleExit = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!canInteract) return;
+    onExit();
+  };
 
   const formatDuration = (ms: number) => {
     const totalSec = (ms / 1000).toFixed(2);
@@ -146,10 +170,21 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         )}
 
         <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-          <button className="btn-secondary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }} onClick={onExit}>
+          <button
+            className="btn-secondary"
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', opacity: canInteract ? 1 : 0.6 }}
+            onClick={handleExit}
+            disabled={!canInteract}
+          >
             <Home size={18} /> Menu
           </button>
-          <button ref={playAgainBtnRef} className="btn-primary" style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }} onClick={onRestart}>
+          <button
+            ref={playAgainBtnRef}
+            className="btn-primary"
+            style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', opacity: canInteract ? 1 : 0.6 }}
+            onClick={handleRestart}
+            disabled={!canInteract}
+          >
             <RotateCcw size={18} /> Play Again
           </button>
         </div>
