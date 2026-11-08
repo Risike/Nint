@@ -39,6 +39,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   const [zenImmortal, setZenImmortal] = useState<boolean>(true);
   const [zenGarbageLines, setZenGarbageLines] = useState<number>(0);
   const [zenLockDelay, setZenLockDelay] = useState<number>(settings.lockDelay || 500);
+  // Zen gamepad section focus (0=level, 1=speed, 2=immortal, 3=garbage, 4=lockdelay, 5=back, 6=start)
+  const [zenFocusSection, setZenFocusSection] = useState<number>(0);
+  // Trigger flags for zen actions (avoids stale closures in RAF loop)
+  const [zenActionPending, setZenActionPending] = useState<'start' | 'back' | null>(null);
 
   const [sprintGoal, setSprintGoal] = useState<number>(40);
   const [ultraDuration, setUltraDuration] = useState<number>(180000); // 3 mins
@@ -59,7 +63,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   const [isSaved, setIsSaved] = useState<boolean>(false);
 
   const isPlaying = !isSelectingMode && !isConfiguringZen && !isGameOverModalOpen && (gameState === 'playing' || isCountingDown);
-  useGamepadActive(isPlaying);
+  // Also suppress global gamepad nav during zen config (we handle it ourselves)
+  useGamepadActive(isPlaying || isConfiguringZen);
 
   useGamepadBack(() => {
     if (isGameOverModalOpen) {
@@ -90,6 +95,20 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   const gamepadManagerRef = useRef<GamepadManager | null>(null);
   const zenTimeRecordedRef = useRef<number>(0);
 
+  // Refs for zen gamepad loop (always read fresh values, no stale closures)
+  const zenLevelRef = useRef(zenLevel);
+  zenLevelRef.current = zenLevel;
+  const zenFixedGravityRef = useRef(zenFixedGravity);
+  zenFixedGravityRef.current = zenFixedGravity;
+  const zenImmortalRef = useRef(zenImmortal);
+  zenImmortalRef.current = zenImmortal;
+  const zenGarbageLinesRef = useRef(zenGarbageLines);
+  zenGarbageLinesRef.current = zenGarbageLines;
+  const zenLockDelayRef = useRef(zenLockDelay);
+  zenLockDelayRef.current = zenLockDelay;
+  const zenFocusSectionRef = useRef(zenFocusSection);
+  zenFocusSectionRef.current = zenFocusSection;
+
   const saveZenSessionTime = () => {
     if (mode === 'zen') {
       const currentMs = Math.round(engine.totalPlayTimeMs);
@@ -114,6 +133,185 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       soundManager.stopBgm();
     };
   }, [mode, engine]);
+
+  // Handle zen action triggers (avoids stale closure in RAF loop)
+  useEffect(() => {
+    if (!zenActionPending) return;
+    setZenActionPending(null);
+    if (zenActionPending === 'back') {
+      setIsConfiguringZen(false);
+      setIsSelectingMode(true);
+    } else if (zenActionPending === 'start') {
+      startZenGame();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zenActionPending]);
+
+  // Reset focus section when entering zen config
+  useEffect(() => {
+    if (isConfiguringZen) setZenFocusSection(0);
+  }, [isConfiguringZen]);
+
+  // Dedicated gamepad loop for zen config panel (bypasses spatial nav entirely)
+  useEffect(() => {
+    if (!isConfiguringZen) return;
+
+    const ZEN_SECTIONS = 7;
+    const levelPresets = [1, 5, 10, 15, 20];
+    const garbageOptions = [0, 2, 4, 6, 8, 10, 14];
+    const lockOptions = [500, 1000, 2000];
+
+    let animId: number;
+    let prevButtons: boolean[] = [];
+    let dpadTimer = 0;
+    let lastDir: string | null = null;
+    let lastTime = performance.now();
+    const DAS = 280;
+    const ARR = 130;
+
+    const handleZenInput = (dir: 'up' | 'down' | 'left' | 'right' | 'select' | 'back') => {
+      const section = zenFocusSectionRef.current;
+
+      if (dir === 'back') {
+        setZenActionPending('back');
+        soundManager.playMove();
+        return;
+      }
+
+      if (dir === 'select') {
+        switch (section) {
+          case 1: // Speed Progression: toggle
+            setZenFixedGravity(v => !v);
+            soundManager.playRotate();
+            break;
+          case 2: // Anti-Game Over: toggle
+            setZenImmortal(v => !v);
+            soundManager.playRotate();
+            break;
+          case 5: // Back
+            setZenActionPending('back');
+            soundManager.playMove();
+            break;
+          case 6: // Start
+            setZenActionPending('start');
+            soundManager.playRotate();
+            break;
+          default:
+            soundManager.playMove();
+        }
+        return;
+      }
+
+      if (dir === 'up') {
+        setZenFocusSection(s => Math.max(0, s - 1));
+        soundManager.playMove();
+        return;
+      }
+      if (dir === 'down') {
+        setZenFocusSection(s => Math.min(ZEN_SECTIONS - 1, s + 1));
+        soundManager.playMove();
+        return;
+      }
+
+      // Left / Right: change value within current section
+      switch (section) {
+        case 0: { // Starting Level
+          const idx = levelPresets.indexOf(zenLevelRef.current);
+          const cur = idx >= 0 ? idx : 0;
+          const next = dir === 'left' ? Math.max(0, cur - 1) : Math.min(levelPresets.length - 1, cur + 1);
+          if (next !== cur) { setZenLevel(levelPresets[next]); soundManager.playMove(); }
+          break;
+        }
+        case 1: { // Speed Progression: Left=Fixed, Right=Dynamic
+          const val = dir === 'left';
+          if (zenFixedGravityRef.current !== val) { setZenFixedGravity(val); soundManager.playMove(); }
+          break;
+        }
+        case 2: { // Anti-Game Over: Left=Auto-Recovery, Right=Standard
+          const val = dir === 'left';
+          if (zenImmortalRef.current !== val) { setZenImmortal(val); soundManager.playMove(); }
+          break;
+        }
+        case 3: { // Downstack Lines
+          const idx = garbageOptions.indexOf(zenGarbageLinesRef.current);
+          const cur = idx >= 0 ? idx : 0;
+          const next = dir === 'left' ? Math.max(0, cur - 1) : Math.min(garbageOptions.length - 1, cur + 1);
+          if (next !== cur) { setZenGarbageLines(garbageOptions[next]); soundManager.playMove(); }
+          break;
+        }
+        case 4: { // Lock Delay
+          const idx = lockOptions.indexOf(zenLockDelayRef.current);
+          const cur = idx >= 0 ? idx : 0;
+          const next = dir === 'left' ? Math.max(0, cur - 1) : Math.min(lockOptions.length - 1, cur + 1);
+          if (next !== cur) { setZenLockDelay(lockOptions[next]); soundManager.playMove(); }
+          break;
+        }
+        case 5: // Back button row: Right → Start
+          if (dir === 'right') { setZenFocusSection(6); soundManager.playMove(); }
+          break;
+        case 6: // Start button row: Left → Back
+          if (dir === 'left') { setZenFocusSection(5); soundManager.playMove(); }
+          break;
+      }
+    };
+
+    const poll = (time: number) => {
+      const delta = time - lastTime;
+      lastTime = time;
+
+      const gamepads = typeof navigator !== 'undefined' ? navigator.getGamepads?.() : null;
+      const gp = gamepads ? Array.from(gamepads).find(g => g && g.connected) : null;
+
+      if (gp) {
+        const buttons = gp.buttons.map(b => (typeof b === 'object' ? b.pressed : b === 1.0));
+        const axes = gp.axes;
+        const justPressed = (i: number) => buttons[i] && !prevButtons[i];
+
+        if (justPressed(0)) handleZenInput('select');
+        if (justPressed(1) || justPressed(8)) handleZenInput('back');
+
+        const stickX = axes[0] || 0;
+        const stickY = axes[1] || 0;
+        const upP    = buttons[12] || stickY < -0.55;
+        const downP  = buttons[13] || stickY > 0.55;
+        const leftP  = buttons[14] || stickX < -0.55;
+        const rightP = buttons[15] || stickX > 0.55;
+
+        let activeDir: 'up' | 'down' | 'left' | 'right' | null = null;
+        if (upP)    activeDir = 'up';
+        else if (downP)  activeDir = 'down';
+        else if (leftP)  activeDir = 'left';
+        else if (rightP) activeDir = 'right';
+
+        if (activeDir) {
+          if (lastDir !== activeDir) {
+            lastDir = activeDir;
+            dpadTimer = 0;
+            handleZenInput(activeDir);
+          } else {
+            dpadTimer += delta;
+            if (dpadTimer >= DAS) {
+              const excess = dpadTimer - DAS;
+              if (excess >= ARR) {
+                dpadTimer = DAS;
+                handleZenInput(activeDir);
+              }
+            }
+          }
+        } else {
+          lastDir = null;
+          dpadTimer = 0;
+        }
+
+        prevButtons = buttons;
+      }
+
+      animId = requestAnimationFrame(poll);
+    };
+
+    animId = requestAnimationFrame(poll);
+    return () => cancelAnimationFrame(animId);
+  }, [isConfiguringZen]); // Only restart when zen config opens/closes
 
   // Handle direct navigation to a mode from homepage
   const pendingInitialModeRef = useRef<string | null | undefined>(null);
@@ -456,21 +654,42 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
 
   // Zen Mode Pre-game Configuration Panel
   if (isConfiguringZen) {
+    const zenSec = (n: number): React.CSSProperties => ({
+      borderRadius: 'var(--radius-sm)',
+      padding: '0.4rem',
+      margin: '-0.4rem',
+      boxShadow: zenFocusSection === n ? '0 0 0 2px var(--accent-cyan), 0 0 12px rgba(6,182,212,0.3)' : 'none',
+      transition: 'box-shadow 0.1s ease',
+    });
+    const optBtn = (active: boolean, activeColor: string, activeBg: string): React.CSSProperties => ({
+      flex: 1,
+      padding: '1rem',
+      borderRadius: 'var(--radius-sm)',
+      border: `2px solid ${active ? activeColor : 'var(--border-color)'}`,
+      background: active ? activeBg : 'var(--bg-tertiary)',
+      cursor: 'pointer',
+      textAlign: 'left' as const,
+    });
+
     return (
       <div style={{ width: '100%', maxWidth: '720px', marginTop: '1rem' }}>
         <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
           <div style={{ display: 'inline-flex', padding: '0.75rem', borderRadius: '50%', background: 'rgba(168, 85, 247, 0.15)', color: 'var(--accent-purple)', marginBottom: '0.5rem' }}>
             <Smile size={32} />
           </div>
-          <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.3rem' }}>Zen & Practice Settings</h1>
+          <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.3rem' }}>Zen &amp; Practice Settings</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
             Configure your custom session parameters before playing.
+          </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '0.3rem' }}>
+            🎮 ↑↓ Navigate &nbsp;·&nbsp; ←→ Change value &nbsp;·&nbsp; A Confirm &nbsp;·&nbsp; B Back
           </p>
         </div>
 
         <div className="panel-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Starting Speed / Level */}
-          <div>
+
+          {/* Section 0 — Starting Speed / Level */}
+          <div style={zenSec(0)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <label style={{ fontWeight: 700, fontSize: '0.95rem' }}>Starting Speed / Level</label>
               <span style={{ color: 'var(--accent-cyan)', fontWeight: 800, fontSize: '0.95rem' }}>
@@ -515,45 +734,24 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
             />
           </div>
 
-          {/* Speed Behavior: Fixed vs Dynamic */}
-          <div>
+          {/* Section 1 — Speed Progression */}
+          <div style={zenSec(1)}>
             <label style={{ display: 'block', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
               Speed Progression
             </label>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button
-                type="button"
-                onClick={() => setZenFixedGravity(true)}
-                style={{
-                  flex: 1,
-                  padding: '1rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: `2px solid ${zenFixedGravity ? 'var(--accent-purple)' : 'var(--border-color)'}`,
-                  background: zenFixedGravity ? 'rgba(168, 85, 247, 0.1)' : 'var(--bg-tertiary)',
-                  cursor: 'pointer',
-                  textAlign: 'left'
-                }}
-              >
-                <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem' }}>🧘 Fixed Speed (Constant)</div>
+              <button type="button" onClick={() => setZenFixedGravity(true)} style={optBtn(zenFixedGravity, 'var(--accent-purple)', 'rgba(168, 85, 247, 0.1)')}>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem', color: zenFixedGravity ? 'var(--accent-purple)' : 'var(--text-primary)' }}>
+                  🧘 Fixed Speed (Constant)
+                </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                   Gravity never accelerates. Zero pressure endless meditation.
                 </div>
               </button>
-
-              <button
-                type="button"
-                onClick={() => setZenFixedGravity(false)}
-                style={{
-                  flex: 1,
-                  padding: '1rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: `2px solid ${!zenFixedGravity ? 'var(--accent-purple)' : 'var(--border-color)'}`,
-                  background: !zenFixedGravity ? 'rgba(168, 85, 247, 0.1)' : 'var(--bg-tertiary)',
-                  cursor: 'pointer',
-                  textAlign: 'left'
-                }}
-              >
-                <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem' }}>⚡ Dynamic (Accelerates)</div>
+              <button type="button" onClick={() => setZenFixedGravity(false)} style={optBtn(!zenFixedGravity, 'var(--accent-purple)', 'rgba(168, 85, 247, 0.1)')}>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem', color: !zenFixedGravity ? 'var(--accent-purple)' : 'var(--text-primary)' }}>
+                  ⚡ Dynamic (Accelerates)
+                </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                   Gravity steadily speeds up every 10 lines as in Marathon.
                 </div>
@@ -561,47 +759,22 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
             </div>
           </div>
 
-          {/* Anti-Game Over / Board Recovery */}
-          <div>
+          {/* Section 2 — Anti-Game Over */}
+          <div style={zenSec(2)}>
             <label style={{ display: 'block', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
               Anti-Game Over (Zen Immortality)
             </label>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button
-                type="button"
-                onClick={() => setZenImmortal(true)}
-                style={{
-                  flex: 1,
-                  padding: '1rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: `2px solid ${zenImmortal ? 'var(--accent-green)' : 'var(--border-color)'}`,
-                  background: zenImmortal ? 'rgba(34, 197, 94, 0.1)' : 'var(--bg-tertiary)',
-                  cursor: 'pointer',
-                  textAlign: 'left'
-                }}
-              >
-                <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem', color: zenImmortal ? 'var(--accent-green)' : 'inherit' }}>
+              <button type="button" onClick={() => setZenImmortal(true)} style={optBtn(zenImmortal, 'var(--accent-green)', 'rgba(34, 197, 94, 0.1)')}>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem', color: zenImmortal ? 'var(--accent-green)' : 'var(--text-primary)' }}>
                   🛡️ Auto-Recovery (No Game Over)
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                   Touching the ceiling clears the board and continues smoothly without ending the game.
                 </div>
               </button>
-
-              <button
-                type="button"
-                onClick={() => setZenImmortal(false)}
-                style={{
-                  flex: 1,
-                  padding: '1rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: `2px solid ${!zenImmortal ? 'var(--accent-red)' : 'var(--border-color)'}`,
-                  background: !zenImmortal ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-tertiary)',
-                  cursor: 'pointer',
-                  textAlign: 'left'
-                }}
-              >
-                <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem', color: !zenImmortal ? 'var(--accent-red)' : 'inherit' }}>
+              <button type="button" onClick={() => setZenImmortal(false)} style={optBtn(!zenImmortal, 'var(--accent-red)', 'rgba(239, 68, 68, 0.1)')}>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem', color: !zenImmortal ? 'var(--accent-red)' : 'var(--text-primary)' }}>
                   🛑 Standard Game Over
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
@@ -611,8 +784,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
             </div>
           </div>
 
-          {/* Downstacking Practice: Starting Garbage Lines */}
-          <div>
+          {/* Section 3 — Downstack Practice */}
+          <div style={zenSec(3)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
               <label style={{ fontWeight: 700, fontSize: '0.95rem' }}>Downstack Practice (Starting Lines)</label>
               <span style={{ color: 'var(--accent-yellow)', fontWeight: 800, fontSize: '0.9rem' }}>
@@ -645,8 +818,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
             </div>
           </div>
 
-          {/* Lock Delay */}
-          <div>
+          {/* Section 4 — Lock Delay */}
+          <div style={zenSec(4)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
               <label style={{ fontWeight: 700, fontSize: '0.95rem' }}>Lock Delay</label>
               <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{zenLockDelay}ms</span>
@@ -679,29 +852,30 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
             </div>
           </div>
 
-          {/* Action Buttons */}
+          {/* Sections 5 & 6 — Action Buttons */}
           <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
             <button
               className="btn-secondary"
               onClick={() => { setIsConfiguringZen(false); setIsSelectingMode(true); }}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem' }}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: '0.5rem', padding: '0.75rem 1.25rem',
+                boxShadow: zenFocusSection === 5 ? '0 0 0 2px var(--accent-cyan), 0 0 12px rgba(6,182,212,0.3)' : 'none',
+                transition: 'box-shadow 0.1s ease',
+              }}
             >
               <ArrowLeft size={18} />
               <span>Back to Modes</span>
             </button>
-
             <button
               className="btn-primary"
               onClick={startZenGame}
               style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                padding: '0.75rem',
-                fontSize: '1.05rem',
-                background: 'linear-gradient(135deg, #a855f7, #06b6d4)'
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: '0.5rem', padding: '0.75rem', fontSize: '1.05rem',
+                background: 'linear-gradient(135deg, #a855f7, #06b6d4)',
+                boxShadow: zenFocusSection === 6 ? '0 0 0 2px var(--accent-cyan), 0 0 12px rgba(6,182,212,0.3)' : 'none',
+                transition: 'box-shadow 0.1s ease',
               }}
             >
               <Play size={20} />
@@ -712,6 +886,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       </div>
     );
   }
+
 
   // Active Game Screen
   return (
