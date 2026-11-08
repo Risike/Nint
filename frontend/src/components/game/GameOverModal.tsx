@@ -23,6 +23,10 @@ interface GameOverModalProps {
   isSaved?: boolean;
   onRestart: () => void;
   onExit: () => void;
+  // Online Rematch
+  rematchPlayerReady?: boolean;
+  rematchOpponentReady?: boolean;
+  rematchOpponentLeft?: boolean;
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -33,7 +37,10 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   stats,
   isSaved = false,
   onRestart,
-  onExit
+  onExit,
+  rematchPlayerReady = false,
+  rematchOpponentReady = false,
+  rematchOpponentLeft = false
 }) => {
   const { setFocusedElement } = useGamepadNav();
   const playAgainBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -82,6 +89,29 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     const totalSec = (ms / 1000).toFixed(2);
     return `${totalSec}s`;
   };
+
+  const isOnline = mode === 'online_1v1';
+
+  // Determine button state and label for online rematch
+  let restartButtonLabel = 'Play Again';
+  let isRestartDisabled = !canInteract;
+  let restartButtonBg: string | undefined = undefined;
+
+  if (isOnline) {
+    if (rematchOpponentLeft) {
+      restartButtonLabel = 'Opponent Left';
+      isRestartDisabled = true;
+    } else if (rematchPlayerReady && rematchOpponentReady) {
+      restartButtonLabel = 'Starting... (2/2)';
+      isRestartDisabled = true;
+    } else if (rematchPlayerReady) {
+      restartButtonLabel = 'Waiting... (1/2)';
+      isRestartDisabled = true;
+    } else if (rematchOpponentReady) {
+      restartButtonLabel = 'Accept Rematch (1/2)';
+      restartButtonBg = 'linear-gradient(135deg, #10b981, #06b6d4)';
+    }
+  }
 
   return (
     <div className="overlay-backdrop">
@@ -169,6 +199,71 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
         )}
 
+        {/* Online Rematch Status Indicators */}
+        {isOnline && (
+          <div style={{ marginTop: '0.25rem' }}>
+            {rematchOpponentLeft && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                color: 'var(--accent-red)',
+                padding: '0.5rem 0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.85rem',
+                textAlign: 'center',
+                fontWeight: 600
+              }}>
+                ⚠️ Opponent left the room
+              </div>
+            )}
+
+            {!rematchOpponentLeft && rematchPlayerReady && rematchOpponentReady && (
+              <div style={{
+                background: 'rgba(34, 197, 94, 0.15)',
+                border: '1px solid rgba(34, 197, 94, 0.4)',
+                color: 'var(--accent-green)',
+                padding: '0.5rem 0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.85rem',
+                textAlign: 'center',
+                fontWeight: 600
+              }}>
+                🚀 Both players ready! Launching rematch... (2/2)
+              </div>
+            )}
+
+            {!rematchOpponentLeft && rematchPlayerReady && !rematchOpponentReady && (
+              <div style={{
+                background: 'rgba(6, 182, 212, 0.15)',
+                border: '1px solid rgba(6, 182, 212, 0.4)',
+                color: 'var(--accent-cyan)',
+                padding: '0.5rem 0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.85rem',
+                textAlign: 'center',
+                fontWeight: 600
+              }}>
+                ⏳ Waiting for opponent to accept rematch... (1/2)
+              </div>
+            )}
+
+            {!rematchOpponentLeft && !rematchPlayerReady && rematchOpponentReady && (
+              <div style={{
+                background: 'rgba(34, 197, 94, 0.15)',
+                border: '1px solid rgba(34, 197, 94, 0.4)',
+                color: 'var(--accent-green)',
+                padding: '0.5rem 0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.85rem',
+                textAlign: 'center',
+                fontWeight: 600
+              }}>
+                🎮 Opponent wants a rematch! (1/2)
+              </div>
+            )}
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
           <button
             className="btn-secondary"
@@ -181,11 +276,19 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           <button
             ref={playAgainBtnRef}
             className="btn-primary"
-            style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', opacity: canInteract ? 1 : 0.6 }}
+            style={{
+              flex: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              opacity: isRestartDisabled ? 0.6 : 1,
+              background: restartButtonBg
+            }}
             onClick={handleRestart}
-            disabled={!canInteract}
+            disabled={isRestartDisabled}
           >
-            <RotateCcw size={18} /> Play Again
+            <RotateCcw size={18} /> {restartButtonLabel}
           </button>
         </div>
       </div>

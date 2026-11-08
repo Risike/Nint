@@ -299,6 +299,123 @@ export class FirebaseRealtimeService {
     return () => off(playersRef, 'value', listener);
   }
 
+  // Register onDisconnect for current player on a match
+  public static registerDisconnect(matchId: string) {
+    if (this.isConfigured && this.db) {
+      const uid = this.getUid();
+      const playerRef = ref(this.db, `matches/${matchId}/players/${uid}`);
+      onDisconnect(playerRef).update({
+        connected: false,
+        alive: false,
+        lastSeen: Date.now()
+      }).catch(() => {});
+    }
+  }
+
+  // Request rematch after a finished match
+  public static async requestRematch(matchId: string) {
+    if (this.isConfigured && this.db) {
+      const uid = this.getUid();
+      const rematchRef = ref(this.db, `matches/${matchId}/rematch/${uid}`);
+      await set(rematchRef, true);
+    }
+  }
+
+  // Listen to rematch decisions
+  public static listenToRematch(matchId: string, onUpdate: (rematchData: { [uid: string]: boolean }) => void): () => void {
+    if (!this.isConfigured || !this.db) {
+      return () => {};
+    }
+
+    const rematchRef = ref(this.db, `matches/${matchId}/rematch`);
+    const listener = onValue(rematchRef, (snapshot) => {
+      const val = snapshot.exists() ? snapshot.val() : {};
+      onUpdate(val);
+    });
+
+    return () => off(rematchRef, 'value', listener);
+  }
+
+  // Trigger next match in the same room when both players agreed
+  public static async createNextMatch(
+    currentMatchId: string,
+    roomCode: string
+  ): Promise<{ nextMatchId: string; seed: number }> {
+    const nextMatchId = 'match_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const seed = Math.floor(Math.random() * 1000000);
+
+    if (this.isConfigured && this.db) {
+      // 1. Fetch previous players to carry over display names and reset stats
+      const currentSnap = await get(ref(this.db, `matches/${currentMatchId}`));
+      const currentData = currentSnap.exists() ? currentSnap.val() : {};
+      const previousPlayers = currentData.players || {};
+
+      const freshPlayers: any = {};
+      for (const [uid, p] of Object.entries<any>(previousPlayers)) {
+        freshPlayers[uid] = {
+          displayName: p.displayName || 'Player',
+          ready: true,
+          score: 0,
+          lines: 0,
+          alive: true,
+          connected: true,
+          lastSeen: Date.now()
+        };
+      }
+
+      // 2. Create the next match document
+      await set(ref(this.db, `matches/${nextMatchId}`), {
+        matchId: nextMatchId,
+        roomCode,
+        seed,
+        status: 'active',
+        createdAt: Date.now(),
+        players: freshPlayers
+      });
+
+      // 3. Setup host onDisconnect on the new match
+      const myUid = this.getUid();
+      const myPlayerRef = ref(this.db, `matches/${nextMatchId}/players/${myUid}`);
+      onDisconnect(myPlayerRef).update({
+        connected: false,
+        alive: false,
+        lastSeen: Date.now()
+      }).catch(() => {});
+
+      // 4. Update room to point to the new match
+      await update(ref(this.db, `rooms/${roomCode}`), {
+        matchId: nextMatchId,
+        status: 'active'
+      });
+
+      // 5. Notify both participants through the previous match
+      await set(ref(this.db, `matches/${currentMatchId}/nextMatch`), {
+        nextMatchId,
+        seed
+      });
+    }
+
+    return { nextMatchId, seed };
+  }
+
+  // Listen to next match trigger
+  public static listenToNextMatch(matchId: string, onNextMatch: (data: { nextMatchId: string; seed: number }) => void): () => void {
+    if (!this.isConfigured || !this.db) {
+      return () => {};
+    }
+
+    const nextMatchRef = ref(this.db, `matches/${matchId}/nextMatch`);
+    let triggered = false;
+    const listener = onValue(nextMatchRef, (snapshot) => {
+      if (snapshot.exists() && !triggered) {
+        triggered = true;
+        onNextMatch(snapshot.val());
+      }
+    });
+
+    return () => off(nextMatchRef, 'value', listener);
+  }
+
   // Clean room when leaving
   public static async leaveRoom(roomCode: string, matchId: string) {
     if (this.isConfigured && this.db) {

@@ -44,6 +44,12 @@ export const OnlineVersusPage: React.FC = () => {
   const [copied, setCopied] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Online Rematch state
+  const [isHost, setIsHost] = useState<boolean>(false);
+  const [rematchPlayerReady, setRematchPlayerReady] = useState<boolean>(false);
+  const [rematchOpponentReady, setRematchOpponentReady] = useState<boolean>(false);
+  const [rematchOpponentLeft, setRematchOpponentLeft] = useState<boolean>(false);
+
   const isPlaying = matchStatus === 'in_game' && !isGameOverOpen && (playerEngine.state === 'playing' || isCountingDown);
   useGamepadActive(isPlaying);
 
@@ -65,6 +71,11 @@ export const OnlineVersusPage: React.FC = () => {
   const unsubscribeAttacksRef = useRef<(() => void) | null>(null);
   const unsubscribeOpponentRef = useRef<(() => void) | null>(null);
   const unsubscribeMatchRef = useRef<(() => void) | null>(null);
+  const unsubscribeRematchRef = useRef<(() => void) | null>(null);
+  const unsubscribeNextMatchRef = useRef<(() => void) | null>(null);
+  const nextMatchTriggeredRef = useRef<boolean>(false);
+  const isHostRef = useRef<boolean>(false);
+  isHostRef.current = isHost;
   const gameStartedRef = useRef<boolean>(false);
   const lastSyncTimeRef = useRef<number>(0);
   const matchEndedRef = useRef<boolean>(false);
@@ -92,6 +103,14 @@ export const OnlineVersusPage: React.FC = () => {
     if (unsubscribeMatchRef.current) {
       unsubscribeMatchRef.current();
       unsubscribeMatchRef.current = null;
+    }
+    if (unsubscribeRematchRef.current) {
+      unsubscribeRematchRef.current();
+      unsubscribeRematchRef.current = null;
+    }
+    if (unsubscribeNextMatchRef.current) {
+      unsubscribeNextMatchRef.current();
+      unsubscribeNextMatchRef.current = null;
     }
   };
 
@@ -163,6 +182,8 @@ export const OnlineVersusPage: React.FC = () => {
     setErrorMsg(null);
     cleanupSubscriptions();
     gameStartedRef.current = false;
+    setIsHost(true);
+    isHostRef.current = true;
 
     const code = generateRoomCode();
     setRoomCode(code);
@@ -211,6 +232,8 @@ export const OnlineVersusPage: React.FC = () => {
     setErrorMsg(null);
     cleanupSubscriptions();
     gameStartedRef.current = false;
+    setIsHost(false);
+    isHostRef.current = false;
 
     const code = inputCode.trim().toUpperCase();
     setRoomCode(code);
@@ -311,8 +334,12 @@ export const OnlineVersusPage: React.FC = () => {
         currentOpponentNameRef.current = opponentState.displayName;
       }
       if (opponentState.connected === false) {
-        // Opponent left or disconnected -> player wins by forfeit!
-        handleEndMatch('win', pEngine, 'Opponent disconnected');
+        if (matchStatusRef.current === 'finished') {
+          setRematchOpponentLeft(true);
+        } else {
+          // Opponent left or disconnected -> player wins by forfeit!
+          handleEndMatch('win', pEngine, 'Opponent disconnected');
+        }
         return;
       }
       if (opponentState.alive === false) {
@@ -452,6 +479,45 @@ export const OnlineVersusPage: React.FC = () => {
     setMatchStatus('finished');
     setIsGameOverOpen(true);
 
+    // Reset rematch states for the newly finished match
+    setRematchPlayerReady(false);
+    setRematchOpponentReady(false);
+    setRematchOpponentLeft(false);
+    nextMatchTriggeredRef.current = false;
+
+    // Listen to rematch decisions on this match
+    const currentMatchId = matchIdRef.current;
+    if (currentMatchId) {
+      if (unsubscribeRematchRef.current) unsubscribeRematchRef.current();
+      unsubscribeRematchRef.current = FirebaseRealtimeService.listenToRematch(currentMatchId, (rematchData) => {
+        const myUid = FirebaseRealtimeService.getUid();
+        const iAmReady = Boolean(rematchData[myUid]);
+        let oppIsReady = false;
+        for (const [uid, ready] of Object.entries(rematchData)) {
+          if (uid !== myUid && ready) {
+            oppIsReady = true;
+            break;
+          }
+        }
+        setRematchPlayerReady(iAmReady);
+        setRematchOpponentReady(oppIsReady);
+
+        // If both players want to play again, host triggers creation of the next match
+        if (iAmReady && oppIsReady && !nextMatchTriggeredRef.current) {
+          if (isHostRef.current) {
+            nextMatchTriggeredRef.current = true;
+            FirebaseRealtimeService.createNextMatch(currentMatchId, roomCodeRef.current).catch(console.warn);
+          }
+        }
+      });
+
+      // Listen to next match being created by host
+      if (unsubscribeNextMatchRef.current) unsubscribeNextMatchRef.current();
+      unsubscribeNextMatchRef.current = FirebaseRealtimeService.listenToNextMatch(currentMatchId, ({ nextMatchId, seed }) => {
+        handleStartRematch(nextMatchId, seed);
+      });
+    }
+
     if (result === 'win') {
       soundManager.playClear(4);
     } else {
@@ -481,6 +547,38 @@ export const OnlineVersusPage: React.FC = () => {
     }
   };
 
+  // Called when user clicks "Play Again" on online modal
+  const handleRequestPlayAgain = () => {
+    if (rematchPlayerReady || rematchOpponentLeft) return;
+    setRematchPlayerReady(true);
+    soundManager.playRotate();
+    const currentMatchId = matchIdRef.current;
+    if (currentMatchId) {
+      FirebaseRealtimeService.requestRematch(currentMatchId);
+    }
+  };
+
+  // Called when both players agreed and next match was created in the same room
+  const handleStartRematch = (nextMatchId: string, seed: number) => {
+    setIsGameOverOpen(false);
+    setRematchPlayerReady(false);
+    setRematchOpponentReady(false);
+    setRematchOpponentLeft(false);
+    nextMatchTriggeredRef.current = false;
+
+    // Detach listeners from previous match
+    cleanupSubscriptions();
+
+    setMatchId(nextMatchId);
+    matchIdRef.current = nextMatchId;
+
+    // Register onDisconnect for current player on the new match
+    FirebaseRealtimeService.registerDisconnect(nextMatchId);
+
+    // Start next round with the new synchronized seed
+    startLiveGame(seed, nextMatchId);
+  };
+
   const copyCode = () => {
     navigator.clipboard.writeText(roomCode);
     setCopied(true);
@@ -495,6 +593,10 @@ export const OnlineVersusPage: React.FC = () => {
     cleanupSubscriptions();
     gameStartedRef.current = false;
     matchEndedRef.current = false;
+    setRematchPlayerReady(false);
+    setRematchOpponentReady(false);
+    setRematchOpponentLeft(false);
+    nextMatchTriggeredRef.current = false;
     setMatchStatus('lobby');
     setMatchId(null);
     setRoomCode('');
@@ -771,8 +873,11 @@ export const OnlineVersusPage: React.FC = () => {
             customMessage={winReason || undefined}
             mode="online_1v1"
             stats={playerEngine.getStats()}
-            onRestart={() => handleCreateRoom()}
+            onRestart={handleRequestPlayAgain}
             onExit={handleLeaveRoom}
+            rematchPlayerReady={rematchPlayerReady}
+            rematchOpponentReady={rematchOpponentReady}
+            rematchOpponentLeft={rematchOpponentLeft}
           />
         </div>
       )}
