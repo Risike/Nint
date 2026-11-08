@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../services/api';
-import { Trophy, Medal, Timer, Flame, Zap, RefreshCw } from 'lucide-react';
+import { Trophy, Medal, Timer, Flame, Zap, RefreshCw, Swords } from 'lucide-react';
 
 export const LeaderboardsPage: React.FC = () => {
   const [mode, setMode] = useState<string>('marathon_150');
@@ -27,6 +27,9 @@ export const LeaderboardsPage: React.FC = () => {
   }, [mode, timeframe]);
 
   const formatScoreOrTime = (entry: any) => {
+    if (mode === 'elo') {
+      return `${entry.score} ELO`;
+    }
     if (mode.startsWith('sprint')) {
       const ms = entry.duration;
       const totalSec = (ms / 1000).toFixed(2);
@@ -75,6 +78,13 @@ export const LeaderboardsPage: React.FC = () => {
           >
             <Timer size={16} /> Ultra (3m)
           </button>
+          <button
+            className={`btn-secondary ${mode === 'elo' ? 'btn-primary' : ''}`}
+            onClick={() => setMode('elo')}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem' }}
+          >
+            <Swords size={16} /> Online PvP (ELO)
+          </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -122,9 +132,18 @@ export const LeaderboardsPage: React.FC = () => {
               <tr style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                 <th style={{ padding: '0.75rem 1rem' }}>Rank</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Player</th>
-                <th style={{ padding: '0.75rem 1rem' }}>{mode.startsWith('sprint') ? 'Time' : 'Score'}</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Lines / Level</th>
-                <th style={{ padding: '0.75rem 1rem' }}>PPS</th>
+                <th style={{ padding: '0.75rem 1rem' }}>{mode === 'elo' ? 'Rating' : mode.startsWith('sprint') ? 'Time' : 'Score'}</th>
+                {mode === 'elo' ? (
+                  <>
+                    <th style={{ padding: '0.75rem 1rem' }}>Win / Loss</th>
+                    <th style={{ padding: '0.75rem 1rem' }}>Games</th>
+                  </>
+                ) : (
+                  <>
+                    <th style={{ padding: '0.75rem 1rem' }}>Lines / Level</th>
+                    <th style={{ padding: '0.75rem 1rem' }}>PPS</th>
+                  </>
+                )}
                 <th style={{ padding: '0.75rem 1rem' }}>Date</th>
               </tr>
             </thead>
@@ -136,12 +155,26 @@ export const LeaderboardsPage: React.FC = () => {
                   <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
                     {formatScoreOrTime(entry)}
                   </td>
-                  <td style={{ padding: '0.75rem 1rem' }}>
-                    {entry.lines} lines (Lvl {entry.level})
-                  </td>
-                  <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace' }}>
-                    {entry.pps ? entry.pps.toFixed(2) : '-'}
-                  </td>
+                  {mode === 'elo' ? (
+                    <>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        <span style={{ color: 'var(--accent-green)', fontWeight: 600 }}>{entry.wins || 0}W</span>
+                        {' '}/ <span style={{ color: 'var(--accent-red)', fontWeight: 600 }}>{entry.losses || 0}L</span>
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        {entry.games_played || 0}
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td style={{ padding: '0.75rem 1rem' }}>
+                        {entry.lines} lines (Lvl {entry.level})
+                      </td>
+                      <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace' }}>
+                        {entry.pps ? entry.pps.toFixed(2) : '-'}
+                      </td>
+                    </>
+                  )}
                   <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                     {new Date(entry.created_at).toLocaleDateString()}
                   </td>

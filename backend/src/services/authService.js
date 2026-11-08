@@ -44,7 +44,7 @@ export class AuthService {
     });
 
     return {
-      user: { id, email: email.toLowerCase().trim(), displayName: displayName.trim() },
+      user: { id, email: email.toLowerCase().trim(), displayName: displayName.trim(), rating: 1000 },
       token
     };
   }
@@ -69,15 +69,23 @@ export class AuthService {
       expiresIn: config.jwtExpiresIn
     });
 
+    const stats = db.prepare('SELECT rating FROM user_statistics WHERE user_id = ?').get(user.id);
+    const rating = stats?.rating ?? 1000;
+
     return {
-      user: { id: user.id, email: user.email, displayName: user.display_name, avatarUrl: user.avatar_url },
+      user: { id: user.id, email: user.email, displayName: user.display_name, avatarUrl: user.avatar_url, rating },
       token
     };
   }
 
   static getProfile(userId) {
     const db = getDatabase();
-    const user = db.prepare('SELECT id, email, display_name, avatar_url, created_at FROM users WHERE id = ?').get(userId);
+    const user = db.prepare(`
+      SELECT u.id, u.email, u.display_name, u.avatar_url, u.created_at, COALESCE(s.rating, 1000) as rating
+      FROM users u
+      LEFT JOIN user_statistics s ON s.user_id = u.id
+      WHERE u.id = ?
+    `).get(userId);
     if (!user) {
       const err = new Error('User not found');
       err.status = 404;

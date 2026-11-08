@@ -6,6 +6,7 @@ export interface User {
   email: string;
   display_name: string;
   avatar_url?: string;
+  rating?: number;
 }
 
 interface AuthContextType {

@@ -234,6 +234,16 @@ export const StatsPage: React.FC = () => {
         gap: '1rem',
         marginBottom: '2.5rem'
       }}>
+        <div className="panel-card" style={{ borderTop: '2px solid var(--accent-cyan)' }}>
+          <div className="stat-label">Online PvP Rating</div>
+          <div className="stat-value" style={{ color: 'var(--accent-cyan)' }}>
+            {isAuthenticated ? (stats.rating ?? 1000) : '—'} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>ELO</span>
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Chess ELO system
+          </div>
+        </div>
+
         <div className="panel-card">
           <div className="stat-label">Games Played</div>
           <div className="stat-value">{stats.games_played ?? (guestStats.gamesPlayed || 0)}</div>
@@ -396,6 +406,7 @@ export const StatsPage: React.FC = () => {
                 <thead>
                   <tr style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                     <th style={{ padding: '0.6rem 1rem' }}>Result</th>
+                    {historyTab === 'pvp' && <th style={{ padding: '0.6rem 1rem' }}>ELO</th>}
                     <th style={{ padding: '0.6rem 1rem' }}>Opponent</th>
                     <th style={{ padding: '0.6rem 1rem' }}>Your Lines</th>
                     <th style={{ padding: '0.6rem 1rem' }}>Opponent Lines</th>
@@ -409,6 +420,18 @@ export const StatsPage: React.FC = () => {
                       <td style={{ padding: '0.6rem 1rem', fontWeight: 800, color: m.result === 'win' ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                         {m.result.toUpperCase()}
                       </td>
+                      {historyTab === 'pvp' && (
+                        <td style={{ padding: '0.6rem 1rem', fontWeight: 700 }}>
+                          {m.rating_change !== undefined && m.rating_change !== 0 ? (
+                            <span style={{ color: m.rating_change > 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                              {m.rating_change > 0 ? `+${m.rating_change}` : m.rating_change}
+                              {m.new_rating ? ` (${m.new_rating})` : ''}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)' }}>—</span>
+                          )}
+                        </td>
+                      )}
                       <td style={{ padding: '0.6rem 1rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                           {m.opponent_type === 'ai' ? (

@@ -3,6 +3,49 @@ import { getDatabase } from '../config/database.js';
 export class LeaderboardService {
   static getLeaderboard(mode, { limit = 50, offset = 0, timeframe = 'all' } = {}) {
     const db = getDatabase();
+
+    if (mode === 'elo' || mode === 'pvp_elo') {
+      const sql = `
+        SELECT 
+          s.user_id as id,
+          s.user_id,
+          u.display_name,
+          u.avatar_url,
+          s.rating as score,
+          s.rating,
+          s.wins,
+          s.losses,
+          s.games_played,
+          s.updated_at as created_at
+        FROM user_statistics s
+        JOIN users u ON u.id = s.user_id
+        WHERE s.games_played > 0
+        ORDER BY s.rating DESC, s.wins DESC
+        LIMIT ? OFFSET ?
+      `;
+      const entries = db.prepare(sql).all(limit, offset);
+
+      const countSql = `
+        SELECT COUNT(*) as total
+        FROM user_statistics s
+        JOIN users u ON u.id = s.user_id
+        WHERE s.games_played > 0
+      `;
+      const countRow = db.prepare(countSql).get();
+
+      return {
+        mode,
+        timeframe,
+        total: countRow ? countRow.total : 0,
+        limit,
+        offset,
+        entries: entries.map((entry, index) => ({
+          rank: offset + index + 1,
+          ...entry
+        }))
+      };
+    }
+
     const isSprint = mode.startsWith('sprint');
 
     let timeFilter = '';

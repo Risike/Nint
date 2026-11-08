@@ -75,6 +75,9 @@ CREATE TABLE IF NOT EXISTS match_history (
     duration INTEGER NOT NULL,
     garbage_sent INTEGER DEFAULT 0,
     garbage_received INTEGER DEFAULT 0,
+    rating_change INTEGER DEFAULT 0,
+    new_rating INTEGER,
+    opponent_rating INTEGER,
     created_at INTEGER NOT NULL
 );
 

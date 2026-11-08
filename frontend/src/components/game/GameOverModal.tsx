@@ -27,6 +27,8 @@ interface GameOverModalProps {
   rematchPlayerReady?: boolean;
   rematchOpponentReady?: boolean;
   rematchOpponentLeft?: boolean;
+  // Online ELO
+  eloChange?: { delta: number; newRating: number; oldRating: number } | null;
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -40,7 +42,8 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   onExit,
   rematchPlayerReady = false,
   rematchOpponentReady = false,
-  rematchOpponentLeft = false
+  rematchOpponentLeft = false,
+  eloChange
 }) => {
   const { setFocusedElement } = useGamepadNav();
   const playAgainBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -130,6 +133,33 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         <h2 className="modal-title" style={{ color: isVictory ? 'var(--accent-green)' : 'var(--text-primary)' }}>
           {isVictory ? 'VICTORY!' : 'GAME OVER'}
         </h2>
+
+        {eloChange && (
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.6rem',
+            background: eloChange.delta >= 0 ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+            border: `1px solid ${eloChange.delta >= 0 ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+            borderRadius: 'var(--radius-sm)',
+            padding: '0.45rem 1rem',
+            margin: '0.2rem auto 0.75rem auto',
+            fontWeight: 700
+          }}>
+            <span style={{
+              color: eloChange.delta >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+              fontSize: '1.25rem',
+              fontWeight: 800
+            }}>
+              {eloChange.delta >= 0 ? `+${eloChange.delta}` : `${eloChange.delta}`} ELO
+            </span>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              ({eloChange.oldRating} → <strong style={{ color: 'var(--text-primary)' }}>{eloChange.newRating}</strong>)
+            </span>
+          </div>
+        )}
+
         {customMessage && (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '-0.5rem', marginBottom: '0.5rem' }}>
             {customMessage}

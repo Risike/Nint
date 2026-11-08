@@ -14,14 +14,14 @@ import { FirebaseRealtimeService, RemotePlayerState } from '../services/firebase
 import { ApiClient } from '../services/api';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
-import { Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2, Lock, ShieldAlert } from 'lucide-react';
+import { Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2, Lock, ShieldAlert, Trophy } from 'lucide-react';
 
 interface OnlineVersusPageProps {
   onNavigate?: (tab: string) => void;
 }
 
 export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshProfile } = useAuth();
   const { settings } = useSettings();
   const cellSize = useDynamicCellSize(true);
 
@@ -32,6 +32,10 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
   const [quickSearchSeconds, setQuickSearchSeconds] = useState<number>(0);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
   const [opponentName, setOpponentName] = useState<string>('Opponent');
+  const [opponentRating, setOpponentRating] = useState<number>(1000);
+  const opponentRatingRef = useRef<number>(1000);
+  const opponentUserIdRef = useRef<string | null>(null);
+  const [eloResult, setEloResult] = useState<{ oldRating: number; newRating: number; delta: number; opponentRating: number } | null>(null);
 
   const [playerEngine, setPlayerEngine] = useState<GameEngine>(() => new GameEngine());
   const [opponentEngine, setOpponentEngine] = useState<GameEngine>(() => new GameEngine());
@@ -200,6 +204,8 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
 
     try {
       const displayName = user?.display_name || 'Player';
+      const myRating = user?.rating || 1000;
+      setEloResult(null);
       const cancelFn = await FirebaseRealtimeService.startQuickMatch(
         displayName,
         (role, seed, mId, rCode) => {
@@ -215,7 +221,9 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
           setOpponentName('Online Opponent');
 
           startLiveGame(seed, mId);
-        }
+        },
+        myRating,
+        user?.id
       );
 
       cancelQuickSearchRef.current = cancelFn;
@@ -261,8 +269,10 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
 
     try {
       const displayName = user?.display_name || 'Player 1';
+      const myRating = user?.rating || 1000;
+      setEloResult(null);
       await FirebaseRealtimeService.authenticate(displayName);
-      const { matchId: mId, seed } = await FirebaseRealtimeService.createRoom(code, displayName);
+      const { matchId: mId, seed } = await FirebaseRealtimeService.createRoom(code, displayName, myRating, user?.id);
       setMatchId(mId);
 
       // Listen strictly once for when status becomes 'active'
@@ -276,12 +286,20 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
           unsubscribeMatchRef.current = null;
         }
 
-        // Find opponent name
+        // Find opponent name & rating
         const myUid = FirebaseRealtimeService.getUid();
         if (matchData.players) {
           for (const [uid, p] of Object.entries<any>(matchData.players)) {
             if (uid !== myUid) {
               setOpponentName(p.displayName || 'Player 2');
+              currentOpponentNameRef.current = p.displayName || 'Player 2';
+              if (p.rating) {
+                setOpponentRating(p.rating);
+                opponentRatingRef.current = p.rating;
+              }
+              if (p.userId) {
+                opponentUserIdRef.current = p.userId;
+              }
               break;
             }
           }
@@ -310,8 +328,10 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
 
     try {
       const displayName = user?.display_name || 'Player 2';
+      const myRating = user?.rating || 1000;
+      setEloResult(null);
       await FirebaseRealtimeService.authenticate(displayName);
-      const { matchId: mId, seed } = await FirebaseRealtimeService.joinRoom(code, displayName);
+      const { matchId: mId, seed } = await FirebaseRealtimeService.joinRoom(code, displayName, myRating, user?.id);
       setMatchId(mId);
       setOpponentName('Host');
 
@@ -402,6 +422,13 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       if (opponentState.displayName) {
         setOpponentName(opponentState.displayName);
         currentOpponentNameRef.current = opponentState.displayName;
+      }
+      if (opponentState.rating) {
+        setOpponentRating(opponentState.rating);
+        opponentRatingRef.current = opponentState.rating;
+      }
+      if (opponentState.userId) {
+        opponentUserIdRef.current = opponentState.userId;
       }
       if (opponentState.connected === false) {
         if (matchStatusRef.current === 'finished') {
@@ -597,9 +624,12 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     if (isAuthenticated) {
       try {
         const stats = engine.getStats();
-        await ApiClient.recordMatch({
-          opponentName,
+        const res = await ApiClient.recordMatch({
+          opponentName: currentOpponentNameRef.current || opponentName,
           opponentType: 'human',
+          opponentRating: opponentRatingRef.current || 1000,
+          opponentId: opponentUserIdRef.current || null,
+          mode: 'versus_online',
           result,
           playerScore: engine.score,
           playerLines: engine.lines,
@@ -611,6 +641,11 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
           maxCombo: stats.maxCombo || 0,
           maxB2B: stats.maxB2B || 0
         });
+
+        if (res && res.elo) {
+          setEloResult(res.elo);
+          await refreshProfile();
+        }
       } catch (e) {
         console.warn('Failed to record online match:', e);
       }
@@ -745,9 +780,22 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
         <div style={{ width: '100%', maxWidth: '980px', textAlign: 'center', marginTop: '1rem' }}>
           <div style={{ marginBottom: '2rem' }}>
             <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>Online Player vs Player</h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1rem' }}>
               Real-time competitive multiplayer. Quick match with any online player or create a private room for a friend.
             </p>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              background: 'rgba(6, 182, 212, 0.1)',
+              border: '1px solid rgba(6, 182, 212, 0.3)',
+              borderRadius: '999px',
+              padding: '0.4rem 1rem'
+            }}>
+              <Trophy size={16} color="var(--accent-cyan)" />
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Your Rating:</span>
+              <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.95rem' }}>{user?.rating ?? 1000} ELO</strong>
+            </div>
           </div>
 
           <div style={{
@@ -1056,8 +1104,18 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
           <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', flexWrap: 'nowrap', alignItems: 'flex-start', maxWidth: '100%', overflowX: 'auto', padding: '0 0.5rem' }}>
             {/* Player Side */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                You ({user?.display_name || 'Player 1'})
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span>You ({user?.display_name || 'Player 1'})</span>
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  color: 'var(--accent-cyan)',
+                  background: 'rgba(6, 182, 212, 0.15)',
+                  padding: '0.1rem 0.45rem',
+                  borderRadius: '999px'
+                }}>
+                  {user?.rating ?? 1000} ELO
+                </span>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
                 <div className="side-panel" style={{ minWidth: '80px' }}>
@@ -1095,8 +1153,18 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
 
             {/* Opponent Side */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--accent-orange)' }}>
-                Opponent ({opponentName})
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--accent-orange)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span>Opponent ({opponentName})</span>
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  color: 'var(--accent-orange)',
+                  background: 'rgba(249, 115, 22, 0.15)',
+                  padding: '0.1rem 0.45rem',
+                  borderRadius: '999px'
+                }}>
+                  {opponentRating} ELO
+                </span>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
                 <div className="side-panel" style={{ minWidth: '80px' }}>
@@ -1128,6 +1196,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
             rematchPlayerReady={rematchPlayerReady}
             rematchOpponentReady={rematchOpponentReady}
             rematchOpponentLeft={rematchOpponentLeft}
+            eloChange={eloResult}
           />
         </div>
       )}

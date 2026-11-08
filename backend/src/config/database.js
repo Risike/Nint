@@ -30,6 +30,22 @@ export function initSchema(db = getDatabase()) {
   const schemaPath = path.resolve(__dirname, '../models/schema.sql');
   const schemaSql = fs.readFileSync(schemaPath, 'utf8');
   db.exec(schemaSql);
+
+  // Dynamic migrations for existing databases
+  try {
+    const matchHistoryCols = db.pragma('table_info(match_history)').map(c => c.name);
+    if (!matchHistoryCols.includes('rating_change')) {
+      db.exec('ALTER TABLE match_history ADD COLUMN rating_change INTEGER DEFAULT 0');
+    }
+    if (!matchHistoryCols.includes('new_rating')) {
+      db.exec('ALTER TABLE match_history ADD COLUMN new_rating INTEGER');
+    }
+    if (!matchHistoryCols.includes('opponent_rating')) {
+      db.exec('ALTER TABLE match_history ADD COLUMN opponent_rating INTEGER');
+    }
+  } catch (e) {
+    // Ignore migration error if table does not exist yet (will be created by schemaSql)
+  }
 }
 
 // Support CLI migration execution

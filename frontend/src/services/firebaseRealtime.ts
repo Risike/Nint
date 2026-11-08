@@ -26,6 +26,8 @@ const firebaseConfig = {
 
 export interface RemotePlayerState {
   displayName: string;
+  userId?: string;
+  rating?: number;
   ready: boolean;
   score: number;
   lines: number;
@@ -98,7 +100,7 @@ export class FirebaseRealtimeService {
   }
 
   // Create an online room
-  public static async createRoom(roomCode: string, displayName: string): Promise<{ matchId: string; seed: number }> {
+  public static async createRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string): Promise<{ matchId: string; seed: number }> {
     const matchId = 'match_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const uid = this.getUid();
     const seed = Math.floor(Math.random() * 1000000);
@@ -127,6 +129,8 @@ export class FirebaseRealtimeService {
         players: {
           [uid]: {
             displayName,
+            userId: userId || null,
+            rating: rating || 1000,
             ready: true,
             score: 0,
             lines: 0,
@@ -150,7 +154,7 @@ export class FirebaseRealtimeService {
   }
 
   // Join an online room
-  public static async joinRoom(roomCode: string, displayName: string): Promise<{ matchId: string; seed: number }> {
+  public static async joinRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string): Promise<{ matchId: string; seed: number }> {
     const uid = this.getUid();
 
     if (!this.isConfigured || !this.db) {
@@ -177,6 +181,8 @@ export class FirebaseRealtimeService {
     const playerRef = ref(this.db, `matches/${matchId}/players/${uid}`);
     await set(playerRef, {
       displayName,
+      userId: userId || null,
+      rating: rating || 1000,
       ready: true,
       score: 0,
       lines: 0,
@@ -428,7 +434,9 @@ export class FirebaseRealtimeService {
   // 3. Periodically checks if another room was created simultaneously and resolves ties deterministically.
   public static async startQuickMatch(
     displayName: string,
-    onMatched: (role: 'host' | 'guest', seed: number, matchId: string, roomCode: string) => void
+    onMatched: (role: 'host' | 'guest', seed: number, matchId: string, roomCode: string) => void,
+    rating: number = 1000,
+    userId?: string
   ): Promise<() => Promise<void>> {
     await this.authenticate(displayName);
     const uid = this.getUid();
@@ -468,7 +476,7 @@ export class FirebaseRealtimeService {
               // Remove our own queue entry if we had one
               set(myQueueRef, null).catch(() => {});
 
-              const { matchId, seed } = await this.joinRoom(entry.roomCode, displayName);
+              const { matchId, seed } = await this.joinRoom(entry.roomCode, displayName, rating, userId);
               onMatched('guest', seed, matchId, entry.roomCode);
               return true;
             }
@@ -489,7 +497,7 @@ export class FirebaseRealtimeService {
     // Step 2: Nobody is waiting yet, so we become the host
     const myCreatedAt = Date.now();
     const roomCode = 'Q' + Math.random().toString(36).substring(2, 7).toUpperCase();
-    const { matchId, seed } = await this.createRoom(roomCode, displayName);
+    const { matchId, seed } = await this.createRoom(roomCode, displayName, rating, userId);
 
     if (isDisposed) {
       // User cancelled during room creation
@@ -501,6 +509,8 @@ export class FirebaseRealtimeService {
     await set(myQueueRef, {
       uid,
       displayName,
+      userId: userId || null,
+      rating: rating || 1000,
       roomCode,
       matchId,
       seed,
@@ -555,7 +565,7 @@ export class FirebaseRealtimeService {
                 this.leaveRoom(roomCode, matchId).catch(() => {});
 
                 // Join the older room
-                const res = await this.joinRoom(entry.roomCode, displayName);
+                const res = await this.joinRoom(entry.roomCode, displayName, rating, userId);
                 onMatched('guest', res.seed, res.matchId, entry.roomCode);
                 return;
               }
