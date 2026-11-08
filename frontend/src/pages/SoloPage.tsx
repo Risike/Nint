@@ -509,6 +509,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
               min={1}
               max={20}
               value={zenLevel}
+              tabIndex={-1}
               onChange={(e) => setZenLevel(parseInt(e.target.value, 10))}
               style={{ width: '100%', cursor: 'pointer' }}
             />
@@ -519,44 +520,44 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
             <label style={{ display: 'block', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
               Speed Progression
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div
-                role="button"
-                tabIndex={0}
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                type="button"
                 onClick={() => setZenFixedGravity(true)}
-                onKeyDown={(e) => e.key === 'Enter' && setZenFixedGravity(true)}
                 style={{
+                  flex: 1,
                   padding: '1rem',
                   borderRadius: 'var(--radius-sm)',
                   border: `2px solid ${zenFixedGravity ? 'var(--accent-purple)' : 'var(--border-color)'}`,
                   background: zenFixedGravity ? 'rgba(168, 85, 247, 0.1)' : 'var(--bg-tertiary)',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  textAlign: 'left'
                 }}
               >
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem' }}>🧘 Fixed Speed (Constant)</div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                   Gravity never accelerates. Zero pressure endless meditation.
                 </div>
-              </div>
+              </button>
 
-              <div
-                role="button"
-                tabIndex={0}
+              <button
+                type="button"
                 onClick={() => setZenFixedGravity(false)}
-                onKeyDown={(e) => e.key === 'Enter' && setZenFixedGravity(false)}
                 style={{
+                  flex: 1,
                   padding: '1rem',
                   borderRadius: 'var(--radius-sm)',
                   border: `2px solid ${!zenFixedGravity ? 'var(--accent-purple)' : 'var(--border-color)'}`,
                   background: !zenFixedGravity ? 'rgba(168, 85, 247, 0.1)' : 'var(--bg-tertiary)',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  textAlign: 'left'
                 }}
               >
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem' }}>⚡ Dynamic (Accelerates)</div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                   Gravity steadily speeds up every 10 lines as in Marathon.
                 </div>
-              </div>
+              </button>
             </div>
           </div>
 
@@ -565,18 +566,18 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
             <label style={{ display: 'block', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
               Anti-Game Over (Zen Immortality)
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div
-                role="button"
-                tabIndex={0}
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                type="button"
                 onClick={() => setZenImmortal(true)}
-                onKeyDown={(e) => e.key === 'Enter' && setZenImmortal(true)}
                 style={{
+                  flex: 1,
                   padding: '1rem',
                   borderRadius: 'var(--radius-sm)',
                   border: `2px solid ${zenImmortal ? 'var(--accent-green)' : 'var(--border-color)'}`,
                   background: zenImmortal ? 'rgba(34, 197, 94, 0.1)' : 'var(--bg-tertiary)',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  textAlign: 'left'
                 }}
               >
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem', color: zenImmortal ? 'var(--accent-green)' : 'inherit' }}>
@@ -585,19 +586,19 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                   Touching the ceiling clears the board and continues smoothly without ending the game.
                 </div>
-              </div>
+              </button>
 
-              <div
-                role="button"
-                tabIndex={0}
+              <button
+                type="button"
                 onClick={() => setZenImmortal(false)}
-                onKeyDown={(e) => e.key === 'Enter' && setZenImmortal(false)}
                 style={{
+                  flex: 1,
                   padding: '1rem',
                   borderRadius: 'var(--radius-sm)',
                   border: `2px solid ${!zenImmortal ? 'var(--accent-red)' : 'var(--border-color)'}`,
                   background: !zenImmortal ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-tertiary)',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  textAlign: 'left'
                 }}
               >
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem', color: !zenImmortal ? 'var(--accent-red)' : 'inherit' }}>
@@ -606,7 +607,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                   Overfilling the board results in a normal game over screen.
                 </div>
-              </div>
+              </button>
             </div>
           </div>
 
