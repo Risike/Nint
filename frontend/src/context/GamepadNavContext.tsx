@@ -259,25 +259,27 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
       let inDirection = false;
 
       if (direction === 'right') {
-        if (dx > 5) {
+        // Cone filter: element must be more to the right than it is up/down
+        if (dx > 5 && dx > Math.abs(dy) * 0.6) {
           inDirection = true;
           primary = dx;
           secondary = Math.abs(dy);
         }
       } else if (direction === 'left') {
-        if (dx < -5) {
+        if (dx < -5 && -dx > Math.abs(dy) * 0.6) {
           inDirection = true;
           primary = -dx;
           secondary = Math.abs(dy);
         }
       } else if (direction === 'down') {
-        if (dy > 5) {
+        // Cone filter: element must be more below than it is left/right
+        if (dy > 5 && dy > Math.abs(dx) * 0.6) {
           inDirection = true;
           primary = dy;
           secondary = Math.abs(dx);
         }
       } else if (direction === 'up') {
-        if (dy < -5) {
+        if (dy < -5 && -dy > Math.abs(dx) * 0.6) {
           inDirection = true;
           primary = -dy;
           secondary = Math.abs(dx);
@@ -286,7 +288,7 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
 
       if (inDirection) {
         // Weighted distance emphasizing primary axis
-        const dist = primary + secondary * 1.8;
+        const dist = primary + secondary * 1.5;
         if (dist < minDistance) {
           minDistance = dist;
           bestCandidate = el;
