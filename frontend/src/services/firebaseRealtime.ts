@@ -83,6 +83,10 @@ export class FirebaseRealtimeService {
     this.initialize();
     if (this.isConfigured && this.auth) {
       try {
+        if (this.auth.currentUser) {
+          this.currentUid = this.auth.currentUser.uid;
+          return this.currentUid;
+        }
         const cred = await signInAnonymously(this.auth);
         this.currentUid = cred.user.uid;
         return this.currentUid;
@@ -418,8 +422,10 @@ export class FirebaseRealtimeService {
   }
 
   // Quick Search Matchmaking:
-  // Both players listen to the matchmaking queue in realtime via WebSockets.
-  // When 2 players are present, the older one creates the room and notifies the guest.
+  // Strictly compliant with database.rules.json (uses /matchmaking_queue/$uid)
+  // 1. Checks if another player is already waiting in matchmaking_queue and joins their room.
+  // 2. If nobody is waiting, registers this player under matchmaking_queue/$uid and awaits an opponent.
+  // 3. Periodically checks if another room was created simultaneously and resolves ties deterministically.
   public static async startQuickMatch(
     displayName: string,
     onMatched: (role: 'host' | 'guest', seed: number, matchId: string, roomCode: string) => void
@@ -433,122 +439,144 @@ export class FirebaseRealtimeService {
 
     let isDisposed = false;
     let matchFound = false;
+    let unsubscribeStart: (() => void) | null = null;
+    let pollTimer: any = null;
 
-    const myQueueRef = ref(this.db, `matchmaking/queue/${uid}`);
-    const pairsRef = ref(this.db, `matchmaking/pairs`);
-    const allQueueRef = ref(this.db, `matchmaking/queue`);
+    const myQueueRef = ref(this.db, `matchmaking_queue/${uid}`);
+    const queueListRef = ref(this.db, 'matchmaking_queue');
 
-    // 1. Register myself in the matchmaking queue
+    // Helper: attempt to join an existing waiting player's room
+    const tryJoinExisting = async (): Promise<boolean> => {
+      try {
+        const snap = await get(queueListRef);
+        if (!snap.exists()) return false;
+
+        const queue = snap.val();
+        const now = Date.now();
+
+        for (const [otherUid, entry] of Object.entries<any>(queue)) {
+          if (otherUid !== uid && entry && entry.roomCode && (now - (entry.createdAt || 0) < 60000)) {
+            // Verify the room is still waiting
+            const roomSnap = await get(ref(this.db!, `rooms/${entry.roomCode}`));
+            if (roomSnap.exists() && roomSnap.val().status === 'waiting') {
+              matchFound = true;
+              isDisposed = true;
+
+              if (pollTimer) clearInterval(pollTimer);
+              if (unsubscribeStart) unsubscribeStart();
+
+              // Remove our own queue entry if we had one
+              set(myQueueRef, null).catch(() => {});
+
+              const { matchId, seed } = await this.joinRoom(entry.roomCode, displayName);
+              onMatched('guest', seed, matchId, entry.roomCode);
+              return true;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Error checking existing quick match rooms:', e);
+      }
+      return false;
+    };
+
+    // Step 1: Check if an opponent is already waiting
+    const joined = await tryJoinExisting();
+    if (joined) {
+      return async () => {};
+    }
+
+    // Step 2: Nobody is waiting yet, so we become the host
+    const myCreatedAt = Date.now();
+    const roomCode = 'Q' + Math.random().toString(36).substring(2, 7).toUpperCase();
+    const { matchId, seed } = await this.createRoom(roomCode, displayName);
+
+    if (isDisposed) {
+      // User cancelled during room creation
+      this.leaveRoom(roomCode, matchId).catch(() => {});
+      return async () => {};
+    }
+
+    // Publish our room under matchmaking_queue/$uid (allowed by auth.uid == $uid)
     await set(myQueueRef, {
       uid,
       displayName,
-      joinedAt: Date.now()
+      roomCode,
+      matchId,
+      seed,
+      createdAt: myCreatedAt
     });
 
-    // Automatically remove from queue on disconnect
+    // Automatically remove our entry if we disconnect
     onDisconnect(myQueueRef).remove().catch(() => {});
 
-    // 2. Listen to formed pairs where I am the guest
-    const guestPairListener = onValue(pairsRef, async (snapshot) => {
-      if (isDisposed || matchFound) return;
-      if (!snapshot.exists()) return;
+    // Listen for opponent joining our room
+    unsubscribeStart = this.listenToMatchStart(matchId, () => {
+      if (matchFound) return;
+      matchFound = true;
+      isDisposed = true;
 
-      const pairs = snapshot.val();
-      for (const [pairId, pair] of Object.entries<any>(pairs)) {
-        if (pair && pair.guestUid === uid) {
-          // We were invited to an existing match!
-          matchFound = true;
-          // Clean up pair and queue entry
-          set(ref(this.db!, `matchmaking/pairs/${pairId}`), null).catch(() => {});
-          set(myQueueRef, null).catch(() => {});
+      if (pollTimer) clearInterval(pollTimer);
+      // Clean up our own queue entry (allowed by auth.uid == $uid)
+      set(myQueueRef, null).catch(() => {});
+      onMatched('host', seed, matchId, roomCode);
+    });
 
-          // Detach listeners
-          off(allQueueRef, 'value', queueListener);
-          off(pairsRef, 'value', guestPairListener);
+    // Step 3: Every 1.5s, check if an older room exists (tie-breaking in case 2 players hosted simultaneously)
+    pollTimer = setInterval(async () => {
+      if (isDisposed || matchFound) {
+        if (pollTimer) clearInterval(pollTimer);
+        return;
+      }
 
-          try {
-            const { matchId, seed } = await this.joinRoom(pair.roomCode, displayName);
-            onMatched('guest', seed, matchId, pair.roomCode);
-          } catch (e) {
-            console.warn('Failed to join quick match room:', e);
+      try {
+        const snap = await get(queueListRef);
+        if (!snap.exists()) return;
+
+        const queue = snap.val();
+        const now = Date.now();
+
+        for (const [otherUid, entry] of Object.entries<any>(queue)) {
+          if (otherUid !== uid && entry && entry.roomCode && (now - (entry.createdAt || 0) < 60000)) {
+            const otherCreated = entry.createdAt || 0;
+            // Deterministic tie-breaker: if other room is older, or created at same ms and has lower UID:
+            const otherHasPrecedence = otherCreated < myCreatedAt || (otherCreated === myCreatedAt && otherUid < uid);
+
+            if (otherHasPrecedence) {
+              const roomSnap = await get(ref(this.db!, `rooms/${entry.roomCode}`));
+              if (roomSnap.exists() && roomSnap.val().status === 'waiting') {
+                matchFound = true;
+                isDisposed = true;
+                if (pollTimer) clearInterval(pollTimer);
+                if (unsubscribeStart) unsubscribeStart();
+
+                // Clean up our own room and queue entry
+                set(myQueueRef, null).catch(() => {});
+                this.leaveRoom(roomCode, matchId).catch(() => {});
+
+                // Join the older room
+                const res = await this.joinRoom(entry.roomCode, displayName);
+                onMatched('guest', res.seed, res.matchId, entry.roomCode);
+                return;
+              }
+            }
           }
-          break;
         }
+      } catch (e) {
+        console.warn('Tie-break check notice:', e);
       }
-    });
+    }, 1500);
 
-    // 3. Listen to the queue in realtime to form pairs
-    const queueListener = onValue(allQueueRef, async (snapshot) => {
-      if (isDisposed || matchFound) return;
-      if (!snapshot.exists()) return;
-
-      const queue = snapshot.val();
-      const now = Date.now();
-
-      // Filter valid waiting players (joined within last 2 minutes)
-      const validPlayers: Array<{ uid: string; displayName: string; joinedAt: number }> = [];
-      for (const [pUid, entry] of Object.entries<any>(queue)) {
-        if (entry && (now - (entry.joinedAt || 0) < 120000)) {
-          validPlayers.push({
-            uid: entry.uid || pUid,
-            displayName: entry.displayName || 'Player',
-            joinedAt: entry.joinedAt || 0
-          });
-        }
-      }
-
-      // Sort by joinedAt ascending (oldest waiting player is host)
-      validPlayers.sort((a, b) => a.joinedAt - b.joinedAt);
-
-      // Check if we are among the first pair
-      if (validPlayers.length >= 2) {
-        const p1 = validPlayers[0];
-        const p2 = validPlayers[1];
-
-        // Only the host (p1) initiates room creation to avoid race conditions!
-        if (uid === p1.uid) {
-          matchFound = true;
-
-          // Remove both players from queue immediately so nobody else matches with them
-          set(ref(this.db!, `matchmaking/queue/${p1.uid}`), null).catch(() => {});
-          set(ref(this.db!, `matchmaking/queue/${p2.uid}`), null).catch(() => {});
-
-          // Detach listeners
-          off(allQueueRef, 'value', queueListener);
-          off(pairsRef, 'value', guestPairListener);
-
-          const roomCode = 'Q' + Math.random().toString(36).substring(2, 7).toUpperCase();
-          const { matchId, seed } = await this.createRoom(roomCode, p1.displayName);
-
-          // Write invitation for the guest
-          const pairKey = `${p1.uid}_${p2.uid}`;
-          await set(ref(this.db!, `matchmaking/pairs/${pairKey}`), {
-            roomCode,
-            matchId,
-            seed,
-            hostUid: p1.uid,
-            guestUid: p2.uid,
-            createdAt: Date.now()
-          });
-
-          // Host awaits opponent joining
-          const unsubscribeStart = this.listenToMatchStart(matchId, () => {
-            unsubscribeStart();
-            onMatched('host', seed, matchId, roomCode);
-          });
-        }
-      }
-    });
-
-    // Return cancel function
+    // Cancel search callback
     return async () => {
       isDisposed = true;
-      off(allQueueRef, 'value', queueListener);
-      off(pairsRef, 'value', guestPairListener);
+      if (pollTimer) clearInterval(pollTimer);
+      if (unsubscribeStart) unsubscribeStart();
       try {
         await set(myQueueRef, null);
+        await this.leaveRoom(roomCode, matchId);
       } catch (e) {
-        console.warn('Error clearing matchmaking queue:', e);
+        console.warn('Error cancelling quick search:', e);
       }
     };
   }
