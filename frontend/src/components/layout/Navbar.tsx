@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gamepad2, Trophy, BarChart3, Settings, User, Volume2, VolumeX, Swords, Globe } from 'lucide-react';
+import { Gamepad2, Trophy, BarChart3, Settings, User, Volume2, VolumeX, Swords, Globe, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useGamepadNav } from '../../context/GamepadNavContext';
@@ -91,6 +91,15 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
         >
           Settings
         </button>
+        {user?.is_admin && (
+          <button
+            className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
+            onClick={() => setActiveTab('admin')}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--accent-cyan)' }}
+          >
+            <Shield size={14} /> Admin
+          </button>
+        )}
         {gamepadConnected && (
           <span className="gamepad-nav-badge" title="Navigate tabs with RB/RT">RB</span>
         )}

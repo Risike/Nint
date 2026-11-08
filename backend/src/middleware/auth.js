@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
+import { getDatabase } from '../config/database.js';
 
 export function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -34,5 +35,32 @@ export function optionalAuth(req, res, next) {
       req.user = null;
     }
     next();
+  });
+}
+
+export function requireAdmin(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  jwt.verify(token, config.jwtSecret, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    req.user = user;
+
+    try {
+      const db = getDatabase();
+      const row = db.prepare('SELECT is_admin FROM users WHERE id = ?').get(user.id);
+      if (!row || row.is_admin !== 1) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      next();
+    } catch (dbErr) {
+      next(dbErr);
+    }
   });
 }

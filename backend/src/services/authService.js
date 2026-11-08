@@ -73,7 +73,7 @@ export class AuthService {
     const rating = stats?.rating ?? 1000;
 
     return {
-      user: { id: user.id, email: user.email, displayName: user.display_name, avatarUrl: user.avatar_url, rating },
+      user: { id: user.id, email: user.email, displayName: user.display_name, avatarUrl: user.avatar_url, rating, is_admin: user.is_admin === 1 },
       token
     };
   }
@@ -81,7 +81,7 @@ export class AuthService {
   static getProfile(userId) {
     const db = getDatabase();
     const user = db.prepare(`
-      SELECT u.id, u.email, u.display_name, u.avatar_url, u.created_at, COALESCE(s.rating, 1000) as rating
+      SELECT u.id, u.email, u.display_name, u.avatar_url, u.created_at, u.is_admin, COALESCE(s.rating, 1000) as rating
       FROM users u
       LEFT JOIN user_statistics s ON s.user_id = u.id
       WHERE u.id = ?
@@ -91,7 +91,10 @@ export class AuthService {
       err.status = 404;
       throw err;
     }
-    return user;
+    return {
+      ...user,
+      is_admin: user.is_admin === 1
+    };
   }
 
   static updateProfile(userId, { displayName, avatarUrl, newPassword, currentPassword }) {

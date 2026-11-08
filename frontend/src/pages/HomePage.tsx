@@ -1,6 +1,7 @@
-import React from 'react';
-import { Play, Swords, Globe, Zap, Timer, Flame, Trophy } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Play, Swords, Globe, Zap, Timer, Flame, Trophy, Megaphone } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { ApiClient } from '../services/api';
 
 interface HomePageProps {
   onSelectMode: (mode: string) => void;
@@ -8,6 +9,14 @@ interface HomePageProps {
 
 export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
   const { isGuest, user } = useAuth();
+
+  const [newsMessage, setNewsMessage] = useState('');
+
+  useEffect(() => {
+    ApiClient.getNews().then(data => {
+      if (data.message) setNewsMessage(data.message);
+    }).catch(() => {});
+  }, []);
 
   return (
     <div style={{ width: '100%', maxWidth: '960px', textAlign: 'center', marginTop: '1rem' }}>
@@ -41,6 +50,19 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
             color: 'var(--text-secondary)'
           }}>
             Playing as <strong>Guest</strong> (Local progress only. Sign in to climb global leaderboards!)
+          </div>
+        )}
+        {newsMessage && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.6rem',
+            marginTop: '1rem', padding: '0.75rem 1rem',
+            background: 'rgba(6, 182, 212, 0.1)',
+            border: '1px solid rgba(6, 182, 212, 0.25)',
+            borderRadius: 'var(--radius-sm)',
+            textAlign: 'left', maxWidth: '600px', margin: '1rem auto 0'
+          }}>
+            <Megaphone size={18} style={{ color: 'var(--accent-cyan)', flexShrink: 0 }} />
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{newsMessage}</span>
           </div>
         )}
       </div>

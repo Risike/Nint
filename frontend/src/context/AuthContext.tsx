@@ -7,6 +7,7 @@ export interface User {
   display_name: string;
   avatar_url?: string;
   rating?: number;
+  is_admin?: boolean;
 }
 
 interface AuthContextType {

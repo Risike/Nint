@@ -143,4 +143,38 @@ export class ApiClient {
       console.warn('sendBeaconRecordMatch failed:', e);
     }
   }
+
+  // Admin
+  public static getNews() {
+    return this.request<{ message: string; updatedAt: number | null }>('/admin/news');
+  }
+
+  public static setNews(message: string) {
+    return this.request<{ success: boolean }>('/admin/news', {
+      method: 'PUT',
+      body: JSON.stringify({ message })
+    });
+  }
+
+  public static clearLeaderboards() {
+    return this.request<{ success: boolean }>('/admin/leaderboards', {
+      method: 'DELETE'
+    });
+  }
+
+  public static adminSearchUsers(q: string) {
+    return this.request<any[]>(`/admin/users?q=${encodeURIComponent(q)}`);
+  }
+
+  public static adminClearUserStats(userId: string) {
+    return this.request<{ success: boolean }>(`/admin/users/${userId}/stats`, {
+      method: 'DELETE'
+    });
+  }
+
+  public static adminDeleteUser(userId: string) {
+    return this.request<{ success: boolean }>(`/admin/users/${userId}`, {
+      method: 'DELETE'
+    });
+  }
 }

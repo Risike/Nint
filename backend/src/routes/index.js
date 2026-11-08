@@ -6,6 +6,7 @@ import statsRoutes from './statsRoutes.js';
 import settingsRoutes from './settingsRoutes.js';
 import matchRoutes from './matchRoutes.js';
 import matchmakingRoutes from './matchmakingRoutes.js';
+import adminRoutes from './adminRoutes.js';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use('/stats', statsRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/matches', matchRoutes);
 router.use('/matchmaking', matchmakingRoutes);
+router.use('/admin', adminRoutes);
 
 export default router;

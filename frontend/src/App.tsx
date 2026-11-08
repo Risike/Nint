@@ -16,6 +16,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { AdminPage } from './pages/AdminPage';
 import './styles/main.css';
 
 export const AppContent: React.FC = () => {
@@ -82,6 +83,8 @@ export const AppContent: React.FC = () => {
             onNavigate={(tab) => handleNavigate(tab)}
           />
         );
+      case 'admin':
+        return <AdminPage onNavigate={handleNavigate} />;
       default:
         return <HomePage onSelectMode={() => setActiveTab('solo')} />;
     }
