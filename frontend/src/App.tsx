@@ -62,7 +62,7 @@ export const AppContent: React.FC = () => {
       case 'versus_ai':
         return <VersusAiPage />;
       case 'online':
-        return <OnlineVersusPage />;
+        return <OnlineVersusPage onNavigate={handleNavigate} />;
       case 'leaderboards':
         return <LeaderboardsPage />;
       case 'stats':

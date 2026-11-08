@@ -418,17 +418,12 @@ export class FirebaseRealtimeService {
   }
 
   // Quick Search Matchmaking:
-  // Finds an existing waiting host, or creates a waiting entry and waits for an opponent.
+  // Both players listen to the matchmaking queue in realtime via WebSockets.
+  // When 2 players are present, the older one creates the room and notifies the guest.
   public static async startQuickMatch(
     displayName: string,
-    onOpponentJoined: (matchData: any, seed: number, matchId: string) => void
-  ): Promise<{
-    type: 'joined' | 'waiting';
-    matchId: string;
-    seed: number;
-    roomCode: string;
-    cancel?: () => Promise<void>;
-  }> {
+    onMatched: (role: 'host' | 'guest', seed: number, matchId: string, roomCode: string) => void
+  ): Promise<() => Promise<void>> {
     await this.authenticate(displayName);
     const uid = this.getUid();
 
@@ -436,94 +431,125 @@ export class FirebaseRealtimeService {
       throw new Error('Firebase is not configured. Please check your network or configuration.');
     }
 
-    // 1. Check if there is already a waiting player in matchmaking_queue
-    const queueRef = ref(this.db, 'matchmaking_queue');
-    const snapshot = await get(queueRef);
+    let isDisposed = false;
+    let matchFound = false;
 
-    if (snapshot.exists()) {
+    const myQueueRef = ref(this.db, `matchmaking/queue/${uid}`);
+    const pairsRef = ref(this.db, `matchmaking/pairs`);
+    const allQueueRef = ref(this.db, `matchmaking/queue`);
+
+    // 1. Register myself in the matchmaking queue
+    await set(myQueueRef, {
+      uid,
+      displayName,
+      joinedAt: Date.now()
+    });
+
+    // Automatically remove from queue on disconnect
+    onDisconnect(myQueueRef).remove().catch(() => {});
+
+    // 2. Listen to formed pairs where I am the guest
+    const guestPairListener = onValue(pairsRef, async (snapshot) => {
+      if (isDisposed || matchFound) return;
+      if (!snapshot.exists()) return;
+
+      const pairs = snapshot.val();
+      for (const [pairId, pair] of Object.entries<any>(pairs)) {
+        if (pair && pair.guestUid === uid) {
+          // We were invited to an existing match!
+          matchFound = true;
+          // Clean up pair and queue entry
+          set(ref(this.db!, `matchmaking/pairs/${pairId}`), null).catch(() => {});
+          set(myQueueRef, null).catch(() => {});
+
+          // Detach listeners
+          off(allQueueRef, 'value', queueListener);
+          off(pairsRef, 'value', guestPairListener);
+
+          try {
+            const { matchId, seed } = await this.joinRoom(pair.roomCode, displayName);
+            onMatched('guest', seed, matchId, pair.roomCode);
+          } catch (e) {
+            console.warn('Failed to join quick match room:', e);
+          }
+          break;
+        }
+      }
+    });
+
+    // 3. Listen to the queue in realtime to form pairs
+    const queueListener = onValue(allQueueRef, async (snapshot) => {
+      if (isDisposed || matchFound) return;
+      if (!snapshot.exists()) return;
+
       const queue = snapshot.val();
       const now = Date.now();
 
-      // Find first valid waiting player who is not ourselves and was created within the last 60 seconds
-      for (const [key, entry] of Object.entries<any>(queue)) {
-        if (entry && entry.uid !== uid && (now - (entry.createdAt || 0) < 60000)) {
-          // Atomically attempt to claim this waiting player's room
-          const targetEntryRef = ref(this.db, `matchmaking_queue/${key}`);
-          try {
-            const tx = await runTransaction(targetEntryRef, (current) => {
-              if (current === null) {
-                // Already claimed by another player
-                return;
-              }
-              // Claim by clearing this entry from the queue
-              return null;
-            });
-
-            if (tx.committed && tx.snapshot.val() === null) {
-              // Successfully claimed! Join their room
-              const { matchId, seed } = await this.joinRoom(entry.roomCode, displayName);
-              return {
-                type: 'joined',
-                matchId,
-                seed,
-                roomCode: entry.roomCode
-              };
-            }
-          } catch (e) {
-            console.warn('Contested quick search entry:', e);
-          }
+      // Filter valid waiting players (joined within last 2 minutes)
+      const validPlayers: Array<{ uid: string; displayName: string; joinedAt: number }> = [];
+      for (const [pUid, entry] of Object.entries<any>(queue)) {
+        if (entry && (now - (entry.joinedAt || 0) < 120000)) {
+          validPlayers.push({
+            uid: entry.uid || pUid,
+            displayName: entry.displayName || 'Player',
+            joinedAt: entry.joinedAt || 0
+          });
         }
       }
-    }
 
-    // 2. If no available waiting player was found, create a room and wait in the queue:
-    const roomCode = 'Q' + Math.random().toString(36).substring(2, 7).toUpperCase();
-    const { matchId, seed } = await this.createRoom(roomCode, displayName);
+      // Sort by joinedAt ascending (oldest waiting player is host)
+      validPlayers.sort((a, b) => a.joinedAt - b.joinedAt);
 
-    const myQueueEntryRef = ref(this.db, `matchmaking_queue/${uid}`);
-    await set(myQueueEntryRef, {
-      uid,
-      displayName,
-      roomCode,
-      matchId,
-      seed,
-      createdAt: Date.now()
+      // Check if we are among the first pair
+      if (validPlayers.length >= 2) {
+        const p1 = validPlayers[0];
+        const p2 = validPlayers[1];
+
+        // Only the host (p1) initiates room creation to avoid race conditions!
+        if (uid === p1.uid) {
+          matchFound = true;
+
+          // Remove both players from queue immediately so nobody else matches with them
+          set(ref(this.db!, `matchmaking/queue/${p1.uid}`), null).catch(() => {});
+          set(ref(this.db!, `matchmaking/queue/${p2.uid}`), null).catch(() => {});
+
+          // Detach listeners
+          off(allQueueRef, 'value', queueListener);
+          off(pairsRef, 'value', guestPairListener);
+
+          const roomCode = 'Q' + Math.random().toString(36).substring(2, 7).toUpperCase();
+          const { matchId, seed } = await this.createRoom(roomCode, p1.displayName);
+
+          // Write invitation for the guest
+          const pairKey = `${p1.uid}_${p2.uid}`;
+          await set(ref(this.db!, `matchmaking/pairs/${pairKey}`), {
+            roomCode,
+            matchId,
+            seed,
+            hostUid: p1.uid,
+            guestUid: p2.uid,
+            createdAt: Date.now()
+          });
+
+          // Host awaits opponent joining
+          const unsubscribeStart = this.listenToMatchStart(matchId, () => {
+            unsubscribeStart();
+            onMatched('host', seed, matchId, roomCode);
+          });
+        }
+      }
     });
 
-    // Auto-remove from matchmaking queue on disconnect
-    onDisconnect(myQueueEntryRef).remove().catch(() => {});
-
-    // Listen for someone joining our room
-    let unsubscribeMatch: (() => void) | null = null;
-    unsubscribeMatch = this.listenToMatchStart(matchId, (matchData) => {
-      // Opponent joined! Clean up from queue
-      set(myQueueEntryRef, null).catch(() => {});
-      if (unsubscribeMatch) {
-        unsubscribeMatch();
-        unsubscribeMatch = null;
-      }
-      onOpponentJoined(matchData, seed, matchId);
-    });
-
-    const cancel = async () => {
-      if (unsubscribeMatch) {
-        unsubscribeMatch();
-        unsubscribeMatch = null;
-      }
+    // Return cancel function
+    return async () => {
+      isDisposed = true;
+      off(allQueueRef, 'value', queueListener);
+      off(pairsRef, 'value', guestPairListener);
       try {
-        await set(myQueueEntryRef, null);
-        await this.leaveRoom(roomCode, matchId);
+        await set(myQueueRef, null);
       } catch (e) {
-        console.warn('Error cancelling quick search:', e);
+        console.warn('Error clearing matchmaking queue:', e);
       }
-    };
-
-    return {
-      type: 'waiting',
-      matchId,
-      seed,
-      roomCode,
-      cancel
     };
   }
 

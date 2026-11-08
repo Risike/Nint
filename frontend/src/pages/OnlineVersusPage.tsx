@@ -14,9 +14,13 @@ import { FirebaseRealtimeService, RemotePlayerState } from '../services/firebase
 import { ApiClient } from '../services/api';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
-import { Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2 } from 'lucide-react';
+import { Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2, Lock, ShieldAlert } from 'lucide-react';
 
-export const OnlineVersusPage: React.FC = () => {
+interface OnlineVersusPageProps {
+  onNavigate?: (tab: string) => void;
+}
+
+export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }) => {
   const { user, isAuthenticated } = useAuth();
   const { settings } = useSettings();
   const cellSize = useDynamicCellSize(true);
@@ -196,45 +200,25 @@ export const OnlineVersusPage: React.FC = () => {
 
     try {
       const displayName = user?.display_name || 'Player';
-      const result = await FirebaseRealtimeService.startQuickMatch(
+      const cancelFn = await FirebaseRealtimeService.startQuickMatch(
         displayName,
-        (matchData, seed, mId) => {
-          // Opponent matched with our waiting room!
+        (role, seed, mId, rCode) => {
           if (gameStartedRef.current) return;
           gameStartedRef.current = true;
           cancelQuickSearchRef.current = null;
 
-          const myUid = FirebaseRealtimeService.getUid();
-          if (matchData.players) {
-            for (const [uid, p] of Object.entries<any>(matchData.players)) {
-              if (uid !== myUid) {
-                setOpponentName(p.displayName || 'Opponent');
-                break;
-              }
-            }
-          }
+          const amIHost = role === 'host';
+          setIsHost(amIHost);
+          isHostRef.current = amIHost;
+          setMatchId(mId);
+          setRoomCode(rCode);
+          setOpponentName('Online Opponent');
+
           startLiveGame(seed, mId);
         }
       );
 
-      if (result.type === 'joined') {
-        // We were matched immediately with an existing player!
-        setIsHost(false);
-        isHostRef.current = false;
-        setMatchId(result.matchId);
-        setRoomCode(result.roomCode);
-        setOpponentName('Opponent');
-        gameStartedRef.current = true;
-        cancelQuickSearchRef.current = null;
-        startLiveGame(result.seed, result.matchId);
-      } else {
-        // We are the waiting host in the queue
-        setIsHost(true);
-        isHostRef.current = true;
-        setMatchId(result.matchId);
-        setRoomCode(result.roomCode);
-        cancelQuickSearchRef.current = result.cancel || null;
-      }
+      cancelQuickSearchRef.current = cancelFn;
     } catch (e: any) {
       console.warn('Quick search failed:', e);
       setErrorMsg(e.message || 'Quick search failed to connect.');
@@ -692,6 +676,51 @@ export const OnlineVersusPage: React.FC = () => {
     setRoomCode('');
     setIsGameOverOpen(false);
   };
+
+  // If user is not logged in, block access to online play completely
+  if (!isAuthenticated) {
+    return (
+      <div style={{ width: '100%', maxWidth: '600px', textAlign: 'center', marginTop: '3rem' }}>
+        <div className="panel-card" style={{ padding: '3rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{
+            background: 'rgba(236, 72, 153, 0.15)',
+            color: 'var(--accent-pink)',
+            padding: '1.25rem',
+            borderRadius: '50%',
+            display: 'flex'
+          }}>
+            <Lock size={44} />
+          </div>
+
+          <div>
+            <h1 style={{ fontSize: '2.1rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+              Authentication Required
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.5, maxWidth: '440px', margin: '0 auto' }}>
+              Online 1v1 multiplayer is exclusively reserved for registered and logged-in players to ensure fair play, prevent abuse, and record official stats.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', width: '100%', maxWidth: '340px', marginTop: '0.75rem' }}>
+            <button
+              className="btn-primary"
+              style={{ flex: 1, padding: '0.75rem', fontSize: '1rem', fontWeight: 700 }}
+              onClick={() => onNavigate?.('login')}
+            >
+              Log In
+            </button>
+            <button
+              className="btn-secondary"
+              style={{ flex: 1, padding: '0.75rem', fontSize: '1rem', fontWeight: 600 }}
+              onClick={() => onNavigate?.('register')}
+            >
+              Sign Up
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
