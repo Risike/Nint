@@ -3,7 +3,7 @@ import { soundManager } from '../game/audio/soundManager';
 import { MAIN_TABS, getMainTab } from '../navigation';
 
 const RIGHT_STICK_SCROLL_DEADZONE = 0.18;
-const RIGHT_STICK_SCROLL_SPEED = 1100; // pixels per second at full deflection
+const RIGHT_STICK_SCROLL_SPEED = 2200; // pixels per second at full deflection
 
 // The right stick scrolls vertically on every page, including gameplay pages.
 // Do not tie this to the menu action branch: it must keep working while the
