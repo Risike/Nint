@@ -9,6 +9,12 @@ export interface User {
   avatar_url?: string;
   rating?: number;
   credits?: number;
+  cosmetics?: {
+    piece_skin?: string;
+    name_color?: string;
+    name_decoration?: string;
+    title?: string;
+  };
   is_admin?: boolean;
 }
 

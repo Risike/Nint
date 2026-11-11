@@ -7,7 +7,8 @@ import { GameOverModal } from '../components/game/GameOverModal';
 import { VersusArena } from '../components/game/VersusArena';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
-import { FirebaseRealtimeService, RemotePlayerState } from '../services/firebaseRealtime';
+import { FirebaseRealtimeService, PlayerCosmetics, RemotePlayerState } from '../services/firebaseRealtime';
+import { UserName } from '../components/user/UserName';
 import { ApiClient } from '../services/api';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
@@ -32,6 +33,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
   const [quickSearchSeconds, setQuickSearchSeconds] = useState<number>(0);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
   const [opponentName, setOpponentName] = useState<string>(() => t('Opponent'));
+  const [opponentCosmetics, setOpponentCosmetics] = useState<PlayerCosmetics | null>(null);
   const [opponentRating, setOpponentRating] = useState<number>(1000);
   const [isRankedMatch, setIsRankedMatch] = useState<boolean>(false);
   const opponentUserIdRef = useRef<string | null>(null);
@@ -214,6 +216,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     setErrorMsg(null);
     cleanupSubscriptions();
     gameStartedRef.current = false;
+    setOpponentCosmetics(null);
     setRankedMode(ranked);
     setMatchStatus('quick_searching');
     soundManager.playRotate();
@@ -240,7 +243,8 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
         },
         myRating,
         user?.id,
-        ranked
+        ranked,
+        user?.cosmetics
       );
 
       cancelQuickSearchRef.current = cancelFn;
@@ -292,8 +296,9 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       setEloResult(null);
       setRankedMode(false);
       await FirebaseRealtimeService.authenticate(displayName);
-      const { matchId: mId, seed } = await FirebaseRealtimeService.createRoom(code, displayName, myRating, user?.id, false);
+      const { matchId: mId, seed } = await FirebaseRealtimeService.createRoom(code, displayName, myRating, user?.id, false, user?.cosmetics);
       setMatchId(mId);
+      setOpponentCosmetics(null);
 
       // Listen strictly once for when status becomes 'active'
       unsubscribeMatchRef.current = FirebaseRealtimeService.listenToMatchStart(mId, (matchData) => {
@@ -314,6 +319,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
             if (uid !== myUid) {
               setOpponentName(p.displayName || t('Player 2'));
               currentOpponentNameRef.current = p.displayName || t('Player 2');
+              setOpponentCosmetics(p.cosmetics || null);
               if (p.rating) {
                 setOpponentRating(p.rating);
               }
@@ -352,9 +358,10 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       const myRating = user?.rating || 1000;
       setEloResult(null);
       await FirebaseRealtimeService.authenticate(displayName);
-      const { matchId: mId, seed } = await FirebaseRealtimeService.joinRoom(code, displayName, myRating, user?.id, false);
+      const { matchId: mId, seed } = await FirebaseRealtimeService.joinRoom(code, displayName, myRating, user?.id, false, user?.cosmetics);
       setMatchId(mId);
       setOpponentName(t('Host'));
+      setOpponentCosmetics(null);
 
       gameStartedRef.current = true;
       startLiveGame(seed, mId);
@@ -447,6 +454,9 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       }
       if (opponentState.rating) {
         setOpponentRating(opponentState.rating);
+      }
+      if (opponentState.cosmetics) {
+        setOpponentCosmetics(opponentState.cosmetics);
       }
       if (opponentState.userId) {
         opponentUserIdRef.current = opponentState.userId;
@@ -748,6 +758,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     setMatchStatus('lobby');
     setMatchId(null);
     setRoomCode('');
+    setOpponentCosmetics(null);
     setIsGameOverOpen(false);
   };
 
@@ -1195,7 +1206,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
             player={{
               label: (
                 <>
-                  <span>{t('You ({name})', { name: user?.display_name || t('Player 1') })}</span>
+                  <UserName displayName={user?.display_name || t('Player 1')} cosmetics={user?.cosmetics} size="0.95rem" />
                   <span className="versus-elo-badge">{user?.rating ?? 1000} ELO</span>
                 </>
               ),
@@ -1214,7 +1225,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
             opponent={{
               label: (
                 <>
-                  <span>{t('Opponent ({name})', { name: opponentName })}</span>
+                  <UserName displayName={opponentName} cosmetics={opponentCosmetics} size="0.95rem" />
                   <span className="versus-elo-badge">{opponentRating} ELO</span>
                 </>
               ),

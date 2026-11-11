@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../services/api';
 import { Trophy, Medal, Timer, Flame, Zap, RefreshCw, Swords } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
+import { UserName } from '../components/user/UserName';
 
 export const LeaderboardsPage: React.FC = () => {
   const [mode, setMode] = useState<string>('marathon_150');
@@ -153,7 +154,13 @@ export const LeaderboardsPage: React.FC = () => {
               {entries.map((entry) => (
                 <tr key={entry.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '0.75rem 1rem' }}>{getRankBadge(entry.rank)}</td>
-                  <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{entry.display_name}</td>
+                  <td style={{ padding: '0.75rem 1rem' }}>
+                    <UserName
+                      displayName={entry.display_name}
+                      cosmetics={{ name_color: entry.name_color, name_decoration: entry.name_decoration, title: entry.title }}
+                      size="0.9rem"
+                    />
+                  </td>
                   <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
                     {formatScoreOrTime(entry)}
                   </td>

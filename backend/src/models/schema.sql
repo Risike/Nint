@@ -113,6 +113,36 @@ CREATE TABLE IF NOT EXISTS user_statistics (
     updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS shop_items (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    value TEXT NOT NULL,
+    price INTEGER NOT NULL DEFAULT 0,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 1,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS user_shop_items (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    item_id TEXT NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE,
+    purchased_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, item_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_cosmetics (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    piece_skin TEXT NOT NULL DEFAULT 'classic',
+    name_color TEXT NOT NULL DEFAULT '#f8fafc',
+    name_decoration TEXT NOT NULL DEFAULT 'none',
+    title TEXT NOT NULL DEFAULT '',
+    updated_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
     token TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -133,6 +163,7 @@ CREATE INDEX IF NOT EXISTS idx_game_results_mode_duration ON game_results(mode, 
 CREATE INDEX IF NOT EXISTS idx_game_results_mode_created ON game_results(mode, created_at);
 CREATE INDEX IF NOT EXISTS idx_personal_bests_mode_val ON personal_bests(mode, metric, value);
 CREATE INDEX IF NOT EXISTS idx_match_history_user ON match_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_shop_items_kind ON shop_items(kind, active, sort_order);
 CREATE INDEX IF NOT EXISTS idx_match_history_match ON match_history(match_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_match_history_user_match
     ON match_history(match_id, user_id) WHERE match_id IS NOT NULL;

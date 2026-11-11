@@ -107,6 +107,25 @@ export class ApiClient {
     return this.request<any>('/stats/me');
   }
 
+  // Shop
+  public static getShop() {
+    return this.request<any>('/shop');
+  }
+
+  public static purchaseShopItem(itemId: string) {
+    return this.request<any>('/shop/purchase', {
+      method: 'POST',
+      body: JSON.stringify({ itemId })
+    });
+  }
+
+  public static equipShopItem(itemId: string) {
+    return this.request<any>('/shop/equip', {
+      method: 'POST',
+      body: JSON.stringify({ itemId })
+    });
+  }
+
   // Settings
   public static getSettings() {
     return this.request<any>('/settings');
@@ -190,6 +209,30 @@ export class ApiClient {
 
   public static adminDeleteUser(userId: string) {
     return this.request<{ success: boolean }>(`/admin/users/${userId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  public static adminGetShopItems() {
+    return this.request<any[]>('/admin/shop');
+  }
+
+  public static adminCreateShopItem(data: any) {
+    return this.request<any>('/admin/shop', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  public static adminUpdateShopItem(itemId: string, data: any) {
+    return this.request<any>(`/admin/shop/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  public static adminDeleteShopItem(itemId: string) {
+    return this.request<{ success: boolean }>(`/admin/shop/${itemId}`, {
       method: 'DELETE'
     });
   }

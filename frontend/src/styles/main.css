@@ -194,10 +194,11 @@ html {
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  height: 22px;
+  min-height: 22px;
+  padding: 0.1rem 0;
   font-size: 0.9rem;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.1;
   white-space: nowrap;
 }
 

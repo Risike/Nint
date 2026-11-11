@@ -3,6 +3,7 @@ import { Shield, Newspaper, Trash2, Search, UserX, BarChart3, AlertTriangle, Che
 import { useAuth } from '../context/AuthContext';
 import { ApiClient } from '../services/api';
 import { useI18n } from '../i18n/useI18n';
+import { AdminShopSection } from '../components/admin/AdminShopSection';
 
 interface AdminPageProps {
   onNavigate?: (tab: string) => void;
@@ -290,6 +291,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
           </div>
         )}
       </div>
+
+      <AdminShopSection />
 
       {/* 3. User Search & Management Section */}
       <div className="panel-card" style={{ padding: '1.5rem' }}>

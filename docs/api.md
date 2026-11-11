@@ -12,7 +12,7 @@ All API endpoints are prefixed with `/api`.
 - `POST /api/auth/password-reset`: Request a reset email. The reset link is never written to server logs.
 - `POST /api/auth/password-reset/confirm`: Reset password with token (`token`, `newPassword`, minimum 6 characters). All existing sessions are revoked.
 
-In development (`NODE_ENV=development`, the default with `npm run dev`), two accounts are created automatically: `test` and `test2`, both with an empty password. They are never seeded in production, and empty-password logins are rejected when `NODE_ENV=production`.
+In development (`NODE_ENV=development`, the default with `npm run dev`), three accounts are created automatically: `test` and `test2` (both with 1,000,000 credits) and `admin` (administrator), all with an empty password. They are never seeded in production, and empty-password logins are rejected when `NODE_ENV=production`.
 
 Tokens embed a per-account version. Logout, password change and password reset invalidate all previously issued tokens, and tokens of deleted accounts are rejected.
 

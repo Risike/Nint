@@ -17,6 +17,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { AdminPage } from './pages/AdminPage';
+import { ShopPage } from './pages/ShopPage';
 import { toggleFullscreen } from './utils/fullscreen';
 import './styles/main.css';
 
@@ -70,6 +71,8 @@ export const AppContent: React.FC = () => {
         return <LeaderboardsPage />;
       case 'stats':
         return <StatsPage />;
+      case 'shop':
+        return <ShopPage onNavigate={handleNavigate} />;
       case 'settings':
         return <SettingsPage />;
       case 'login':

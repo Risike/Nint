@@ -25,10 +25,17 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:1234567890:web:abcdef123456'
 };
 
+export interface PlayerCosmetics {
+  name_color?: string;
+  name_decoration?: string;
+  title?: string;
+}
+
 export interface RemotePlayerState {
   displayName: string;
   userId?: string;
   rating?: number;
+  cosmetics?: PlayerCosmetics;
   ready: boolean;
   score: number;
   lines: number;
@@ -48,6 +55,19 @@ export interface RemotePlayerState {
   b2b?: boolean;
   b2bChain?: number;
   lastSeen: number;
+}
+
+function normalizePlayerCosmetics(cosmetics?: PlayerCosmetics | null): PlayerCosmetics {
+  const color = typeof cosmetics?.name_color === 'string' && /^#[0-9a-f]{6}$/i.test(cosmetics.name_color)
+    ? cosmetics.name_color.toLowerCase()
+    : '#f8fafc';
+  const decoration = typeof cosmetics?.name_decoration === 'string'
+    ? cosmetics.name_decoration.slice(0, 32)
+    : 'none';
+  const title = typeof cosmetics?.title === 'string'
+    ? cosmetics.title.slice(0, 40)
+    : '';
+  return { name_color: color, name_decoration: decoration, title };
 }
 
 export class FirebaseRealtimeService {
@@ -118,7 +138,7 @@ export class FirebaseRealtimeService {
   }
 
   // Create an online room
-  public static async createRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false): Promise<{ matchId: string; seed: number }> {
+  public static async createRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false, cosmetics?: PlayerCosmetics): Promise<{ matchId: string; seed: number }> {
     const matchId = 'match_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const uid = this.getUid();
     const seed = Math.floor(Math.random() * 1000000);
@@ -155,6 +175,7 @@ export class FirebaseRealtimeService {
             displayName,
             userId: userId || null,
             rating: rating || 1000,
+            cosmetics: normalizePlayerCosmetics(cosmetics),
             ready: true,
             score: 0,
             lines: 0,
@@ -178,7 +199,7 @@ export class FirebaseRealtimeService {
   }
 
   // Join an online room
-  public static async joinRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false): Promise<{ matchId: string; seed: number }> {
+  public static async joinRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false, cosmetics?: PlayerCosmetics): Promise<{ matchId: string; seed: number }> {
     const uid = this.getUid();
 
     if (!this.isConfigured || !this.db) {
@@ -223,6 +244,7 @@ export class FirebaseRealtimeService {
       displayName,
       userId: userId || null,
       rating: rating || 1000,
+      cosmetics: normalizePlayerCosmetics(cosmetics),
       ready: true,
       score: 0,
       lines: 0,
@@ -403,6 +425,7 @@ export class FirebaseRealtimeService {
           displayName: p.displayName || 'Player',
           userId: p.userId || null,
           rating: typeof p.rating === 'number' ? p.rating : 1000,
+          cosmetics: p.cosmetics || normalizePlayerCosmetics(null),
           ready: true,
           score: 0,
           lines: 0,
@@ -476,7 +499,8 @@ export class FirebaseRealtimeService {
     onMatched: (role: 'host' | 'guest', seed: number, matchId: string, roomCode: string) => void,
     rating: number = 1000,
     userId?: string,
-    ranked: boolean = false
+    ranked: boolean = false,
+    cosmetics?: PlayerCosmetics
   ): Promise<() => Promise<void>> {
     await this.authenticate(displayName);
     const uid = this.getUid();
@@ -516,7 +540,7 @@ export class FirebaseRealtimeService {
               // Remove our own queue entry if we had one
               set(myQueueRef, null).catch(() => {});
 
-              const { matchId, seed } = await this.joinRoom(entry.roomCode, displayName, rating, userId, ranked);
+              const { matchId, seed } = await this.joinRoom(entry.roomCode, displayName, rating, userId, ranked, cosmetics);
               onMatched('guest', seed, matchId, entry.roomCode);
               return true;
             }
@@ -537,7 +561,7 @@ export class FirebaseRealtimeService {
     // Step 2: Nobody is waiting yet, so we become the host
     const myCreatedAt = Date.now();
     const roomCode = 'Q' + Math.random().toString(36).substring(2, 7).toUpperCase();
-    const { matchId, seed } = await this.createRoom(roomCode, displayName, rating, userId, ranked);
+    const { matchId, seed } = await this.createRoom(roomCode, displayName, rating, userId, ranked, cosmetics);
 
     if (isDisposed) {
       // User cancelled during room creation
@@ -606,7 +630,7 @@ export class FirebaseRealtimeService {
                 this.leaveRoom(roomCode, matchId, true).catch(() => {});
 
                 // Join the older room
-                const res = await this.joinRoom(entry.roomCode, displayName, rating, userId, ranked);
+                const res = await this.joinRoom(entry.roomCode, displayName, rating, userId, ranked, cosmetics);
                 onMatched('guest', res.seed, res.matchId, entry.roomCode);
                 return;
               }

@@ -5,6 +5,7 @@ import { getDatabase } from '../config/database.js';
 import { config } from '../config/env.js';
 import { sendPasswordResetEmail } from './mailService.js';
 import { USERNAME_PATTERN, normalizeUsername, deriveUsername, ensureUniqueUsername } from '../utils/username.js';
+import { ensureUserShop, getUserCosmetics } from './shopService.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 6;
@@ -108,6 +109,7 @@ export class AuthService {
       throw err;
     }
 
+    ensureUserShop(db, id);
     const user = db.prepare('SELECT id, email, username, display_name, avatar_url, is_admin, token_version, credits FROM users WHERE id = ?').get(id);
     const token = signToken(user);
 
@@ -120,6 +122,7 @@ export class AuthService {
         avatar_url: user.avatar_url,
         rating: 1000,
         credits: user.credits ?? 0,
+        cosmetics: getUserCosmetics(db, id),
         is_admin: false
       },
       token
@@ -156,6 +159,7 @@ export class AuthService {
         avatar_url: user.avatar_url,
         rating: stats?.rating ?? 1000,
         credits: user.credits ?? 0,
+        cosmetics: getUserCosmetics(db, user.id),
         is_admin: user.is_admin === 1
       },
       token
@@ -182,6 +186,7 @@ export class AuthService {
     }
     return {
       ...user,
+      cosmetics: getUserCosmetics(db, userId),
       is_admin: user.is_admin === 1
     };
   }

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { User, Volume2, VolumeX, Shield, Maximize2, Minimize2 } from 'lucide-react';
+import { User, Volume2, VolumeX, Shield, Maximize2, Minimize2, ShoppingBag } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useGamepadNav } from '../../context/GamepadNavContext';
 import { useI18n } from '../../i18n/useI18n';
 import { MAIN_NAV_ITEMS } from '../../navigation';
 import { toggleFullscreen } from '../../utils/fullscreen';
+import { UserName } from '../user/UserName';
 
 interface NavbarProps {
   activeTab: string;
@@ -75,7 +76,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             key={item.tab}
             className={`nav-item ${isItemActive(item.tab) ? 'active' : ''}`}
             onClick={() => setActiveTab(item.tab)}
+            style={item.tab === 'shop' ? { display: 'flex', alignItems: 'center', gap: '0.3rem' } : undefined}
           >
+            {item.tab === 'shop' && <ShoppingBag size={14} />}
             {t(item.label)}
           </button>
         ))}
@@ -121,7 +124,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
               style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
             >
               <User size={16} />
-              <span>{user?.display_name || 'Profile'}</span>
+              <UserName displayName={user?.display_name || 'Profile'} cosmetics={user?.cosmetics} size="0.9rem" showTitle={false} />
             </button>
           </div>
         ) : (

@@ -1,6 +1,7 @@
 import { BOARD_BUFFER_HEIGHT, BOARD_VISIBLE_HEIGHT, BOARD_WIDTH, PIECES, TetrominoType } from '../engine/constants';
 import { GameEngine } from '../engine/gameEngine';
 import { ParticleSystem } from './particleSystem';
+import { drawSkinnedMino, normalizePieceSkin, PieceSkin } from './pieceSkins';
 
 export interface RendererOptions {
   cellSize?: number;
@@ -8,6 +9,7 @@ export interface RendererOptions {
   showGrid?: boolean;
   colorblindMode?: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia';
   theme?: string;
+  pieceSkin?: string;
 }
 
 export class CanvasRenderer {
@@ -15,6 +17,7 @@ export class CanvasRenderer {
   public showGhost: boolean;
   public showGrid: boolean;
   public colorblindMode: string;
+  public pieceSkin: PieceSkin;
   public particleSystem: ParticleSystem;
 
   constructor(options: RendererOptions = {}) {
@@ -22,6 +25,7 @@ export class CanvasRenderer {
     this.showGhost = options.showGhost ?? true;
     this.showGrid = options.showGrid ?? true;
     this.colorblindMode = options.colorblindMode ?? 'none';
+    this.pieceSkin = normalizePieceSkin(options.pieceSkin);
     this.particleSystem = new ParticleSystem();
   }
 
@@ -182,23 +186,7 @@ export class CanvasRenderer {
   }
 
   private drawMino(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
-    const size = this.cellSize;
-    const pad = 1;
-    const r = 3;
-
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, r);
-    ctx.fill();
-
-    // Top highlight bevel
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-    ctx.fillRect(x + pad, y + pad, size - pad * 2, (size - pad * 2) * 0.25);
-
-    // Subtle dark border
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    drawSkinnedMino(ctx, x, y, this.cellSize, color, this.pieceSkin);
   }
 
   private drawGhostMino(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
@@ -219,7 +207,8 @@ export class CanvasRenderer {
   public static renderPreview(
     canvas: HTMLCanvasElement,
     pieceType: TetrominoType | null,
-    cellSize: number = 20
+    cellSize: number = 20,
+    skin: string = 'classic'
   ) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -247,6 +236,7 @@ export class CanvasRenderer {
     const def = PIECES[pieceType];
     const shape = def.shapes[0];
     const color = def.color;
+    const normalizedSkin = normalizePieceSkin(skin);
 
     // Center piece inside 4x4 bounding box
     const minX = Math.min(...shape.map(p => p.x));
@@ -263,15 +253,7 @@ export class CanvasRenderer {
     for (const pt of shape) {
       const rx = offsetX + pt.x * cellSize;
       const ry = offsetY + pt.y * cellSize;
-
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(rx + 1, ry + 1, cellSize - 2, cellSize - 2, 2);
-      ctx.fill();
-
-      // Top highlight
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-      ctx.fillRect(rx + 1, ry + 1, cellSize - 2, (cellSize - 2) * 0.25);
+      drawSkinnedMino(ctx, rx, ry, cellSize, color, normalizedSkin);
     }
 
     ctx.restore();

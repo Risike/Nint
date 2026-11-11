@@ -69,12 +69,13 @@ npm run dev
 The frontend automatically connects to the emulator in development when the demo Firebase config is used. Java 11+ is required for the Realtime Database emulator, and the first run downloads its JAR. To start only the emulators, run `npm run emulators`.
 
 ### Development Accounts
-With `NODE_ENV=development` (the default for `npm run dev`), the API automatically creates two accounts:
+With `NODE_ENV=development` (the default for `npm run dev`), the API automatically creates three accounts:
 
-- `test` — empty password
-- `test2` — empty password
+- `test` — empty password, 1,000,000 credits
+- `test2` — empty password, 1,000,000 credits
+- `admin` — empty password, administrator access
 
-They are never created when `NODE_ENV=production`, and empty passwords are rejected in production. You can sign in with the username or the linked email (`test@nint.local`, `test2@nint.local`).
+They are never created when `NODE_ENV=production`, and empty passwords are rejected in production. You can sign in with the username or the linked email (`test@nint.local`, `test2@nint.local`, `admin@nint.local`).
 
 ### Run Automated Tests
 ```bash

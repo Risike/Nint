@@ -3,6 +3,8 @@ import { GameEngine } from '../../game/engine/gameEngine';
 import { BOARD_VISIBLE_HEIGHT, BOARD_WIDTH } from '../../game/engine/constants';
 import { CanvasRenderer } from '../../game/rendering/canvasRenderer';
 import { useSettings } from '../../context/SettingsContext';
+import { useAuth } from '../../context/AuthContext';
+import { normalizePieceSkin } from '../../game/rendering/pieceSkins';
 
 interface PlayfieldCanvasProps {
   engine: GameEngine;
@@ -18,6 +20,8 @@ export const PlayfieldCanvas: React.FC<PlayfieldCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<CanvasRenderer | null>(null);
   const { settings } = useSettings();
+  const { user } = useAuth();
+  const pieceSkin = normalizePieceSkin(user?.cosmetics?.piece_skin);
 
   useEffect(() => {
     rendererRef.current = new CanvasRenderer({
@@ -25,9 +29,10 @@ export const PlayfieldCanvas: React.FC<PlayfieldCanvasProps> = ({
       showGhost: settings.ghostPiece,
       showGrid: true,
       colorblindMode: settings.colorblindMode,
-      theme: settings.theme
+      theme: settings.theme,
+      pieceSkin
     });
-  }, [cellSize, settings.ghostPiece, settings.colorblindMode, settings.theme]);
+  }, [cellSize, settings.ghostPiece, settings.colorblindMode, settings.theme, pieceSkin]);
 
   // Hook line clear particle effects to engine line clear events
   useEffect(() => {

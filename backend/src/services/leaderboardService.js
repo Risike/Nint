@@ -31,6 +31,9 @@ export class LeaderboardService {
           s.user_id,
           u.display_name,
           u.avatar_url,
+          COALESCE(c.name_color, '#f8fafc') as name_color,
+          COALESCE(c.name_decoration, 'none') as name_decoration,
+          COALESCE(c.title, '') as title,
           s.rating as score,
           s.rating,
           s.wins,
@@ -39,6 +42,7 @@ export class LeaderboardService {
           s.updated_at as created_at
         FROM user_statistics s
         JOIN users u ON u.id = s.user_id
+        LEFT JOIN user_cosmetics c ON c.user_id = s.user_id
         WHERE EXISTS (
           SELECT 1 FROM match_history m
           WHERE m.user_id = s.user_id AND m.ranked = 1 AND m.rating_applied = 1
@@ -52,6 +56,7 @@ export class LeaderboardService {
         SELECT COUNT(*) as total
         FROM user_statistics s
         JOIN users u ON u.id = s.user_id
+        LEFT JOIN user_cosmetics c ON c.user_id = s.user_id
         WHERE EXISTS (
           SELECT 1 FROM match_history m
           WHERE m.user_id = s.user_id AND m.ranked = 1 AND m.rating_applied = 1
@@ -93,6 +98,9 @@ export class LeaderboardService {
         r.user_id,
         u.display_name,
         u.avatar_url,
+        COALESCE(c.name_color, '#f8fafc') as name_color,
+        COALESCE(c.name_decoration, 'none') as name_decoration,
+        COALESCE(c.title, '') as title,
         r.mode,
         r.score,
         r.lines,
@@ -106,6 +114,7 @@ export class LeaderboardService {
         r.created_at
       FROM game_results r
       JOIN users u ON u.id = r.user_id
+      LEFT JOIN user_cosmetics c ON c.user_id = r.user_id
       WHERE r.mode = ? AND r.verified = 1 ${timeFilter}
       ORDER BY ${primaryCol} ${orderDirection}
       LIMIT ? OFFSET ?

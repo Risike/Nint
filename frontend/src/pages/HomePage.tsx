@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BarChart3, Gamepad2, Megaphone, Settings, Trophy, Users } from 'lucide-react';
+import { BarChart3, Gamepad2, Megaphone, Settings, ShoppingBag, Trophy, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ApiClient } from '../services/api';
 import { useI18n } from '../i18n/useI18n';
@@ -40,6 +40,14 @@ const HOME_LINKS = [
     icon: BarChart3,
     color: 'var(--accent-green)',
     background: 'rgba(34, 197, 94, 0.2)'
+  },
+  {
+    tab: 'shop',
+    label: 'Shop',
+    description: 'Spend credits on skins, colors, decorations, and titles.',
+    icon: ShoppingBag,
+    color: 'var(--accent-orange)',
+    background: 'rgba(249, 115, 22, 0.2)'
   },
   {
     tab: 'settings',

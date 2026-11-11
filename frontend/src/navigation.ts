@@ -4,6 +4,7 @@ export const MAIN_NAV_ITEMS = [
   { tab: 'online', label: 'Multiplayer' },
   { tab: 'leaderboards', label: 'Leaderboards' },
   { tab: 'stats', label: 'Stats' },
+  { tab: 'shop', label: 'Shop' },
   { tab: 'settings', label: 'Settings' }
 ] as const;
 

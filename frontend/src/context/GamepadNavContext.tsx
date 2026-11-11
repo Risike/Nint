@@ -3,7 +3,7 @@ import { soundManager } from '../game/audio/soundManager';
 import { MAIN_TABS, getMainTab } from '../navigation';
 
 const RIGHT_STICK_SCROLL_DEADZONE = 0.18;
-const RIGHT_STICK_SCROLL_SPEED = 6600; // pixels per second at full deflection
+const RIGHT_STICK_SCROLL_SPEED = 19800; // pixels per second at full deflection (3x the previous speed)
 
 // The right stick scrolls vertically on every page, including gameplay pages.
 // Do not tie this to the menu action branch: it must keep working while the
@@ -202,7 +202,7 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
     }
   }, [setActiveTab, setFocusedElement]);
 
-  // Tab switching via bumpers: only the six main tabs, wrapping both ways.
+  // Tab switching via bumpers: only the seven main tabs, wrapping both ways.
   // Profile/login remain reachable through their explicit navbar controls.
   const navigateTab = useCallback((direction: number) => {
     const currentIndex = MAIN_TABS.indexOf(getMainTab(activeTabRef.current));

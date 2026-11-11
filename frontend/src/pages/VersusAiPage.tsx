@@ -12,6 +12,7 @@ import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
 import { isVersusGamepadGameplayActive } from '../game/input/gamepadNavigation';
 import { VersusArena } from '../components/game/VersusArena';
+import { UserName } from '../components/user/UserName';
 import { Bot, User as UserIcon, RotateCcw, ArrowLeft, Swords, Shield, Zap, Flame, Play, Pause } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 
@@ -24,7 +25,7 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
   initialDifficulty,
   onClearInitialDifficulty
 }) => {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { settings } = useSettings();
   const { t } = useI18n();
   const arenaRef = useRef<HTMLDivElement>(null);
@@ -498,7 +499,7 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
         arenaRef={arenaRef}
         cellSize={cellSize}
         player={{
-          label: <><UserIcon size={18} color="var(--accent-cyan)" /><span>{t('You')}</span></>,
+          label: <><UserIcon size={18} color="var(--accent-cyan)" /><UserName displayName={user?.display_name || t('Player 1')} cosmetics={user?.cosmetics} size="0.95rem" /></>,
           tone: 'cyan',
           hold: playerHold,
           canHold: playerEngine.canHold,

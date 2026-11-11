@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { ApiClient } from '../services/api';
 import { User, KeyRound, Trash2, LogOut, CheckCircle2, Coins } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
+import { UserName } from '../components/user/UserName';
 
 interface ProfilePageProps {
   onNavigate: (tab: string) => void;
@@ -91,6 +92,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.1rem' }}>
             <User size={20} color="var(--accent-cyan)" />
             <span>{t('Account Details')}</span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '0.25rem 0 0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+            <UserName displayName={user?.display_name || ''} cosmetics={user?.cosmetics} size="1.5rem" align="center" />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-tertiary)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>

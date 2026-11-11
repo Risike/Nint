@@ -103,9 +103,151 @@ export function initSchema(db = getDatabase()) {
     if (!existingNews) {
       db.prepare("INSERT INTO site_config (key, value, updated_at) VALUES ('news_message', '', ?)").run(Date.now());
     }
+
+    seedShopItems(db);
   } catch (e) {
     console.error('Migration error:', e);
   }
+}
+
+const TITLE_SEEDS = [
+  ['title_block_baron', 'Block Baron', 45],
+  ['title_grid_guardian', 'Grid Guardian', 50],
+  ['title_drop_sage', 'Drop Sage', 55],
+  ['title_neon_knight', 'Neon Knight', 60],
+  ['title_pixel_prince', 'Pixel Prince', 65],
+  ['title_clear_captain', 'Clear Captain', 70],
+  ['title_spin_specialist', 'Spin Specialist', 75],
+  ['title_perfect_clearer', 'Perfect Clearer', 80],
+  ['title_b2b_boss', 'Back-to-Back Boss', 85],
+  ['title_tspin_tactician', 'T-Spin Tactician', 90],
+  ['title_quad_crusher', 'Quad Crusher', 95],
+  ['title_combo_maestro', 'Combo Maestro', 100],
+  ['title_speed_demon', 'Speed Demon', 105],
+  ['title_endless_wanderer', 'Endless Wanderer', 110],
+  ['title_marathoner', 'Marathoner', 115],
+  ['title_sprint_striker', 'Sprint Striker', 120],
+  ['title_ultra_survivor', 'Ultra Survivor', 125],
+  ['title_casual_champion', 'Casual Champion', 130],
+  ['title_ranked_rebel', 'Ranked Rebel', 135],
+  ['title_arena_ace', 'Arena Ace', 140],
+  ['title_lobby_legend', 'Lobby Legend', 145],
+  ['title_rookie_rocket', 'Rookie Rocket', 150],
+  ['title_veteran_vector', 'Veteran Vector', 155],
+  ['title_elite_element', 'Elite Element', 160],
+  ['title_master_mind', 'Master Mind', 165],
+  ['title_grandmaster', 'Grandmaster', 170],
+  ['title_apex_player', 'Apex Player', 175],
+  ['title_top_talent', 'Top Talent', 180],
+  ['title_star_seeker', 'Star Seeker', 185],
+  ['title_moon_melter', 'Moon Melter', 190],
+  ['title_solar_flare', 'Solar Flare', 195],
+  ['title_cosmic_cubist', 'Cosmic Cubist', 200],
+  ['title_gravity_guru', 'Gravity Guru', 205],
+  ['title_stack_strategist', 'Stack Strategist', 210],
+  ['title_well_warden', 'Well Warden', 215],
+  ['title_line_launcher', 'Line Launcher', 220],
+  ['title_block_artist', 'Block Artist', 225],
+  ['title_piece_perfectionist', 'Piece Perfectionist', 230],
+  ['title_hold_hero', 'Hold Hero', 235],
+  ['title_next_navigator', 'Next Navigator', 240],
+  ['title_ghost_whisperer', 'Ghost Whisperer', 245],
+  ['title_hard_drop_hero', 'Hard Drop Hero', 250],
+  ['title_soft_drop_scholar', 'Soft Drop Scholar', 255],
+  ['title_level_leader', 'Level Leader', 260]
+];
+
+function seedShopItems(db) {
+  const now = Date.now();
+  const items = [
+    ['piece_classic', 'piece_skin', 'Classic', 'classic', 0, 1, 1, 0],
+    ['piece_neon', 'piece_skin', 'Neon', 'neon', 50, 0, 1, 10],
+    ['piece_glass', 'piece_skin', 'Glass', 'glass', 80, 0, 1, 20],
+    ['piece_pixel', 'piece_skin', 'Pixel', 'pixel', 60, 0, 1, 30],
+    ['piece_candy', 'piece_skin', 'Candy', 'candy', 90, 0, 1, 40],
+    ['piece_retro', 'piece_skin', 'Retro', 'retro', 70, 0, 1, 50],
+    ['piece_metallic', 'piece_skin', 'Metallic', 'metallic', 120, 0, 1, 60],
+    ['piece_holographic', 'piece_skin', 'Holographic', 'holographic', 180, 0, 1, 70],
+    ['piece_mosaic', 'piece_skin', 'Mosaic', 'mosaic', 110, 0, 1, 80],
+    ['piece_circuit', 'piece_skin', 'Circuit', 'circuit', 140, 0, 1, 90],
+    ['piece_gradient', 'piece_skin', 'Gradient', 'gradient', 90, 0, 1, 100],
+    ['piece_checker', 'piece_skin', 'Checker', 'checker', 80, 0, 1, 110],
+    ['piece_striped', 'piece_skin', 'Striped', 'striped', 75, 0, 1, 120],
+    ['piece_glossy', 'piece_skin', 'Glossy', 'glossy', 100, 0, 1, 130],
+    ['piece_matte', 'piece_skin', 'Matte', 'matte', 65, 0, 1, 140],
+    ['piece_gem', 'piece_skin', 'Gem', 'gem', 160, 0, 1, 150],
+    ['piece_wood', 'piece_skin', 'Wood', 'wood', 85, 0, 1, 160],
+    ['piece_marble', 'piece_skin', 'Marble', 'marble', 150, 0, 1, 170],
+    ['piece_carbon', 'piece_skin', 'Carbon', 'carbon', 130, 0, 1, 180],
+    ['piece_ice', 'piece_skin', 'Ice', 'ice', 105, 0, 1, 190],
+
+    ['color_default', 'name_color', 'White', '#f8fafc', 0, 1, 1, 0],
+    ['color_cyan', 'name_color', 'Cyan', '#22d3ee', 20, 0, 1, 10],
+    ['color_pink', 'name_color', 'Pink', '#f472b6', 30, 0, 1, 20],
+    ['color_gold', 'name_color', 'Gold', '#facc15', 50, 0, 1, 30],
+    ['color_green', 'name_color', 'Green', '#4ade80', 25, 0, 1, 40],
+    ['color_red', 'name_color', 'Red', '#f87171', 20, 0, 1, 50],
+    ['color_orange', 'name_color', 'Orange', '#fb923c', 25, 0, 1, 60],
+    ['color_yellow', 'name_color', 'Yellow', '#fde047', 25, 0, 1, 70],
+    ['color_lime', 'name_color', 'Lime', '#a3e635', 30, 0, 1, 80],
+    ['color_emerald', 'name_color', 'Emerald', '#34d399', 35, 0, 1, 90],
+    ['color_teal', 'name_color', 'Teal', '#2dd4bf', 30, 0, 1, 100],
+    ['color_sky', 'name_color', 'Sky', '#38bdf8', 35, 0, 1, 110],
+    ['color_blue', 'name_color', 'Blue', '#60a5fa', 40, 0, 1, 120],
+    ['color_indigo', 'name_color', 'Indigo', '#818cf8', 40, 0, 1, 130],
+    ['color_violet', 'name_color', 'Violet', '#a78bfa', 45, 0, 1, 140],
+    ['color_purple', 'name_color', 'Purple', '#c084fc', 45, 0, 1, 150],
+    ['color_fuchsia', 'name_color', 'Fuchsia', '#e879f9', 50, 0, 1, 160],
+    ['color_rose', 'name_color', 'Rose', '#fb7185', 45, 0, 1, 170],
+    ['color_silver', 'name_color', 'Silver', '#cbd5e1', 35, 0, 1, 180],
+    ['color_lava', 'name_color', 'Lava', '#ff6b35', 60, 0, 1, 190],
+
+    ['decor_none', 'name_decoration', 'None', 'none', 0, 1, 1, 0],
+    ['decor_glow', 'name_decoration', 'Glow', 'glow', 40, 0, 1, 10],
+    ['decor_underline', 'name_decoration', 'Underline', 'underline', 30, 0, 1, 20],
+    ['decor_brackets', 'name_decoration', 'Brackets', 'brackets', 45, 0, 1, 30],
+    ['decor_sparkle', 'name_decoration', 'Sparkle', 'sparkle', 60, 0, 1, 40],
+    ['decor_double_underline', 'name_decoration', 'Double Underline', 'double_underline', 35, 0, 1, 50],
+    ['decor_overline', 'name_decoration', 'Overline', 'overline', 30, 0, 1, 60],
+    ['decor_shadow', 'name_decoration', 'Shadow', 'shadow', 35, 0, 1, 70],
+    ['decor_outline', 'name_decoration', 'Outline', 'outline', 40, 0, 1, 80],
+    ['decor_pill', 'name_decoration', 'Pill', 'pill', 50, 0, 1, 90],
+    ['decor_box', 'name_decoration', 'Box', 'box', 45, 0, 1, 100],
+    ['decor_dots', 'name_decoration', 'Dotted', 'dots', 30, 0, 1, 110],
+    ['decor_wave', 'name_decoration', 'Wave', 'wave', 35, 0, 1, 120],
+    ['decor_angles', 'name_decoration', 'Angles', 'angles', 40, 0, 1, 130],
+    ['decor_stars', 'name_decoration', 'Stars', 'stars', 50, 0, 1, 140],
+    ['decor_diamonds', 'name_decoration', 'Diamonds', 'diamonds', 55, 0, 1, 150],
+    ['decor_arrows', 'name_decoration', 'Arrows', 'arrows', 45, 0, 1, 160],
+    ['decor_square_brackets', 'name_decoration', 'Square Brackets', 'brackets_square', 35, 0, 1, 170],
+    ['decor_parentheses', 'name_decoration', 'Parentheses', 'parentheses', 30, 0, 1, 180],
+    ['decor_highlight', 'name_decoration', 'Highlight', 'highlight', 60, 0, 1, 190],
+
+    ['title_none', 'title', 'No Title', '', 0, 1, 1, 0],
+    ['title_line_lord', 'title', 'Line Lord', 'Line Lord', 40, 0, 1, 10],
+    ['title_zen_master', 'title', 'Zen Master', 'Zen Master', 60, 0, 1, 20],
+    ['title_combo_king', 'title', 'Combo King', 'Combo King', 75, 0, 1, 30],
+    ['title_tetris_titan', 'title', 'Tetris Titan', 'Tetris Titan', 100, 0, 1, 40],
+    ['title_nint_legend', 'title', 'Nint Legend', 'Nint Legend', 250, 0, 1, 50],
+    ...TITLE_SEEDS.map(([id, name, price], index) => [
+      id, 'title', name, id, price, 0, 1, 60 + index * 10
+    ])
+  ];
+
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO shop_items (
+      id, kind, name, description, value, price, is_default, active, sort_order, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const seed = db.transaction(() => {
+    for (const item of items) {
+      const [id, kind, name, value, price, isDefault, active, sortOrder] = item;
+      insert.run(id, kind, name, '', value, price, isDefault, active, sortOrder, now, now);
+    }
+    // Shop items are labels only now; descriptions are intentionally unused.
+    db.prepare("UPDATE shop_items SET description = ''").run();
+  });
+  seed();
 }
 
 /**
@@ -165,8 +307,9 @@ export function ensureAdminAccount(db = getDatabase()) {
 }
 
 /**
- * Creates two ready-to-use accounts when the API runs in development:
- * `test` and `test2`, both with an empty password. Never runs in production.
+ * Creates ready-to-use accounts when the API runs in development:
+ * `test` and `test2` with 1,000,000 credits, plus an administrator `admin`.
+ * All three use an empty password. Never runs in production.
  */
 export function ensureDevAccounts(db = getDatabase()) {
   if (config.nodeEnv !== 'development') {
@@ -174,15 +317,16 @@ export function ensureDevAccounts(db = getDatabase()) {
   }
 
   const accounts = [
-    { username: 'test', email: 'test@nint.local', displayName: 'Test' },
-    { username: 'test2', email: 'test2@nint.local', displayName: 'Test2' }
+    { username: 'test', email: 'test@nint.local', displayName: 'Test', credits: 1000000 },
+    { username: 'test2', email: 'test2@nint.local', displayName: 'Test2', credits: 1000000 },
+    { username: 'admin', email: 'admin@nint.local', displayName: 'Admin', isAdmin: true }
   ];
 
   try {
     for (const account of accounts) {
       // The dedicated seed email always identifies the development account.
       const byEmail = db
-        .prepare('SELECT id, username FROM users WHERE email = ?')
+        .prepare('SELECT id, username, is_admin, credits FROM users WHERE email = ?')
         .get(account.email);
       if (byEmail) {
         if (byEmail.username !== account.username) {
@@ -193,6 +337,15 @@ export function ensureDevAccounts(db = getDatabase()) {
             db.prepare('UPDATE users SET username = ?, updated_at = ? WHERE id = ?')
               .run(account.username, Date.now(), byEmail.id);
           }
+        }
+        if (account.credits !== undefined || account.isAdmin) {
+          db.prepare(`
+            UPDATE users SET
+              credits = COALESCE(?, credits),
+              is_admin = CASE WHEN ? THEN 1 ELSE is_admin END,
+              updated_at = ?
+            WHERE id = ?
+          `).run(account.credits ?? null, account.isAdmin ? 1 : 0, Date.now(), byEmail.id);
         }
         continue;
       }
@@ -216,9 +369,12 @@ export function ensureDevAccounts(db = getDatabase()) {
 
       const createAccount = db.transaction(() => {
         db.prepare(`
-          INSERT INTO users (id, email, username, password_hash, display_name, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(id, account.email, account.username, passwordHash, account.displayName, now, now);
+          INSERT INTO users (id, email, username, password_hash, display_name, is_admin, credits, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          id, account.email, account.username, passwordHash, account.displayName,
+          account.isAdmin ? 1 : 0, account.credits ?? 0, now, now
+        );
 
         db.prepare('INSERT INTO user_settings (user_id, updated_at) VALUES (?, ?)').run(id, now);
         db.prepare('INSERT INTO user_statistics (user_id, updated_at) VALUES (?, ?)').run(id, now);
