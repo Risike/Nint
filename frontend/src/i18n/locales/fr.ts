@@ -347,6 +347,8 @@ export const fr: Record<string, string> = {
   'Account Details': 'Détails du compte',
   'Online Multiplayer Rating': 'Classement multijoueur en ligne',
   'Chess ELO System': 'Système ELO des échecs',
+  'Credits': 'Crédits',
+  '1 credit per cleared line': '1 crédit par ligne effacée',
   'Display Name': 'Nom affiché',
   'Change Password (optional)': 'Changer le mot de passe (facultatif)',
   'Current Password': 'Mot de passe actuel',

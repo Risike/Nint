@@ -8,6 +8,7 @@ export interface User {
   username?: string;
   avatar_url?: string;
   rating?: number;
+  credits?: number;
   is_admin?: boolean;
 }
 

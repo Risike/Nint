@@ -106,6 +106,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   const keyboardManagerRef = useRef<KeyboardManager | null>(null);
   const gamepadManagerRef = useRef<GamepadManager | null>(null);
   const zenTimeRecordedRef = useRef<number>(0);
+  const zenLinesRecordedRef = useRef<number>(0);
+  const zenPiecesRecordedRef = useRef<number>(0);
 
   // Refs for zen gamepad loop (always read fresh values, no stale closures)
   const zenLevelRef = useRef(zenLevel);
@@ -124,14 +126,27 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   const saveZenSessionTime = (sourceEngine: GameEngine = engine, sourceMode: string = mode) => {
     if (sourceMode === 'zen') {
       const currentMs = Math.round(sourceEngine.totalPlayTimeMs);
+      const currentPieces = sourceEngine.getStats().piecesPlaced;
       const deltaMs = currentMs - zenTimeRecordedRef.current;
-      if (deltaMs >= 1000) {
+      const deltaLines = Math.max(0, sourceEngine.lines - zenLinesRecordedRef.current);
+      const deltaPieces = Math.max(0, currentPieces - zenPiecesRecordedRef.current);
+      if (deltaMs >= 1000 || deltaLines > 0) {
         zenTimeRecordedRef.current = currentMs;
+        zenLinesRecordedRef.current = sourceEngine.lines;
+        zenPiecesRecordedRef.current = currentPieces;
+        const payload = {
+          mode: 'zen',
+          // The anti-cheat check needs a duration consistent with the pieces
+          // sent; a line cleared just before leaving can otherwise be rejected.
+          duration: Math.max(1000, deltaMs),
+          lines: deltaLines,
+          piecesPlaced: deltaPieces
+        };
         if (isAuthenticated) {
-          ApiClient.submitResult({ mode: 'zen', duration: deltaMs }).catch(console.warn);
+          ApiClient.submitResult(payload).catch(console.warn);
         } else {
           const localResults = LocalStorageManager.getItem<any[]>('guest_results', []);
-          localResults.unshift({ mode: 'zen', duration: deltaMs, date: Date.now() });
+          localResults.unshift({ ...payload, date: Date.now() });
           LocalStorageManager.setItem('guest_results', localResults.slice(0, 50));
         }
       }
@@ -499,8 +514,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
 
   const handleCountdownComplete = () => {
     setIsCountingDown(false);
-    // A fresh session starts here; previous zen time has already been saved.
+    // A fresh session starts here; previous zen session has already been saved.
     zenTimeRecordedRef.current = 0;
+    zenLinesRecordedRef.current = 0;
+    zenPiecesRecordedRef.current = 0;
     engine.state = 'playing';
     engine.startTime = Date.now();
     engine.spawnPiece();
@@ -564,20 +581,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
 
     const stats = sourceEngine.getStats();
 
-    // Zen Mode: ONLY track playtime, no other statistics or leaderboard submissions
+    // Zen Mode: no leaderboard or competitive statistics, but cleared lines
+    // still earn credits for the account.
     if (sourceMode === 'zen') {
-      const currentMs = Math.round(stats.duration);
-      const deltaMs = currentMs - zenTimeRecordedRef.current;
-      if (deltaMs >= 1000) {
-        zenTimeRecordedRef.current = currentMs;
-        if (isAuthenticated) {
-          ApiClient.submitResult({ mode: 'zen', duration: deltaMs }).catch(console.warn);
-        } else {
-          const localResults = LocalStorageManager.getItem<any[]>('guest_results', []);
-          localResults.unshift({ mode: 'zen', duration: deltaMs, date: Date.now() });
-          LocalStorageManager.setItem('guest_results', localResults.slice(0, 50));
-        }
-      }
+      saveZenSessionTime(sourceEngine, sourceMode);
       setIsSaved(true);
       return;
     }

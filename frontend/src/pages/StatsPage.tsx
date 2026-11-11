@@ -267,6 +267,16 @@ export const StatsPage: React.FC = () => {
         </div>
 
         <div className="panel-card">
+          <div className="stat-label">{t('Credits')}</div>
+          <div className="stat-value" style={{ color: 'var(--accent-yellow)' }}>
+            {isAuthenticated ? (data?.credits ?? 0).toLocaleString() : '—'}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            {t('1 credit per cleared line')}
+          </div>
+        </div>
+
+        <div className="panel-card">
           <div className="stat-label">{t('Total Playtime')}</div>
           <div className="stat-value" style={{ fontSize: '1.25rem' }}>
             {formatPlaytime(stats.total_playtime_ms || guestStats.playtime || 0)}

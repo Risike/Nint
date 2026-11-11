@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { getDatabase } from '../config/database.js';
+import { awardLineCredits } from '../utils/credits.js';
 
 const ALLOWED_RESULTS = new Set(['win', 'loss', 'draw']);
 const ALLOWED_MODES = new Set(['versus_1v1', 'versus_online']);
@@ -62,9 +63,9 @@ export class StatsService {
     };
   }
 
-  static getUserStats(userId) {
+  static getUserStats(userId, { includeCredits = false } = {}) {
     const db = getDatabase();
-    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+    const user = db.prepare('SELECT id, COALESCE(credits, 0) AS credits FROM users WHERE id = ?').get(userId);
     if (!user) {
       throw httpError(404, 'User not found');
     }
@@ -78,6 +79,7 @@ export class StatsService {
       : '0.0';
 
     return {
+      ...(includeCredits ? { credits: user.credits ?? 0 } : {}),
       stats: stats || {},
       winRate: parseFloat(winRate),
       personalBests,
@@ -163,6 +165,9 @@ export class StatsService {
   static incrementMatchStats(db, userId, report, newRating, now) {
     const isWin = report.result === 'win';
     const isLoss = report.result === 'loss';
+
+    // One credit per cleared line, including CPU and online matches.
+    awardLineCredits(db, userId, report.playerLines, now);
 
     if (newRating === null || newRating === undefined) {
       db.prepare(`

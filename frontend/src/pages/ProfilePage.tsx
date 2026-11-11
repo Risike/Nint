@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ApiClient } from '../services/api';
-import { User, KeyRound, Trash2, LogOut, CheckCircle2 } from 'lucide-react';
+import { User, KeyRound, Trash2, LogOut, CheckCircle2, Coins } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 
 interface ProfilePageProps {
@@ -18,6 +18,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
 
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Pick up credits earned in recent games when opening the profile.
+  useEffect(() => {
+    refreshProfile().catch(() => {});
+  }, []);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,6 +101,16 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
               </div>
             </div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Chess ELO System')}</span>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-tertiary)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{t('Credits')}</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-yellow)' }}>
+                {(user?.credits ?? 0).toLocaleString()}
+              </div>
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('1 credit per cleared line')}</span>
           </div>
 
           <div>

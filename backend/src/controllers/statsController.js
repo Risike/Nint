@@ -3,7 +3,7 @@ import { StatsService } from '../services/statsService.js';
 export class StatsController {
   static getMyStats(req, res, next) {
     try {
-      const stats = StatsService.getUserStats(req.user.id);
+      const stats = StatsService.getUserStats(req.user.id, { includeCredits: true });
       res.json(stats);
     } catch (err) {
       next(err);

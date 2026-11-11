@@ -108,7 +108,7 @@ export class AuthService {
       throw err;
     }
 
-    const user = db.prepare('SELECT id, email, username, display_name, avatar_url, is_admin, token_version FROM users WHERE id = ?').get(id);
+    const user = db.prepare('SELECT id, email, username, display_name, avatar_url, is_admin, token_version, credits FROM users WHERE id = ?').get(id);
     const token = signToken(user);
 
     return {
@@ -119,6 +119,7 @@ export class AuthService {
         display_name: user.display_name,
         avatar_url: user.avatar_url,
         rating: 1000,
+        credits: user.credits ?? 0,
         is_admin: false
       },
       token
@@ -154,6 +155,7 @@ export class AuthService {
         display_name: user.display_name,
         avatar_url: user.avatar_url,
         rating: stats?.rating ?? 1000,
+        credits: user.credits ?? 0,
         is_admin: user.is_admin === 1
       },
       token
@@ -170,7 +172,7 @@ export class AuthService {
     const db = getDatabase();
     const user = db.prepare(`
       SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, u.created_at, u.is_admin,
-             COALESCE(s.rating, 1000) as rating
+             COALESCE(u.credits, 0) as credits, COALESCE(s.rating, 1000) as rating
       FROM users u
       LEFT JOIN user_statistics s ON s.user_id = u.id
       WHERE u.id = ?

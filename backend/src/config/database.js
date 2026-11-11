@@ -50,6 +50,7 @@ export function initSchema(db = getDatabase()) {
     ensureColumn(db, 'user_settings', 'language', "TEXT DEFAULT 'en'");
     ensureColumn(db, 'users', 'is_admin', 'INTEGER DEFAULT 0');
     ensureColumn(db, 'users', 'token_version', 'INTEGER DEFAULT 0');
+    ensureColumn(db, 'users', 'credits', 'INTEGER NOT NULL DEFAULT 0');
     ensureColumn(db, 'users', 'username', 'TEXT');
 
     // Give existing accounts an identifier before enforcing uniqueness.
