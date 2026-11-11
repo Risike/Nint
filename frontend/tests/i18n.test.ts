@@ -12,6 +12,11 @@ describe('i18n', () => {
     expect(translate('de', 'Settings')).toBe('Einstellungen');
     expect(translate('es', 'Settings')).toBe('Ajustes');
     expect(translate('it', 'Settings')).toBe('Impostazioni');
+    expect(translate('fr', 'Home')).toBe('Accueil');
+    expect(translate('fr', 'Multiplayer')).toBe('Multijoueur');
+    expect(translate('fr', 'Single Player')).toBe('Un joueur');
+    expect(translate('fr', 'Two Players')).toBe('Deux joueurs');
+    expect(translate('fr', 'Right Stick Scroll')).toBe('Stick droit défiler');
     expect(isLanguage('en')).toBe(true);
     expect(isLanguage('fr')).toBe(true);
     expect(isLanguage('pt')).toBe(false);

@@ -16,6 +16,14 @@ export const GamepadBar: React.FC = () => {
         <span className="gamepad-label">{t('Tabs')}</span>
       </div>
       <div className="gamepad-helper-item">
+        <span className="gamepad-pill">LT</span>
+        <span className="gamepad-label">{t('Mute')}</span>
+      </div>
+      <div className="gamepad-helper-item">
+        <span className="gamepad-pill">RT</span>
+        <span className="gamepad-label">{t('Fullscreen')}</span>
+      </div>
+      <div className="gamepad-helper-item">
         <span className="gamepad-pill">{t('D-Pad / Stick')}</span>
         <span className="gamepad-label">{t('Move')}</span>
       </div>
@@ -26,6 +34,11 @@ export const GamepadBar: React.FC = () => {
       <div className="gamepad-helper-item">
         <span className="gamepad-pill gamepad-pill-b">B</span>
         <span className="gamepad-label">{t('Back')}</span>
+      </div>
+      <div className="gamepad-helper-item gamepad-helper-item--scroll">
+        <span className="gamepad-pill">RS</span>
+        <span className="gamepad-pill">↕</span>
+        <span className="gamepad-label">{t('Right Stick Scroll')}</span>
       </div>
     </div>
   );

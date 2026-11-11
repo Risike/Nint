@@ -47,6 +47,7 @@ interface SettingsContextType {
   settings: SettingsState;
   updateSettings: (newSettings: Partial<SettingsState>) => void;
   toggleTheme: () => void;
+  toggleMute: () => void;
   resetDefaults: () => void;
 }
 
@@ -166,6 +167,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     updateSettings({ theme: nextTheme });
   };
 
+  const toggleMute = () => {
+    updateSettings({ isMuted: !settings.isMuted });
+  };
+
   const resetDefaults = () => {
     setSettings(DEFAULT_SETTINGS);
     LocalStorageManager.setItem('settings', DEFAULT_SETTINGS);
@@ -175,7 +180,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   return (
-    <SettingsContext.Provider value={{ settings, updateSettings, toggleTheme, resetDefaults }}>
+    <SettingsContext.Provider value={{ settings, updateSettings, toggleTheme, toggleMute, resetDefaults }}>
       {children}
     </SettingsContext.Provider>
   );

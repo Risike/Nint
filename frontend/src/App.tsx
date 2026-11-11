@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { SettingsProvider } from './context/SettingsContext';
+import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { GamepadNavProvider } from './context/GamepadNavContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
@@ -17,10 +17,12 @@ import { RegisterPage } from './pages/RegisterPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { AdminPage } from './pages/AdminPage';
+import { toggleFullscreen } from './utils/fullscreen';
 import './styles/main.css';
 
 export const AppContent: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  const { toggleMute } = useSettings();
   const [resetToken, setResetToken] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('token');
@@ -32,7 +34,7 @@ export const AppContent: React.FC = () => {
     }
     return 'home';
   });
-  const [soloInitialMode, setSoloInitialMode] = useState<string | null>(null);
+  const [cpuInitialLevel, setCpuInitialLevel] = useState<number | null>(null);
   const isGameRoute = activeTab === 'solo' || activeTab === 'versus_ai' || activeTab === 'online';
 
   const handleNavigate = (tab: string) => {
@@ -46,23 +48,23 @@ export const AppContent: React.FC = () => {
   const renderActivePage = () => {
     switch (activeTab) {
       case 'home':
-        return <HomePage onSelectMode={(mode) => {
-          if (mode === 'versus_ai') setActiveTab('versus_ai');
-          else if (mode === 'online') setActiveTab('online');
-          else {
-            setSoloInitialMode(mode);
-            setActiveTab('solo');
-          }
-        }} />;
+        return <HomePage onNavigate={handleNavigate} />;
       case 'solo':
         return (
           <SoloPage
-            initialMode={soloInitialMode}
-            onClearInitialMode={() => setSoloInitialMode(null)}
+            onStartCpu={(level) => {
+              setCpuInitialLevel(level);
+              setActiveTab('versus_ai');
+            }}
           />
         );
       case 'versus_ai':
-        return <VersusAiPage />;
+        return (
+          <VersusAiPage
+            initialDifficulty={cpuInitialLevel}
+            onClearInitialDifficulty={() => setCpuInitialLevel(null)}
+          />
+        );
       case 'online':
         return <OnlineVersusPage onNavigate={handleNavigate} />;
       case 'leaderboards':
@@ -87,7 +89,7 @@ export const AppContent: React.FC = () => {
       case 'admin':
         return <AdminPage onNavigate={handleNavigate} />;
       default:
-        return <HomePage onSelectMode={() => setActiveTab('solo')} />;
+        return <HomePage onNavigate={handleNavigate} />;
     }
   };
 
@@ -96,6 +98,8 @@ export const AppContent: React.FC = () => {
       activeTab={activeTab}
       setActiveTab={setActiveTab}
       isAuthenticated={isAuthenticated}
+      onMenuMute={toggleMute}
+      onMenuFullscreen={toggleFullscreen}
     >
       <div className={`app-container${isGameRoute ? ' app-container--game' : ''}`}>
         <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />

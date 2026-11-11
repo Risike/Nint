@@ -497,7 +497,10 @@ html {
   z-index: 1000;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  max-width: calc(100vw - 36px);
   padding: 0.4rem 0.85rem;
   background: rgba(15, 23, 42, 0.92);
   backdrop-filter: blur(8px);
@@ -536,6 +539,13 @@ html {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.gamepad-helper-item--scroll {
+  flex-basis: 100%;
+  justify-content: center;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .gamepad-pill {

@@ -1,5 +1,31 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { soundManager } from '../game/audio/soundManager';
+import { MAIN_TABS, getMainTab } from '../navigation';
+
+const RIGHT_STICK_SCROLL_DEADZONE = 0.18;
+const RIGHT_STICK_SCROLL_SPEED = 1100; // pixels per second at full deflection
+
+// The right stick scrolls vertically on every page, including gameplay pages.
+// Do not tie this to the menu action branch: it must keep working while the
+// gameplay input is yielded to the game engine.
+export const scrollPageWithRightStick = (gamepad: Gamepad, deltaMs: number): boolean => {
+  if (typeof window === 'undefined' || typeof window.scrollBy !== 'function') return false;
+
+  const axisY = gamepad.axes[3] ?? 0;
+  const magnitude = Math.abs(axisY);
+  if (magnitude <= RIGHT_STICK_SCROLL_DEADZONE) return false;
+
+  const intensity = Math.min(
+    1,
+    (magnitude - RIGHT_STICK_SCROLL_DEADZONE) / (1 - RIGHT_STICK_SCROLL_DEADZONE)
+  );
+  const frameDelta = Math.min(deltaMs, 50);
+  const delta = Math.sign(axisY) * intensity * RIGHT_STICK_SCROLL_SPEED * (frameDelta / 1000);
+  if (Math.abs(delta) < 0.1) return false;
+
+  window.scrollBy({ top: delta, behavior: 'auto' });
+  return true;
+};
 
 // Helper to smoothly and accurately scroll an element into the visible viewport,
 // taking into account sticky navbar (~75px) and fixed bottom gamepad bar (~80px)
@@ -103,15 +129,17 @@ interface GamepadNavProviderProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   isAuthenticated: boolean;
+  onMenuMute?: () => void;
+  onMenuFullscreen?: () => void;
 }
-
-const MAIN_TABS = ['home', 'solo', 'versus_ai', 'online', 'leaderboards', 'stats', 'settings'];
 
 export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
   children,
   activeTab,
   setActiveTab,
-  isAuthenticated
+  isAuthenticated,
+  onMenuMute,
+  onMenuFullscreen
 }) => {
   const [gamepadConnected, setGamepadConnected] = useState<boolean>(false);
   const [gamepadName, setGamepadName] = useState<string | null>(null);
@@ -129,6 +157,8 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
 
   const focusedElementRef = useRef<HTMLElement | null>(null);
   const backHandlersRef = useRef<BackHandlerRecord[]>([]);
+  const menuActionsRef = useRef({ onMenuMute, onMenuFullscreen });
+  menuActionsRef.current = { onMenuMute, onMenuFullscreen };
 
   const registerBackHandler = useCallback((id: string, handler: () => boolean | void) => {
     backHandlersRef.current = backHandlersRef.current.filter(b => b.id !== id);
@@ -181,7 +211,7 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
   const navigateTab = useCallback((direction: number) => {
     const authTab = isAuthenticatedRef.current ? 'profile' : 'login';
     const allTabs = [...MAIN_TABS, authTab];
-    const currentIndex = allTabs.indexOf(activeTabRef.current);
+    const currentIndex = allTabs.indexOf(getMainTab(activeTabRef.current));
     const validIndex = currentIndex >= 0 ? currentIndex : 0;
     let nextIndex = validIndex + direction;
 
@@ -428,6 +458,8 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
             setGamepadName(gp.id);
           }
 
+          scrollPageWithRightStick(gp, delta);
+
           // If gameplay is active, yield input completely to the game engine
           if (!isGameplayActiveRef.current) {
             const buttons = gp.buttons.map(b => (typeof b === 'object' ? b.pressed : b === 1.0));
@@ -435,14 +467,24 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
 
             const justPressed = (index: number) => buttons[index] && !prevButtons[index];
 
-            // Bumpers / Triggers: LB (4) or LT (6) for Prev, RB (5) or RT (7) for Next
-            const isPrevTab = justPressed(4) || justPressed(6);
-            const isNextTab = justPressed(5) || justPressed(7);
+            // Bumpers switch tabs. Triggers are reserved for menu system actions.
+            const isPrevTab = justPressed(4);
+            const isNextTab = justPressed(5);
 
             if (isPrevTab) {
               navigateTab(-1);
             } else if (isNextTab) {
               navigateTab(1);
+            }
+
+            if (justPressed(6)) {
+              soundManager.playMove();
+              menuActionsRef.current.onMenuMute?.();
+            }
+
+            if (justPressed(7)) {
+              soundManager.playMove();
+              menuActionsRef.current.onMenuFullscreen?.();
             }
 
             // A Button (0) - Validate

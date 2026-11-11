@@ -15,7 +15,15 @@ import { VersusArena } from '../components/game/VersusArena';
 import { Bot, User as UserIcon, RotateCcw, ArrowLeft, Swords, Shield, Zap, Flame, Play, Pause } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 
-export const VersusAiPage: React.FC = () => {
+interface VersusAiPageProps {
+  initialDifficulty?: number | null;
+  onClearInitialDifficulty?: () => void;
+}
+
+export const VersusAiPage: React.FC<VersusAiPageProps> = ({
+  initialDifficulty,
+  onClearInitialDifficulty
+}) => {
   const { isAuthenticated } = useAuth();
   const { settings } = useSettings();
   const { t } = useI18n();
@@ -86,6 +94,7 @@ export const VersusAiPage: React.FC = () => {
   const difficultyRef = useRef<number>(5);
   const matchStartTimeRef = useRef<number>(0);
   const matchEndedRef = useRef<boolean>(false);
+  const consumedInitialDifficultyRef = useRef<boolean>(false);
 
   const aiControllerRef = useRef<AIController | null>(null);
   const keyboardRef = useRef<KeyboardManager | null>(null);
@@ -237,6 +246,14 @@ export const VersusAiPage: React.FC = () => {
 
     soundManager.startBgm();
   };
+
+  useEffect(() => {
+    if (initialDifficulty == null || consumedInitialDifficultyRef.current) return;
+    consumedInitialDifficultyRef.current = true;
+    onClearInitialDifficulty?.();
+    launchWithDifficulty(initialDifficulty);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDifficulty]);
 
   // Main match update loop
   useEffect(() => {

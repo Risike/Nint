@@ -16,27 +16,24 @@ import { LocalStorageManager } from '../services/storage';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack, scrollElementIntoViewSmart } from '../context/GamepadNavContext';
 import { useI18n } from '../i18n/useI18n';
-import { Play, Pause, RotateCcw, ArrowLeft, Flame, Zap, Timer, Smile, Sliders, Shield, RefreshCw } from 'lucide-react';
+import { SoloModeMenu } from './SoloModeMenu';
+import { Play, Pause, RotateCcw, ArrowLeft, Flame, Smile, Sliders, Shield } from 'lucide-react';
+
+type SoloMode = 'marathon' | 'sprint' | 'ultra' | 'zen' | 'custom';
 
 interface SoloPageProps {
   initialMode?: string | null;
   onClearInitialMode?: () => void;
+  onStartCpu?: (level: number) => void;
 }
 
-export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialMode }) => {
+export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialMode, onStartCpu }) => {
   const { user, isAuthenticated } = useAuth();
   const { settings } = useSettings();
   const { t } = useI18n();
   const cellSize = useDynamicCellSize(false);
 
-  const [mode, setMode] = useState<'marathon' | 'sprint' | 'ultra' | 'zen' | 'custom'>('marathon');
-
-  const handleCardKey = (action: () => void) => (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      action();
-    }
-  };
+  const [mode, setMode] = useState<SoloMode>('marathon');
   const [isSelectingMode, setIsSelectingMode] = useState<boolean>(true);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
 
@@ -380,7 +377,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialMode]);
 
-  const launchSelectedMode = (selectedMode: 'marathon' | 'sprint' | 'ultra' | 'zen' | 'custom') => {
+  const launchSelectedMode = (selectedMode: SoloMode) => {
     setMode(selectedMode);
     if (selectedMode === 'zen') {
       setIsSelectingMode(false);
@@ -408,7 +405,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     initGame('marathon');
   };
 
-  const initGame = (targetMode?: 'marathon' | 'sprint' | 'ultra' | 'zen' | 'custom') => {
+  const initGame = (targetMode?: SoloMode) => {
     soundManager.stopBgm();
     const activeMode = (typeof targetMode === 'string') ? targetMode : mode;
     const isZen = activeMode === 'zen';
@@ -622,85 +619,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   // Mode Selection Screen (When clicking Solo)
   if (isSelectingMode) {
     return (
-      <div style={{ width: '100%', maxWidth: '880px', textAlign: 'center', marginTop: '1rem' }}>
-        <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Solo Game Modes')}</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-            {t('Choose a single-player mode to begin.')}
-          </p>
-        </div>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '1.25rem',
-          textAlign: 'left'
-        }}>
-          {/* Marathon */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => launchSelectedMode('marathon')} onKeyDown={handleCardKey(() => launchSelectedMode('marathon'))}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                <Flame size={24} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Marathon')}</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('150 Lines Challenge')}</span>
-              </div>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              {t('Clear 150 lines as gravity steadily speeds up every 10 lines. Push for the ultimate high score!')}
-            </p>
-          </div>
-
-          {/* Sprint */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => launchSelectedMode('sprint')} onKeyDown={handleCardKey(() => launchSelectedMode('sprint'))}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ background: 'rgba(234, 179, 8, 0.2)', color: 'var(--accent-yellow)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                <Zap size={24} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Sprint (40 Lines)')}</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Speedrun Attack')}</span>
-              </div>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              {t('Clear 40 lines as fast as humanly possible. Test your speed, execution, and personal best time.')}
-            </p>
-          </div>
-
-          {/* Ultra */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => launchSelectedMode('ultra')} onKeyDown={handleCardKey(() => launchSelectedMode('ultra'))}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ background: 'rgba(236, 72, 153, 0.2)', color: 'var(--accent-pink)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                <Timer size={24} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Ultra')}</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('3 Minutes Score Attack')}</span>
-              </div>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              {t('Score as many points as possible before the 3-minute timer expires. Maximize B2B chains and T-Spins.')}
-            </p>
-          </div>
-
-          {/* Zen */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => launchSelectedMode('zen')} onKeyDown={handleCardKey(() => launchSelectedMode('zen'))}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ background: 'rgba(168, 85, 247, 0.2)', color: 'var(--accent-purple)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                <Smile size={24} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Zen & Custom Practice')}</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Configurable Endless')}</span>
-              </div>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              {t('Configure gravity, immortal recovery, lock delays, and starting downstack lines to practice freely.')}
-            </p>
-          </div>
-        </div>
-      </div>
+      <SoloModeMenu
+        onSelectMode={launchSelectedMode}
+        onStartCpu={onStartCpu}
+      />
     );
   }
 
@@ -1044,7 +966,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           textTransform: 'uppercase',
           letterSpacing: '0.05em'
         }}>
-          {t('Mode: {mode}', { mode: t(mode === 'marathon' ? 'Marathon' : mode === 'sprint' ? 'Sprint (40 Lines)' : mode === 'ultra' ? 'Ultra' : 'Zen & Custom Practice') })}{mode === 'sprint' ? ` (${sprintGoal}L)` : mode === 'ultra' ? ' (3m)' : mode === 'zen' ? ` (${t('Level')} ${zenLevel}${zenFixedGravity ? ` • ${t('Fixed')}` : ''}${zenImmortal ? ` • ${t('Immortal')}` : ''})` : ''}
+          {t('Mode: {mode}', { mode: t(mode === 'marathon' ? 'Marathon' : mode === 'sprint' ? 'Sprint (40 Lines)' : mode === 'ultra' ? 'Ultra' : 'Practice') })}{mode === 'sprint' ? ` (${sprintGoal}L)` : mode === 'ultra' ? ' (3m)' : mode === 'zen' ? ` (${t('Level')} ${zenLevel}${zenFixedGravity ? ` • ${t('Fixed')}` : ''}${zenImmortal ? ` • ${t('Immortal')}` : ''})` : ''}
         </div>
       </div>
 
