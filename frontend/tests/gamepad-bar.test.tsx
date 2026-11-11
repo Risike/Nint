@@ -44,7 +44,7 @@ describe('GamepadBar', () => {
     expect(scrollHint).not.toBeNull();
     expect(items[items.length - 1]).toBe(scrollHint);
     expect(scrollHint?.textContent).toContain('RS');
-    expect(scrollHint?.textContent).toContain('↕');
     expect(scrollHint?.textContent).toContain('Right Stick Scroll');
+    expect(scrollHint?.textContent).not.toContain('↕');
   });
 });

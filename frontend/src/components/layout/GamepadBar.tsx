@@ -37,7 +37,6 @@ export const GamepadBar: React.FC = () => {
       </div>
       <div className="gamepad-helper-item gamepad-helper-item--scroll">
         <span className="gamepad-pill">RS</span>
-        <span className="gamepad-pill">↕</span>
         <span className="gamepad-label">{t('Right Stick Scroll')}</span>
       </div>
     </div>
