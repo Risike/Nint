@@ -30,6 +30,15 @@ function getTransporter() {
   return _transporter;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 /**
  * Send a password-reset email to the given address.
  * @param {string} toEmail - Recipient email address
@@ -38,21 +47,23 @@ function getTransporter() {
  */
 export async function sendPasswordResetEmail(toEmail, resetToken, displayName) {
   const resetUrl = `${config.appBaseUrl}/reset-password?token=${resetToken}`;
+  const safeName = escapeHtml(displayName);
+  const safeUrl = escapeHtml(resetUrl);
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #0d0d1a; color: #e2e2f0; border-radius: 12px; padding: 32px;">
       <h2 style="color: #00e5ff; margin-top: 0;">🎮 Nint — Reset Your Password</h2>
-      <p>Hi <strong>${displayName}</strong>,</p>
+      <p>Hi <strong>${safeName}</strong>,</p>
       <p>We received a request to reset the password for your Nint account.</p>
       <p>Click the button below to choose a new password. This link is valid for <strong>1 hour</strong>.</p>
       <div style="text-align: center; margin: 32px 0;">
-        <a href="${resetUrl}"
+        <a href="${safeUrl}"
            style="background: #00e5ff; color: #0d0d1a; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; font-size: 1rem; display: inline-block;">
           Reset Password
         </a>
       </div>
       <p style="font-size: 0.85rem; color: #888;">If the button doesn't work, copy and paste this link into your browser:</p>
-      <p style="font-size: 0.8rem; word-break: break-all; color: #aaa;">${resetUrl}</p>
+      <p style="font-size: 0.8rem; word-break: break-all; color: #aaa;">${safeUrl}</p>
       <hr style="border-color: #333; margin: 24px 0;" />
       <p style="font-size: 0.8rem; color: #666;">
         If you didn't request a password reset, you can safely ignore this email — your password will remain unchanged.

@@ -5,14 +5,17 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     display_name TEXT NOT NULL,
+    username TEXT,
     avatar_url TEXT,
+    is_admin INTEGER DEFAULT 0,
+    token_version INTEGER DEFAULT 0,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS user_settings (
     user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    theme TEXT DEFAULT 'dark',
+    theme TEXT DEFAULT 'dark-01',
     das INTEGER DEFAULT 167,
     arr INTEGER DEFAULT 33,
     soft_drop_factor INTEGER DEFAULT 20,
@@ -63,21 +66,31 @@ CREATE TABLE IF NOT EXISTS personal_bests (
 CREATE TABLE IF NOT EXISTS match_history (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    opponent_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     opponent_name TEXT NOT NULL,
     opponent_type TEXT NOT NULL, -- 'ai' or 'human'
     difficulty INTEGER, -- 1-10
     mode TEXT DEFAULT 'versus_1v1',
+    match_id TEXT, -- shared id used to pair both players' reports
+    ranked INTEGER DEFAULT 0, -- 1 only for ranked online matches
     result TEXT NOT NULL, -- 'win', 'loss', 'draw'
     player_score INTEGER DEFAULT 0,
     player_lines INTEGER DEFAULT 0,
     opponent_score INTEGER DEFAULT 0,
     opponent_lines INTEGER DEFAULT 0,
     duration INTEGER NOT NULL,
+    pieces_placed INTEGER DEFAULT 0,
+    tetrises INTEGER DEFAULT 0,
+    t_spins INTEGER DEFAULT 0,
+    perfect_clears INTEGER DEFAULT 0,
+    max_combo INTEGER DEFAULT 0,
+    max_b2b INTEGER DEFAULT 0,
     garbage_sent INTEGER DEFAULT 0,
     garbage_received INTEGER DEFAULT 0,
     rating_change INTEGER DEFAULT 0,
     new_rating INTEGER,
     opponent_rating INTEGER,
+    rating_applied INTEGER DEFAULT 0,
     created_at INTEGER NOT NULL
 );
 
@@ -105,9 +118,19 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     used INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS site_config (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_game_results_user ON game_results(user_id);
 CREATE INDEX IF NOT EXISTS idx_game_results_mode_score ON game_results(mode, score DESC);
 CREATE INDEX IF NOT EXISTS idx_game_results_mode_duration ON game_results(mode, duration ASC);
+CREATE INDEX IF NOT EXISTS idx_game_results_mode_created ON game_results(mode, created_at);
 CREATE INDEX IF NOT EXISTS idx_personal_bests_mode_val ON personal_bests(mode, metric, value);
 CREATE INDEX IF NOT EXISTS idx_match_history_user ON match_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_match_history_match ON match_history(match_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_match_history_user_match
+    ON match_history(match_id, user_id) WHERE match_id IS NOT NULL;

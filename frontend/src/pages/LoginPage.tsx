@@ -9,7 +9,7 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   const { login, playAsGuest } = useAuth();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -25,7 +25,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
     setError(null);
     setLoading(true);
     try {
-      await login(email, password);
+      await login(identifier, password);
       onNavigate('solo');
     } catch (err: any) {
       setError(err.message || 'Login failed');
@@ -156,13 +156,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem', color: 'var(--text-secondary)' }}>
-              Email Address
+              Email or Username
             </label>
             <input
-              type="email"
+              type="text"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="you@example.com or test"
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -184,7 +186,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 href="#"
                 onClick={(e) => {
                   e.preventDefault();
-                  setForgotEmail(email);
+                  setForgotEmail(identifier.includes('@') ? identifier : '');
                   setError(null);
                   setIsForgot(true);
                 }}
@@ -195,7 +197,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
             </div>
             <input
               type="password"
-              required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={{
@@ -209,6 +210,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
               }}
             />
           </div>
+
+          {import.meta.env.DEV && (
+            <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+              Dev accounts: <strong>test</strong> and <strong>test2</strong> — leave the password empty.
+            </p>
+          )}
 
           <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
             <LogIn size={18} />

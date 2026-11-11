@@ -13,7 +13,6 @@ export interface PlacementCandidate {
   y: number;
   score: number;
   linesCleared: number;
-  useHold: boolean;
 }
 
 export interface HeuristicWeights {
@@ -23,15 +22,14 @@ export interface HeuristicWeights {
   bumpiness: number;
   wellDepth: number;
   blockades: number;
-  tSpinPotential: number;
 }
 
 export const AI_WEIGHTS_PRESETS: Record<number, HeuristicWeights> = {
-  1: { aggregateHeight: -0.15, completeLines: 0.2, holes: -0.4, bumpiness: -0.05, wellDepth: 0.05, blockades: -0.1, tSpinPotential: 0 },
-  3: { aggregateHeight: -0.3, completeLines: 0.5, holes: -0.8, bumpiness: -0.1, wellDepth: 0.2, blockades: -0.3, tSpinPotential: 0.1 },
-  5: { aggregateHeight: -0.5, completeLines: 0.8, holes: -1.5, bumpiness: -0.2, wellDepth: 0.4, blockades: -0.6, tSpinPotential: 0.3 },
-  7: { aggregateHeight: -0.65, completeLines: 1.2, holes: -2.5, bumpiness: -0.3, wellDepth: 0.7, blockades: -1.0, tSpinPotential: 0.6 },
-  10: { aggregateHeight: -0.75, completeLines: 1.8, holes: -3.8, bumpiness: -0.38, wellDepth: 1.2, blockades: -1.8, tSpinPotential: 1.2 }
+  1: { aggregateHeight: -0.15, completeLines: 0.2, holes: -0.4, bumpiness: -0.05, wellDepth: 0.05, blockades: -0.1 },
+  3: { aggregateHeight: -0.3, completeLines: 0.5, holes: -0.8, bumpiness: -0.1, wellDepth: 0.2, blockades: -0.3 },
+  5: { aggregateHeight: -0.5, completeLines: 0.8, holes: -1.5, bumpiness: -0.2, wellDepth: 0.4, blockades: -0.6 },
+  7: { aggregateHeight: -0.65, completeLines: 1.2, holes: -2.5, bumpiness: -0.3, wellDepth: 0.7, blockades: -1.0 },
+  10: { aggregateHeight: -0.75, completeLines: 1.8, holes: -3.8, bumpiness: -0.38, wellDepth: 1.2, blockades: -1.8 }
 };
 
 export class BoardEvaluator {
@@ -166,8 +164,7 @@ export class BoardEvaluator {
             x,
             y,
             score: evalScore,
-            linesCleared: sim.linesCleared,
-            useHold: false
+            linesCleared: sim.linesCleared
           };
         }
       }

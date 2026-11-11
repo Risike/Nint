@@ -32,7 +32,7 @@ export class KeyboardManager {
   private dasTimer: number = 0;
   private arrTimer: number = 0;
   private activeHorizontalKey: 'left' | 'right' | null = null;
-  private softDropIntervalId: number | null = null;
+  private softDropTimer: number = 0;
 
   private onRestartCallback?: () => void;
   private onPauseCallback?: () => void;
@@ -167,9 +167,16 @@ export class KeyboardManager {
       }
     }
 
-    // Handle soft drop continuous pressure
+    // Handle soft drop continuous pressure at the configured soft-drop rate
     if (this.isAnyDown(this.keybindings.softDrop)) {
-      this.engine.softDrop();
+      this.softDropTimer += deltaMs;
+      const interval = this.engine.getSoftDropInterval();
+      while (this.softDropTimer >= interval) {
+        this.softDropTimer -= interval;
+        if (!this.engine.softDrop()) break;
+      }
+    } else {
+      this.softDropTimer = 0;
     }
   }
 

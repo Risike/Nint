@@ -2,21 +2,18 @@ import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../../game/engine/gameEngine';
 import { CanvasRenderer } from '../../game/rendering/canvasRenderer';
 import { useSettings } from '../../context/SettingsContext';
-import { useDynamicCellSize } from '../../hooks/useDynamicCellSize';
 
 interface PlayfieldCanvasProps {
   engine: GameEngine;
   incomingGarbage?: number;
-  cellSize?: number;
+  cellSize: number;
 }
 
 export const PlayfieldCanvas: React.FC<PlayfieldCanvasProps> = ({
   engine,
   incomingGarbage = 0,
-  cellSize: propCellSize
+  cellSize
 }) => {
-  const dynamicCellSize = useDynamicCellSize(false);
-  const cellSize = propCellSize ?? dynamicCellSize;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<CanvasRenderer | null>(null);
   const { settings } = useSettings();
@@ -56,6 +53,10 @@ export const PlayfieldCanvas: React.FC<PlayfieldCanvasProps> = ({
         }
       }
       originalOnLineClear?.(result);
+    };
+
+    return () => {
+      engine.events.onLineClear = originalOnLineClear;
     };
   }, [engine, cellSize]);
 

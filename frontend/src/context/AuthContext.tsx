@@ -5,6 +5,7 @@ export interface User {
   id: string;
   email: string;
   display_name: string;
+  username?: string;
   avatar_url?: string;
   rating?: number;
   is_admin?: boolean;
@@ -16,8 +17,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isGuest: boolean;
   isLoading: boolean;
-  login: (email: string, pass: string) => Promise<void>;
-  register: (email: string, pass: string, name: string) => Promise<void>;
+  login: (identifier: string, pass: string) => Promise<void>;
+  register: (email: string, pass: string, name: string, username?: string) => Promise<void>;
   logout: () => void;
   playAsGuest: () => void;
   refreshProfile: () => Promise<void>;
@@ -52,16 +53,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadUser();
   }, [token]);
 
-  const login = async (email: string, pass: string) => {
-    const res = await ApiClient.login({ email, password: pass });
+  const login = async (identifier: string, pass: string) => {
+    const res = await ApiClient.login({ identifier, password: pass });
     ApiClient.setToken(res.token);
     setToken(res.token);
     setUser(res.user);
     setIsGuest(false);
   };
 
-  const register = async (email: string, pass: string, name: string) => {
-    const res = await ApiClient.register({ email, password: pass, displayName: name });
+  const register = async (email: string, pass: string, name: string, username?: string) => {
+    const res = await ApiClient.register({ email, password: pass, displayName: name, username });
     ApiClient.setToken(res.token);
     setToken(res.token);
     setUser(res.user);
@@ -69,6 +70,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    // Revoke the session server-side before discarding the token locally.
+    if (ApiClient.getToken()) {
+      ApiClient.logout().catch(() => {});
+    }
     ApiClient.setToken(null);
     setToken(null);
     setUser(null);

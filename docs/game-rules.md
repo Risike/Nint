@@ -2,14 +2,14 @@
 
 ## 1. Playfield
 - Standard 10 columns by 20 visible rows.
-- 20 hidden buffer rows above the ceiling for piece spawning and rotation manipulations (total 40 rows).
+- 20 buffer rows above the visible field for rotation kicks and garbage headroom (40 rows total). Pieces spawn at the top of the visible field.
 - Seven standard tetrominoes: I (Cyan), J (Blue), L (Orange), O (Yellow), S (Green), T (Purple), Z (Red).
 - 7-Bag randomizer: Every cycle of 7 pieces contains exactly one of each tetromino shuffled via deterministic PRNG.
 
 ## 2. Handling & Timings
-- **DAS (Delayed Auto Shift)**: Default 133ms before automatic lateral shift begins (configurable 50-250ms).
-- **ARR (Auto Repeat Rate)**: Default 10ms repeat frequency (configurable 0-50ms).
-- **Soft Drop**: Drops piece quickly with +1 point per cell dropped.
+- **DAS (Delayed Auto Shift)**: Default 167ms before automatic lateral shift begins (configurable 0-500ms).
+- **ARR (Auto Repeat Rate)**: Default 33ms repeat frequency (configurable 0-200ms).
+- **Soft Drop**: Drops the piece at `gravity / soft-drop-factor` (default factor 20) with +1 point per cell dropped.
 - **Hard Drop**: Instantly locks piece at ghost position with +2 points per cell dropped.
 - **Lock Delay**: 500ms delay once resting on a surface. Resets up to 15 moves or rotations. If the piece reaches a new lowest row, the reset allowance resets.
 

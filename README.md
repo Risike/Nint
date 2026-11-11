@@ -7,7 +7,7 @@ A modern, production-quality, Guideline-compliant online falling-block puzzle we
 ## 1. Project Overview
 
 **Nint** is an original falling-block puzzle game engineered for competitive responsiveness, fluid animations, and modern gameplay conventions:
-- **Guideline-compliant mechanics**: 10x20 visible matrix + 20 buffer rows, SRS (Super Rotation System) wall kicks, 3-corner T-Spin detection (Regular and Mini), 7-bag randomizer, hold slot, and ghost piece.
+- **Guideline-compliant mechanics**: 10x20 visible matrix plus 20 buffer rows for kicks and garbage headroom (pieces spawn at the top of the visible field), SRS (Super Rotation System) wall kicks, 3-corner T-Spin detection (Regular and Mini), 7-bag randomizer, hold slot, and ghost piece.
 - **Low latency**: Sub-millisecond DAS/ARR handling, 60fps Canvas playfield rendering, lock delay with 15 move resets, and procedural Web Audio API synthesizer.
 - **Multiple Game Modes**:
   - **Marathon**: 150-line standard challenge and endless survival.
@@ -15,7 +15,7 @@ A modern, production-quality, Guideline-compliant online falling-block puzzle we
   - **Ultra (3 Minutes)**: Score maximization under a strict countdown.
   - **Zen / Practice**: Relaxed endless play with customizable settings.
   - **1v1 Versus AI**: Offline battle against an intelligent AI opponent with 10 difficulty tiers.
-  - **Online 1v1**: Low-latency online battles powered by Firebase Realtime Database with room codes, seed synchronization, and live garbage cancellation.
+  - **Online 1v1**: Low-latency casual room and quick matches, plus a ranked quick-match queue whose results update ELO. Powered by Firebase Realtime Database with room codes, seed synchronization, and live garbage cancellation.
 - **Accounts & Guest Play**: Instant guest play with local storage persistence; full user accounts with JWT authentication, verified leaderboards, and detailed statistics.
 
 ---
@@ -41,13 +41,13 @@ A modern, production-quality, Guideline-compliant online falling-block puzzle we
 ## 3. Quick Start & Docker Deployment
 
 ### Prerequisites
-- Docker & Docker Compose **OR** Node.js 18+ and npm
+- Docker & Docker Compose **OR** Node.js 20+ and npm
 
 ### Local Deployment (Single Command)
 ```bash
 docker compose up --build
 ```
-- Web Application: `http://localhost` (or `http://localhost:5173` in development)
+- Web Application: `http://localhost:8103` (or `http://localhost:5173` in development)
 - Backend API: `http://localhost:3001/api`
 - Health Check: `http://localhost:3001/api/health`
 
@@ -59,6 +59,22 @@ make dev
 # Or directly with npm
 npm run dev
 ```
+
+`npm run dev` also starts the Firebase Auth and Realtime Database emulators and waits for them before launching Vite:
+
+- Emulator UI: `http://127.0.0.1:4000`
+- Auth emulator: `127.0.0.1:9099`
+- Realtime Database emulator: `127.0.0.1:9000`
+
+The frontend automatically connects to the emulator in development when the demo Firebase config is used. Java 11+ is required for the Realtime Database emulator, and the first run downloads its JAR. To start only the emulators, run `npm run emulators`.
+
+### Development Accounts
+With `NODE_ENV=development` (the default for `npm run dev`), the API automatically creates two accounts:
+
+- `test` — empty password
+- `test2` — empty password
+
+They are never created when `NODE_ENV=production`, and empty passwords are rejected in production. You can sign in with the username or the linked email (`test@nint.local`, `test2@nint.local`).
 
 ### Run Automated Tests
 ```bash
@@ -77,7 +93,10 @@ make test
 | :--- | :--- | :--- |
 | `PORT` | API server port | `3001` |
 | `NODE_ENV` | Environment mode | `development` / `production` |
-| `JWT_SECRET` | Secret key for JWT signing | `super-secret-nint-jwt-token` |
+| `JWT_SECRET` | Secret key for JWT signing | Required in production (no fallback) |
+| `CORS_ORIGIN` | Allowed browser origin(s) | `http://localhost:5173` |
+| `TRUST_PROXY` | Reverse-proxy hops in front of the API | `false` (set `1` behind nginx) |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Optional bootstrap administrator | Empty (disabled) |
 | `DATABASE_PATH` | Path to persistent SQLite file | `./data/nint.db` |
 | `VITE_API_URL` | Base API URL for frontend | `/api` |
 | `VITE_FIREBASE_API_KEY` | Firebase Web API Key | `demo-api-key` |
@@ -120,5 +139,5 @@ The offline 1v1 battle AI operates strictly under the same rules as human player
 1. **Solo Marathon**: Navigate to **Solo** -> **Marathon**. Place pieces using Arrow keys and Space. Listen to sound effects as lines clear.
 2. **Speedrun Sprint (40 Lines)**: Select **Sprint (40L)** tab. Complete 40 lines as fast as possible to register your personal best time.
 3. **1v1 Versus AI**: Navigate to **1v1 AI**. Pick difficulty (Lv 1 to Lv 10). Attack the AI by clearing Doubles, Triples, and Tetrises to push red garbage lines into its board.
-4. **Online 1v1 Multiplayer**: Navigate to **Online 1v1**. Click **Create Private Room** to generate a 6-character room code. Open a second browser window/tab, enter the code, click **Join**, and battle in real-time.
+4. **Online 1v1 Multiplayer**: Navigate to **Online 1v1**. Click **Create Private Room** to generate a 6-character room code. Open a second browser window/tab, enter the code, click **Join**, and battle in real-time. Quick Search and private rooms are casual and never change ELO; **Ranked Match** uses the same quick matchmaking but updates ratings after both players confirm the result.
 5. **Account & Leaderboards**: Click **Sign In** -> **Create Account**. Save your score and view your verified rank on the global **Leaderboards** page.

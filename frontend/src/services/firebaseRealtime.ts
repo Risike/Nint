@@ -1,18 +1,19 @@
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { initializeApp, FirebaseApp } from 'firebase/app';
 import {
   getDatabase,
+  connectDatabaseEmulator,
   ref,
   set,
   get,
   update,
   onValue,
+  onChildAdded,
   off,
   push,
   onDisconnect,
-  runTransaction,
   Database
 } from 'firebase/database';
-import { getAuth, signInAnonymously, Auth } from 'firebase/auth';
+import { getAuth, connectAuthEmulator, signInAnonymously, Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
@@ -58,10 +59,24 @@ export class FirebaseRealtimeService {
 
     try {
       const isDemoConfig = !import.meta.env.VITE_FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY === 'demo-api-key';
-      if (!isDemoConfig) {
+      // Local development works out of the box with the demo config; a real
+      // Firebase project can still opt into the emulator explicitly.
+      const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true'
+        || (import.meta.env.DEV && isDemoConfig);
+
+      if (!isDemoConfig || useEmulator) {
         this.app = initializeApp(firebaseConfig);
         this.db = getDatabase(this.app);
         this.auth = getAuth(this.app);
+
+        if (useEmulator) {
+          const host = import.meta.env.VITE_FIREBASE_EMULATOR_HOST || '127.0.0.1';
+          const databasePort = Number(import.meta.env.VITE_FIREBASE_EMULATOR_PORT || 9000);
+          const authPort = Number(import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_PORT || 9099);
+          connectDatabaseEmulator(this.db, host, databasePort);
+          connectAuthEmulator(this.auth, `http://${host}:${authPort}`, { disableWarnings: true });
+        }
+
         this.isConfigured = true;
       } else {
         this.isConfigured = false;
@@ -100,7 +115,7 @@ export class FirebaseRealtimeService {
   }
 
   // Create an online room
-  public static async createRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string): Promise<{ matchId: string; seed: number }> {
+  public static async createRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false): Promise<{ matchId: string; seed: number }> {
     const matchId = 'match_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const uid = this.getUid();
     const seed = Math.floor(Math.random() * 1000000);
@@ -108,10 +123,15 @@ export class FirebaseRealtimeService {
     if (this.isConfigured && this.db) {
       // Setup room entry
       const roomRef = ref(this.db, `rooms/${roomCode}`);
+      const existingRoom = await get(roomRef);
+      if (existingRoom.exists()) {
+        throw new Error(`Room code "${roomCode}" is already in use. Please try again.`);
+      }
       await set(roomRef, {
         matchId,
         hostUid: uid,
         status: 'waiting',
+        ranked,
         createdAt: Date.now()
       });
 
@@ -125,6 +145,7 @@ export class FirebaseRealtimeService {
         roomCode,
         seed,
         status: 'waiting',
+        ranked,
         createdAt: Date.now(),
         players: {
           [uid]: {
@@ -154,7 +175,7 @@ export class FirebaseRealtimeService {
   }
 
   // Join an online room
-  public static async joinRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string): Promise<{ matchId: string; seed: number }> {
+  public static async joinRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false): Promise<{ matchId: string; seed: number }> {
     const uid = this.getUid();
 
     if (!this.isConfigured || !this.db) {
@@ -168,6 +189,16 @@ export class FirebaseRealtimeService {
     }
 
     const roomData = snapshot.val();
+    if (roomData.status !== 'waiting') {
+      throw new Error('This room is no longer accepting players.');
+    }
+    if (roomData.hostUid === uid) {
+      throw new Error('You cannot join your own room.');
+    }
+    if (Boolean(roomData.ranked) !== ranked) {
+      throw new Error(ranked ? 'This room is not a ranked match.' : 'This room is ranked. Use Ranked Match to join.');
+    }
+
     const matchId = roomData.matchId;
 
     const matchSnap = await get(ref(this.db, `matches/${matchId}`));
@@ -176,6 +207,12 @@ export class FirebaseRealtimeService {
     }
 
     const matchData = matchSnap.val();
+    if (matchData.status !== 'waiting') {
+      throw new Error('This match has already started.');
+    }
+    if (Object.keys(matchData.players || {}).length >= 2) {
+      throw new Error('This room is already full.');
+    }
 
     // Register second player
     const playerRef = ref(this.db, `matches/${matchId}/players/${uid}`);
@@ -202,10 +239,6 @@ export class FirebaseRealtimeService {
     await update(ref(this.db, `matches/${matchId}`), {
       status: 'active',
       startedAt: Date.now()
-    });
-
-    await update(roomRef, {
-      status: 'active'
     });
 
     return { matchId, seed: matchData.seed || 12345 };
@@ -258,20 +291,20 @@ export class FirebaseRealtimeService {
 
     const uid = this.getUid();
     const attacksRef = ref(this.db, `matches/${matchId}/attacks`);
+    const attachTime = Date.now();
 
-    const listener = onValue(attacksRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const val = snapshot.val();
-        const keys = Object.keys(val);
-        const lastKey = keys[keys.length - 1];
-        const lastAttack = val[lastKey];
-        if (lastAttack && lastAttack.from !== uid) {
-          onAttackReceived(lastAttack.amount);
-        }
-      }
+    // Use child_added so every attack is delivered exactly once, even when
+    // several attacks arrive between two snapshots.
+    const listener = onChildAdded(attacksRef, (snapshot) => {
+      const attack = snapshot.val();
+      if (!attack || attack.from === uid) return;
+      if (typeof attack.timestamp !== 'number' || attack.timestamp < attachTime - 1000) return;
+      if (typeof attack.amount !== 'number' || !Number.isFinite(attack.amount)) return;
+      const amount = Math.min(Math.max(Math.round(attack.amount), 0), 20);
+      if (amount > 0) onAttackReceived(amount);
     });
 
-    return () => off(attacksRef, 'value', listener);
+    return () => off(attacksRef, 'child_added', listener);
   }
 
   // Update live player state (score, lines, board, queue, hold, alive, connected)
@@ -365,6 +398,8 @@ export class FirebaseRealtimeService {
       for (const [uid, p] of Object.entries<any>(previousPlayers)) {
         freshPlayers[uid] = {
           displayName: p.displayName || 'Player',
+          userId: p.userId || null,
+          rating: typeof p.rating === 'number' ? p.rating : 1000,
           ready: true,
           score: 0,
           lines: 0,
@@ -380,6 +415,7 @@ export class FirebaseRealtimeService {
         roomCode,
         seed,
         status: 'active',
+        ranked: currentData.ranked === true,
         createdAt: Date.now(),
         players: freshPlayers
       });
@@ -436,7 +472,8 @@ export class FirebaseRealtimeService {
     displayName: string,
     onMatched: (role: 'host' | 'guest', seed: number, matchId: string, roomCode: string) => void,
     rating: number = 1000,
-    userId?: string
+    userId?: string,
+    ranked: boolean = false
   ): Promise<() => Promise<void>> {
     await this.authenticate(displayName);
     const uid = this.getUid();
@@ -463,7 +500,7 @@ export class FirebaseRealtimeService {
         const now = Date.now();
 
         for (const [otherUid, entry] of Object.entries<any>(queue)) {
-          if (otherUid !== uid && entry && entry.roomCode && (now - (entry.createdAt || 0) < 60000)) {
+          if (otherUid !== uid && entry && entry.roomCode && Boolean(entry.ranked) === ranked && (now - (entry.createdAt || 0) < 60000)) {
             // Verify the room is still waiting
             const roomSnap = await get(ref(this.db!, `rooms/${entry.roomCode}`));
             if (roomSnap.exists() && roomSnap.val().status === 'waiting') {
@@ -476,7 +513,7 @@ export class FirebaseRealtimeService {
               // Remove our own queue entry if we had one
               set(myQueueRef, null).catch(() => {});
 
-              const { matchId, seed } = await this.joinRoom(entry.roomCode, displayName, rating, userId);
+              const { matchId, seed } = await this.joinRoom(entry.roomCode, displayName, rating, userId, ranked);
               onMatched('guest', seed, matchId, entry.roomCode);
               return true;
             }
@@ -497,11 +534,11 @@ export class FirebaseRealtimeService {
     // Step 2: Nobody is waiting yet, so we become the host
     const myCreatedAt = Date.now();
     const roomCode = 'Q' + Math.random().toString(36).substring(2, 7).toUpperCase();
-    const { matchId, seed } = await this.createRoom(roomCode, displayName, rating, userId);
+    const { matchId, seed } = await this.createRoom(roomCode, displayName, rating, userId, ranked);
 
     if (isDisposed) {
       // User cancelled during room creation
-      this.leaveRoom(roomCode, matchId).catch(() => {});
+      this.leaveRoom(roomCode, matchId, true).catch(() => {});
       return async () => {};
     }
 
@@ -514,6 +551,7 @@ export class FirebaseRealtimeService {
       roomCode,
       matchId,
       seed,
+      ranked,
       createdAt: myCreatedAt
     });
 
@@ -547,7 +585,7 @@ export class FirebaseRealtimeService {
         const now = Date.now();
 
         for (const [otherUid, entry] of Object.entries<any>(queue)) {
-          if (otherUid !== uid && entry && entry.roomCode && (now - (entry.createdAt || 0) < 60000)) {
+          if (otherUid !== uid && entry && entry.roomCode && Boolean(entry.ranked) === ranked && (now - (entry.createdAt || 0) < 60000)) {
             const otherCreated = entry.createdAt || 0;
             // Deterministic tie-breaker: if other room is older, or created at same ms and has lower UID:
             const otherHasPrecedence = otherCreated < myCreatedAt || (otherCreated === myCreatedAt && otherUid < uid);
@@ -562,10 +600,10 @@ export class FirebaseRealtimeService {
 
                 // Clean up our own room and queue entry
                 set(myQueueRef, null).catch(() => {});
-                this.leaveRoom(roomCode, matchId).catch(() => {});
+                this.leaveRoom(roomCode, matchId, true).catch(() => {});
 
                 // Join the older room
-                const res = await this.joinRoom(entry.roomCode, displayName, rating, userId);
+                const res = await this.joinRoom(entry.roomCode, displayName, rating, userId, ranked);
                 onMatched('guest', res.seed, res.matchId, entry.roomCode);
                 return;
               }
@@ -584,7 +622,7 @@ export class FirebaseRealtimeService {
       if (unsubscribeStart) unsubscribeStart();
       try {
         await set(myQueueRef, null);
-        await this.leaveRoom(roomCode, matchId);
+        await this.leaveRoom(roomCode, matchId, true);
       } catch (e) {
         console.warn('Error cancelling quick search:', e);
       }
@@ -592,7 +630,7 @@ export class FirebaseRealtimeService {
   }
 
   // Clean room when leaving
-  public static async leaveRoom(roomCode: string, matchId: string) {
+  public static async leaveRoom(roomCode: string, matchId: string, isHost: boolean = false) {
     if (this.isConfigured && this.db) {
       try {
         const uid = this.getUid();
@@ -605,7 +643,8 @@ export class FirebaseRealtimeService {
             lastSeen: Date.now()
           });
         }
-        if (roomCode) {
+        // Only the host owns the room node; guests just mark themselves offline.
+        if (roomCode && isHost) {
           await set(ref(this.db, `rooms/${roomCode}`), null);
         }
       } catch (e) {

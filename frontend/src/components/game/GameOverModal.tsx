@@ -225,7 +225,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            <span>Log in to submit scores to the leaderboard</span>
+            <span>Score not saved to the leaderboard</span>
           </div>
         )}
 

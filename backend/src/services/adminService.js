@@ -6,6 +6,26 @@ export class AdminService {
     const tx = db.transaction(() => {
       db.exec('DELETE FROM personal_bests');
       db.exec('DELETE FROM game_results');
+      db.exec('DELETE FROM match_history');
+
+      // Lifetime solo aggregates come from game_results, so they must be reset
+      // alongside the scores they were derived from.
+      db.exec(`
+        UPDATE user_statistics SET
+          games_played = 0,
+          wins = 0,
+          losses = 0,
+          total_lines = 0,
+          total_pieces = 0,
+          total_playtime_ms = 0,
+          total_tetrises = 0,
+          total_tspins = 0,
+          total_perfect_clears = 0,
+          highest_combo = 0,
+          highest_b2b = 0,
+          rating = 1000,
+          updated_at = ${Date.now()}
+      `);
     });
     tx();
     return { success: true, message: 'All leaderboards have been cleared.' };
@@ -13,7 +33,8 @@ export class AdminService {
 
   static searchUsers(query = '') {
     const db = getDatabase();
-    const q = `%${query.trim()}%`;
+    const escaped = String(query).trim().replace(/[\\%_]/g, '\\$&');
+    const pattern = `%${escaped}%`;
     return db.prepare(`
       SELECT u.id, u.email, u.display_name, u.avatar_url, u.is_admin, u.created_at,
              COALESCE(s.rating, 1000) as rating,
@@ -22,10 +43,10 @@ export class AdminService {
              COALESCE(s.losses, 0) as losses
       FROM users u
       LEFT JOIN user_statistics s ON s.user_id = u.id
-      WHERE u.display_name LIKE ? OR u.email LIKE ?
+      WHERE u.display_name LIKE ? ESCAPE '\\' OR u.email LIKE ? ESCAPE '\\'
       ORDER BY u.created_at DESC
       LIMIT 50
-    `).all(q, q);
+    `).all(pattern, pattern);
   }
 
   static clearUserStats(userId) {
@@ -80,10 +101,11 @@ export class AdminService {
 
   static setNews(message) {
     const db = getDatabase();
+    const safeMessage = String(message).slice(0, 2000);
     db.prepare(`
       INSERT INTO site_config (key, value, updated_at) VALUES ('news_message', ?, ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-    `).run(message, Date.now());
+    `).run(safeMessage, Date.now());
     return { success: true, message: 'News message updated.' };
   }
 }

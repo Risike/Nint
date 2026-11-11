@@ -22,10 +22,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
     setMessage(null);
     setError(null);
     try {
-      await ApiClient.updateMe({
+      const updated = await ApiClient.updateMe({
         displayName,
         ...(newPassword ? { newPassword, currentPassword } : {})
       });
+      // Changing the password rotates the session token server-side.
+      if (updated?.token) {
+        ApiClient.setToken(updated.token);
+      }
       await refreshProfile();
       setMessage('Profile updated successfully!');
       setCurrentPassword('');

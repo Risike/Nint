@@ -2,17 +2,28 @@
   "name": "nint-monorepo",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "workspaces": [
     "frontend",
     "backend"
   ],
   "scripts": {
-    "dev": "concurrently \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
+    "dev": "concurrently -k -n emulator,api,web -c yellow,cyan,magenta \"npm run emulators\" \"npm --prefix backend run dev\" \"wait-on --timeout 180000 tcp:127.0.0.1:9000 tcp:127.0.0.1:9099 && npm --prefix frontend run dev\"",
+    "emulators": "firebase emulators:start --only auth,database --project demo-nint",
     "build": "npm --prefix backend run build && npm --prefix frontend run build",
     "test": "npm --prefix backend run test && npm --prefix frontend run test",
     "lint": "npm --prefix frontend run lint"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "firebase-tools": "^13.35.1",
+    "wait-on": "^8.0.1"
+  },
+  "overrides": {
+    "universal-analytics": {
+      "uuid": "9.0.1"
+    }
   }
 }

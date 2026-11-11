@@ -10,15 +10,39 @@ const app = express();
 // Initialize DB schema
 getDatabase();
 
+app.disable('x-powered-by');
+
+if (config.trustProxy !== false) {
+  app.set('trust proxy', config.trustProxy);
+}
+
+const allowedOrigins = config.corsOrigin
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowAllOrigins = allowedOrigins.includes('*');
+
 app.use(cors({
-  origin: '*',
-  credentials: true
+  origin: allowAllOrigins ? '*' : allowedOrigins,
+  credentials: !allowAllOrigins
 }));
 
-app.use(express.json());
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+
+app.use(express.json({ limit: '256kb' }));
 
 // Main API Router
 app.use('/api', apiRoutes);
+
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
 
 // Error Handling
 app.use(errorHandler);

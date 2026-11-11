@@ -1,13 +1,11 @@
 import { Router } from 'express';
 import { MatchController } from '../controllers/matchController.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, authenticateTokenOrBody } from '../middleware/auth.js';
+import { writeLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
-router.post('/record', authenticateToken, MatchController.recordMatch);
-router.post('/', authenticateToken, MatchController.createMatch);
-router.get('/:id', authenticateToken, MatchController.getMatch);
-router.post('/:id/forfeit', authenticateToken, MatchController.forfeitMatch);
-router.post('/:id/rematch', authenticateToken, MatchController.rematch);
+router.post('/record', writeLimiter, authenticateToken, MatchController.recordMatch);
+router.post('/forfeit', writeLimiter, authenticateTokenOrBody, MatchController.settleForfeit);
 
 export default router;

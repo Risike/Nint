@@ -253,3 +253,61 @@ describe('Multi-line Clear (Tetris & Double)', () => {
     expect(engine.board[35].every(c => c === null)).toBe(true);
   });
 });
+
+describe('Level progression and Perfect Clear scoring', () => {
+  it('keeps the configured starting level after line clears', () => {
+    const engine = new GameEngine({ startingLevel: 15 });
+    engine.start();
+
+    for (let c = 0; c < BOARD_WIDTH; c++) {
+      engine.board[39][c] = '#ff0000';
+    }
+
+    engine.lockPiece();
+    engine.update(300);
+
+    expect(engine.level).toBe(15);
+    expect(engine.lines).toBe(1);
+  });
+
+  it('awards the guideline perfect clear bonus exactly once', () => {
+    const engine = new GameEngine({ lineClearDelay: 10 });
+    engine.start();
+
+    // Fill row 39 except the four cells the I piece will complete.
+    for (let c = 4; c < BOARD_WIDTH; c++) {
+      engine.board[39][c] = '#ff0000';
+    }
+    engine.activePiece = 'I';
+    engine.activeRotation = 0;
+    engine.activeX = 0;
+    engine.activeY = 38;
+
+    engine.lockPiece();
+
+    // Single (100) + perfect clear single (800)
+    expect(engine.score).toBe(900);
+    expect(engine.clearingRows).toEqual([39]);
+
+    engine.update(50);
+
+    expect(engine.perfectClearsCount).toBe(1);
+    // finishLineClear must not add another flat bonus
+    expect(engine.score).toBe(900);
+  });
+
+  it('computes perfect clear scoring in the scoring system', () => {
+    const result = ScoringSystem.evaluateClear({
+      linesCleared: 1,
+      tSpin: 'none',
+      currentLevel: 1,
+      isB2BActive: false,
+      currentCombo: -1,
+      isPerfectClear: true
+    });
+
+    expect(result.scoreGained).toBe(900);
+    expect(result.garbageSent).toBe(10);
+    expect(result.text).toContain('PERFECT CLEAR');
+  });
+});

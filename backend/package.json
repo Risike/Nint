@@ -8,7 +8,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "migrate": "node src/config/database.js --migrate",
-    "test": "NODE_ENV=test DATABASE_PATH=:memory: node --test tests/*.test.js"
+    "test": "NODE_ENV=test DATABASE_PATH=:memory: ADMIN_EMAIL=admin@nint.test ADMIN_PASSWORD=AdminTest123! node --test tests/*.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

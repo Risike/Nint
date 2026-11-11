@@ -7,6 +7,7 @@ import {
   PIECES,
   Point,
   RotationState,
+  SCORING,
   TetrominoType
 } from './constants';
 import { GarbageManager } from './garbage';
@@ -21,6 +22,7 @@ export interface GameEngineOptions {
   arr?: number;
   lockDelay?: number;
   maxLockResets?: number;
+  softDropFactor?: number;
   startingLevel?: number;
   gravityCurve?: (level: number) => number; // ms per drop step
   fixedGravity?: boolean; // If true, dropInterval does not increase on level-up
@@ -60,6 +62,7 @@ export class GameEngine {
   public score: number = 0;
   public lines: number = 0;
   public level: number = 1;
+  public startingLevel: number = 1;
   public piecesPlaced: number = 0;
   public tetrisesCount: number = 0;
   public tSpinsCount: number = 0;
@@ -79,6 +82,7 @@ export class GameEngine {
   public arr: number;
   public lockDelay: number;
   public maxLockResets: number;
+  public softDropFactor: number;
   public fixedGravity: boolean = false;
   public immortal: boolean = false;
   public lineClearDelay: number = 240;
@@ -111,10 +115,12 @@ export class GameEngine {
     this.arr = options.arr ?? DEFAULT_TIMING.ARR;
     this.lockDelay = options.lockDelay ?? DEFAULT_TIMING.LOCK_DELAY;
     this.maxLockResets = options.maxLockResets ?? DEFAULT_TIMING.MAX_LOCK_RESETS;
-    this.level = options.startingLevel ?? 1;
+    this.softDropFactor = Math.max(1, options.softDropFactor ?? DEFAULT_TIMING.SOFT_DROP_FACTOR);
+    this.startingLevel = Math.max(1, options.startingLevel ?? 1);
+    this.level = this.startingLevel;
     this.fixedGravity = Boolean(options.fixedGravity);
     this.immortal = Boolean(options.immortal);
-    this.lineClearDelay = options.lineClearDelay ?? 240;
+    this.lineClearDelay = options.lineClearDelay ?? DEFAULT_TIMING.LINE_CLEAR_DELAY;
 
     this.gravityCurve = options.gravityCurve ?? GameEngine.defaultGravityCurve;
     this.dropInterval = this.gravityCurve(this.level);
@@ -239,6 +245,10 @@ export class GameEngine {
     return true;
   }
 
+  public getSoftDropInterval(): number {
+    return Math.max(1, Math.floor(this.dropInterval / this.softDropFactor));
+  }
+
   public getGhostY(): number {
     if (!this.activePiece) return this.activeY;
     let gy = this.activeY;
@@ -275,7 +285,7 @@ export class GameEngine {
     if (this.isValidPosition(this.activePiece, this.activeRotation, this.activeX, this.activeY + 1)) {
       this.activeY++;
       this.lastActionWasRotation = false;
-      this.score += 1; // 1 point per soft drop cell
+      this.score += SCORING.SOFT_DROP_PER_CELL;
       this.dropTimer = 0;
       this.onPieceMoved();
       return true;
@@ -291,7 +301,7 @@ export class GameEngine {
       this.lastActionWasRotation = false;
     }
     this.activeY = ghostY;
-    this.score += droppedDistance * 2; // 2 points per hard drop cell
+    this.score += droppedDistance * SCORING.HARD_DROP_PER_CELL;
     this.lockPiece();
     return droppedDistance;
   }
@@ -416,6 +426,10 @@ export class GameEngine {
     }
 
     const linesCleared = clearedRowIndices.length;
+    // A perfect clear means every row that is not being cleared is empty.
+    const isPerfectClear = linesCleared > 0 && this.board.every((row, rowIndex) =>
+      clearedRowIndices.includes(rowIndex) || row.every(cell => cell === null)
+    );
     if (linesCleared === 4) {
       this.tetrisesCount++;
     }
@@ -431,7 +445,7 @@ export class GameEngine {
       isB2BActive: this.b2bActive,
       currentB2BChain: this.b2bChain,
       currentCombo: this.comboCount,
-      isPerfectClear: false // Checked after lines collapse in finishLineClear
+      isPerfectClear
     });
 
     this.score += result.scoreGained;
@@ -448,7 +462,7 @@ export class GameEngine {
     }
 
     // Level progression (every 10 lines)
-    const newLevel = Math.floor(this.lines / 10) + 1;
+    const newLevel = this.startingLevel + Math.floor(this.lines / 10);
     if (newLevel !== this.level) {
       this.level = newLevel;
       if (!this.fixedGravity) {
@@ -513,8 +527,7 @@ export class GameEngine {
     const isPerfectClear = this.board.every(row => row.every(cell => cell === null));
     if (isPerfectClear) {
       this.perfectClearsCount++;
-      const pcBonus = 3000 * this.level;
-      this.score += pcBonus;
+      // Perfect clear score and garbage were already awarded by ScoringSystem.
       this.events.onScoreUpdate?.(this.score, this.lines, this.level);
       this.events.onPerfectClear?.();
     }

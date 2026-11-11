@@ -28,6 +28,12 @@ data/
 backend/data/*
 !backend/data/.gitkeep
 
+# Firebase emulator runtime files
+.firebase/
+firebase-debug.log*
+database-debug.log*
+ui-debug.log*
+
 # System & IDE files
 .DS_Store
 Thumbs.db

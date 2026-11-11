@@ -4,10 +4,14 @@ import request from 'supertest';
 import app from '../src/server.js';
 
 test('Admin auto-creation and full admin capabilities', async () => {
-  // 1. Admin login with default credentials
+  // 1. Admin login with the credentials configured for the test run
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  assert.ok(adminEmail && adminPassword, 'ADMIN_EMAIL and ADMIN_PASSWORD must be set for tests');
+
   const adminLogin = await request(app)
     .post('/api/auth/login')
-    .send({ email: 'admin@nint.nint', password: 'admin123' });
+    .send({ email: adminEmail, password: adminPassword });
 
   assert.equal(adminLogin.status, 200);
   assert.ok(adminLogin.body.token);

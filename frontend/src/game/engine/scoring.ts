@@ -138,7 +138,7 @@ export class ScoringSystem {
       let pcScore = SCORING.PERFECT_CLEAR_SINGLE;
       if (linesCleared === 2) pcScore = SCORING.PERFECT_CLEAR_DOUBLE;
       if (linesCleared === 3) pcScore = SCORING.PERFECT_CLEAR_TRIPLE;
-      if (linesCleared === 4) pcScore = (newB2BChain > 1) ? SCORING.PERFECT_CLEAR_B2B_TETRIS : SCORING.PERFECT_CLEAR_TETRIS;
+      if (linesCleared === 4) pcScore = isB2BActive ? SCORING.PERFECT_CLEAR_B2B_TETRIS : SCORING.PERFECT_CLEAR_TETRIS;
       scoreGained += pcScore * currentLevel;
       garbageSent += GARBAGE_ATTACK.PERFECT_CLEAR;
     }

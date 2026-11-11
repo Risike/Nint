@@ -2,14 +2,18 @@
 
 ## Production Deployment with Docker Compose
 
-Nint includes production-ready Docker containers with multi-stage builds.
+Nint includes production-ready multi-stage Docker containers built from the repository root so the npm lockfile is used (`npm ci`).
 
 ### 1. Configure Environment
 Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
-Ensure you provide a strong `JWT_SECRET` and your Firebase credentials.
+`JWT_SECRET` is mandatory in production: the API refuses to start without it. Also set:
+- `CORS_ORIGIN` to the public frontend origin (defaults to `http://localhost:8103`).
+- `APP_BASE_URL` to the public origin used in password-reset emails.
+- `TRUST_PROXY=1` when running behind the bundled nginx container.
+- Optionally `ADMIN_EMAIL` / `ADMIN_PASSWORD` to bootstrap an administrator. There is no default admin account; leaving both empty disables admin creation.
 
 ### 2. Launch Services
 Run with a single command:
@@ -18,9 +22,9 @@ docker compose up --build -d
 ```
 
 This launches:
-- `web`: Optimized Nginx static server hosting the compiled React Vite single-page application and proxying `/api` requests on port 80.
+- `web`: Optimized Nginx static server hosting the compiled React Vite SPA and proxying `/api` requests on port **8103**.
 - `api`: Node.js Express server running on port 3001 with SQLite WAL mode.
-- `db`: Persistent SQLite database volume mounted at `/data/nint.db`.
+- The persistent SQLite database volume is mounted at `/data/nint.db`.
 
 ### 3. Verify Health
 ```bash
@@ -45,3 +49,10 @@ make dev
 # or: npm run dev
 ```
 Frontend runs at `http://localhost:5173` and API runs at `http://localhost:3001`.
+
+## Firebase Rules
+
+Deploy the hardened rules after configuring a real Firebase project:
+```bash
+firebase deploy --only database
+```

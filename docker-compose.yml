@@ -1,8 +1,8 @@
 services:
   api:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: nint-api
     restart: unless-stopped
     ports:
@@ -10,9 +10,19 @@ services:
     environment:
       - PORT=3001
       - NODE_ENV=production
-      - JWT_SECRET=${JWT_SECRET:-super-secret-nint-jwt-token-change-in-production}
-      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-super-secret-nint-refresh-token-change-in-production}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
       - DATABASE_PATH=/data/nint.db
+      - APP_BASE_URL=${APP_BASE_URL:-http://localhost:8103}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:8103}
+      - TRUST_PROXY=1
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-Nint Game <noreply@nint.app>}
     volumes:
       - nint_db_data:/data
     healthcheck:
@@ -24,8 +34,8 @@ services:
 
   web:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         - VITE_API_URL=/api
         - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY:-demo-api-key}

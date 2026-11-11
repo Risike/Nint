@@ -23,9 +23,9 @@ export interface SettingsState {
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
-  theme: 'dark-01', // default to first dark theme
-  das: 167, // Official Guideline standard
-  arr: 33,  // Official Guideline standard
+  theme: 'dark-01',
+  das: 167,
+  arr: 33,
   softDropFactor: 20,
   lockDelay: 500,
   soundVolume: 0.7,
@@ -47,10 +47,38 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
+function toRemoteSettings(settings: SettingsState) {
+  return {
+    theme: settings.theme,
+    das: settings.das,
+    arr: settings.arr,
+    soft_drop_factor: settings.softDropFactor,
+    lock_delay: settings.lockDelay,
+    sound_volume: settings.soundVolume,
+    music_volume: settings.musicVolume,
+    keybindings: settings.keybindings,
+    gamepad_bindings: settings.gamepadBindings,
+    ghost_piece: settings.ghostPiece ? 1 : 0,
+    colorblind_mode: settings.colorblindMode,
+    reduced_motion: settings.reducedMotion ? 1 : 0
+  };
+}
+
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
   const [settings, setSettings] = useState<SettingsState>(() => {
-    return LocalStorageManager.getItem<SettingsState>('settings', DEFAULT_SETTINGS);
+    const stored = LocalStorageManager.getItem<Partial<SettingsState>>('settings', {});
+    return {
+      ...DEFAULT_SETTINGS,
+      ...stored,
+      // Older saved settings may miss fields added later; merge defaults instead of
+      // letting undefined values reach the engine or the API.
+      theme: /^(dark|light)-0[1-5]$/.test(stored.theme || '')
+        ? (stored.theme as string)
+        : DEFAULT_SETTINGS.theme,
+      keybindings: { ...DEFAULT_KEYBINDINGS, ...(stored.keybindings || {}) },
+      gamepadBindings: { ...DEFAULT_GAMEPAD_BINDINGS, ...(stored.gamepadBindings || {}) }
+    };
   });
 
   // Apply theme to document attribute
@@ -65,23 +93,34 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     soundManager.setMuted(settings.isMuted);
   }, [settings.soundVolume, settings.musicVolume, settings.isMuted]);
 
-  // Sync settings from backend when authenticated
+  // Sync the full settings set from the backend when authenticated
   useEffect(() => {
-    if (isAuthenticated) {
-      ApiClient.getSettings()
-        .then((remote) => {
-          if (remote) {
-            setSettings((prev) => ({
-              ...prev,
-              theme: remote.theme || prev.theme,
-              soundVolume: remote.sound_volume ?? prev.soundVolume,
-              keybindings: remote.keybindings || prev.keybindings,
-              ghostPiece: remote.ghost_piece !== undefined ? Boolean(remote.ghost_piece) : prev.ghostPiece
-            }));
-          }
-        })
-        .catch(console.warn);
-    }
+    if (!isAuthenticated) return;
+
+    ApiClient.getSettings()
+      .then((remote) => {
+        if (!remote) return;
+        setSettings((prev) => {
+          const merged: SettingsState = {
+            ...prev,
+            theme: typeof remote.theme === 'string' ? remote.theme : prev.theme,
+            das: typeof remote.das === 'number' ? remote.das : prev.das,
+            arr: typeof remote.arr === 'number' ? remote.arr : prev.arr,
+            softDropFactor: typeof remote.soft_drop_factor === 'number' ? remote.soft_drop_factor : prev.softDropFactor,
+            lockDelay: typeof remote.lock_delay === 'number' ? remote.lock_delay : prev.lockDelay,
+            soundVolume: typeof remote.sound_volume === 'number' ? remote.sound_volume : prev.soundVolume,
+            musicVolume: typeof remote.music_volume === 'number' ? remote.music_volume : prev.musicVolume,
+            ghostPiece: remote.ghost_piece !== undefined ? Boolean(remote.ghost_piece) : prev.ghostPiece,
+            keybindings: remote.keybindings || prev.keybindings,
+            gamepadBindings: remote.gamepad_bindings || prev.gamepadBindings,
+            colorblindMode: remote.colorblind_mode || prev.colorblindMode,
+            reducedMotion: remote.reduced_motion !== undefined ? Boolean(remote.reduced_motion) : prev.reducedMotion
+          };
+          LocalStorageManager.setItem('settings', merged);
+          return merged;
+        });
+      })
+      .catch(console.warn);
   }, [isAuthenticated]);
 
   const updateSettings = (newSettings: Partial<SettingsState>) => {
@@ -90,14 +129,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       LocalStorageManager.setItem('settings', merged);
 
       if (isAuthenticated) {
-        ApiClient.updateSettings({
-          theme: merged.theme,
-          das: merged.das,
-          arr: merged.arr,
-          sound_volume: merged.soundVolume,
-          keybindings: merged.keybindings,
-          ghost_piece: merged.ghostPiece ? 1 : 0
-        }).catch(console.warn);
+        ApiClient.updateSettings(toRemoteSettings(merged)).catch(console.warn);
       }
 
       return merged;
@@ -105,12 +137,19 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const toggleTheme = () => {
-    updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' });
+    const match = /^(dark|light)-0([1-5])$/.exec(settings.theme);
+    const nextTheme = match
+      ? `${match[1] === 'dark' ? 'light' : 'dark'}-0${match[2]}`
+      : 'dark-01';
+    updateSettings({ theme: nextTheme });
   };
 
   const resetDefaults = () => {
     setSettings(DEFAULT_SETTINGS);
     LocalStorageManager.setItem('settings', DEFAULT_SETTINGS);
+    if (isAuthenticated) {
+      ApiClient.updateSettings(toRemoteSettings(DEFAULT_SETTINGS)).catch(console.warn);
+    }
   };
 
   return (

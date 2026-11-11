@@ -9,6 +9,7 @@ interface RegisterPageProps {
 export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
   const { register } = useAuth();
   const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +24,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
     }
     setLoading(true);
     try {
-      await register(email, password, displayName);
+      await register(email, password, displayName, username);
       onNavigate('solo');
     } catch (err: any) {
       setError(err.message || 'Registration failed');
@@ -68,6 +69,30 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
                 color: 'var(--text-primary)'
               }}
             />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem', color: 'var(--text-secondary)' }}>
+              Username (optional)
+            </label>
+            <input
+              type="text"
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="e.g. blockninja"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)'
+              }}
+            />
+            <p style={{ margin: '0.3rem 0 0', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+              Used to sign in. Generated from your display name if left empty.
+            </p>
           </div>
 
           <div>

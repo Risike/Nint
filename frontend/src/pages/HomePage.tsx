@@ -10,6 +10,13 @@ interface HomePageProps {
 export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
   const { isGuest, user } = useAuth();
 
+  const handleCardKey = (action: () => void) => (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      action();
+    }
+  };
+
   const [newsMessage, setNewsMessage] = useState('');
 
   useEffect(() => {
@@ -74,7 +81,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
         textAlign: 'left'
       }}>
         {/* Marathon */}
-        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('marathon')}>
+        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('marathon')} onKeyDown={handleCardKey(() => onSelectMode('marathon'))}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
               <Flame size={24} />
@@ -90,7 +97,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
         </div>
 
         {/* Sprint */}
-        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('sprint')}>
+        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('sprint')} onKeyDown={handleCardKey(() => onSelectMode('sprint'))}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div style={{ background: 'rgba(234, 179, 8, 0.2)', color: 'var(--accent-yellow)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
               <Zap size={24} />
@@ -106,7 +113,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
         </div>
 
         {/* Ultra */}
-        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('ultra')}>
+        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('ultra')} onKeyDown={handleCardKey(() => onSelectMode('ultra'))}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div style={{ background: 'rgba(236, 72, 153, 0.2)', color: 'var(--accent-pink)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
               <Timer size={24} />
@@ -122,7 +129,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
         </div>
 
         {/* Player vs CPU */}
-        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('versus_ai')}>
+        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('versus_ai')} onKeyDown={handleCardKey(() => onSelectMode('versus_ai'))}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div style={{ background: 'rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
               <Swords size={24} />
@@ -138,7 +145,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
         </div>
 
         {/* Online Player vs Player */}
-        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('online')}>
+        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('online')} onKeyDown={handleCardKey(() => onSelectMode('online'))}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div style={{ background: 'rgba(168, 85, 247, 0.2)', color: 'var(--accent-green)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
               <Globe size={24} />
@@ -149,12 +156,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
             </div>
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-            Play online matches with friends via room codes or jump into quick matchmaking.
+            Play casual or ranked online matches with friends via room codes, or jump into quick matchmaking.
           </p>
         </div>
 
         {/* Practice / Zen */}
-        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('zen')}>
+        <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => onSelectMode('zen')} onKeyDown={handleCardKey(() => onSelectMode('zen'))}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div style={{ background: 'rgba(168, 85, 247, 0.2)', color: 'var(--accent-purple)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
               <Play size={24} />

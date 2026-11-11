@@ -3,14 +3,11 @@ import { AuthService } from '../services/authService.js';
 export class AuthController {
   static register(req, res, next) {
     try {
-      const { email, password, displayName } = req.body;
+      const { email, password, displayName, username } = req.body || {};
       if (!email || !password || !displayName) {
         return res.status(400).json({ error: 'Email, password, and display name are required' });
       }
-      if (password.length < 6) {
-        return res.status(400).json({ error: 'Password must be at least 6 characters' });
-      }
-      const result = AuthService.register({ email, password, displayName });
+      const result = AuthService.register({ email, password, displayName, username });
       res.status(201).json(result);
     } catch (err) {
       next(err);
@@ -19,19 +16,25 @@ export class AuthController {
 
   static login(req, res, next) {
     try {
-      const { email, password } = req.body;
-      if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
+      const { email, identifier, password } = req.body || {};
+      const loginId = identifier ?? email;
+      if (!loginId || typeof password !== 'string') {
+        return res.status(400).json({ error: 'Email/username and password are required' });
       }
-      const result = AuthService.login({ email, password });
+      const result = AuthService.login({ identifier: loginId, password });
       res.json(result);
     } catch (err) {
       next(err);
     }
   }
 
-  static logout(req, res) {
-    res.json({ success: true, message: 'Logged out successfully' });
+  static logout(req, res, next) {
+    try {
+      const result = AuthService.logout(req.user.id);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
   }
 
   static me(req, res, next) {
@@ -45,7 +48,7 @@ export class AuthController {
 
   static updateMe(req, res, next) {
     try {
-      const { displayName, avatarUrl, newPassword, currentPassword } = req.body;
+      const { displayName, avatarUrl, newPassword, currentPassword } = req.body || {};
       const updated = AuthService.updateProfile(req.user.id, { displayName, avatarUrl, newPassword, currentPassword });
       res.json(updated);
     } catch (err) {
@@ -55,7 +58,7 @@ export class AuthController {
 
   static deleteMe(req, res, next) {
     try {
-      const { password } = req.body;
+      const { password } = req.body || {};
       if (!password) {
         return res.status(400).json({ error: 'Password required to delete account' });
       }
@@ -68,7 +71,7 @@ export class AuthController {
 
   static requestPasswordReset(req, res, next) {
     try {
-      const { email } = req.body;
+      const { email } = req.body || {};
       if (!email) {
         return res.status(400).json({ error: 'Email is required' });
       }
@@ -81,7 +84,7 @@ export class AuthController {
 
   static confirmPasswordReset(req, res, next) {
     try {
-      const { token, newPassword } = req.body;
+      const { token, newPassword } = req.body || {};
       if (!token || !newPassword) {
         return res.status(400).json({ error: 'Token and new password are required' });
       }

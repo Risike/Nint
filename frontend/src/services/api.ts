@@ -41,18 +41,22 @@ export class ApiClient {
   }
 
   // Auth
-  public static register(payload: { email: string; password: string; displayName: string }) {
+  public static register(payload: { email: string; password: string; displayName: string; username?: string }) {
     return this.request<{ user: any; token: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload)
     });
   }
 
-  public static login(payload: { email: string; password: string }) {
+  public static login(payload: { identifier: string; password: string }) {
     return this.request<{ user: any; token: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(payload)
     });
+  }
+
+  public static logout() {
+    return this.request<{ success: boolean }>('/auth/logout', { method: 'POST' });
   }
 
   public static getMe() {
@@ -123,11 +127,23 @@ export class ApiClient {
     });
   }
 
-  public static sendBeaconRecordMatch(data: any) {
+  public static sendBeaconForfeit(data: any) {
     const token = this.getToken();
     if (!token) return;
-    const url = `${API_BASE}/matches/record`;
-    const payload = JSON.stringify(data);
+    const url = `${API_BASE}/matches/forfeit`;
+    const body = JSON.stringify(data);
+
+    // sendBeacon is the most reliable transport during pagehide/browser close,
+    // but it cannot attach an Authorization header. The forfeit route accepts
+    // the JWT from the body as a narrow, route-specific fallback.
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        const blob = new Blob([JSON.stringify({ ...data, token })], { type: 'application/json' });
+        if (navigator.sendBeacon(url, blob)) return;
+      }
+    } catch (e) {
+      console.warn('sendBeaconForfeit beacon failed:', e);
+    }
 
     try {
       fetch(url, {
@@ -136,11 +152,11 @@ export class ApiClient {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: payload,
+        body,
         keepalive: true
       }).catch(() => {});
     } catch (e) {
-      console.warn('sendBeaconRecordMatch failed:', e);
+      console.warn('sendBeaconForfeit failed:', e);
     }
   }
 

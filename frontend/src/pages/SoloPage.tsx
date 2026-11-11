@@ -28,6 +28,13 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   const cellSize = useDynamicCellSize(false);
 
   const [mode, setMode] = useState<'marathon' | 'sprint' | 'ultra' | 'zen' | 'custom'>('marathon');
+
+  const handleCardKey = (action: () => void) => (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      action();
+    }
+  };
   const [isSelectingMode, setIsSelectingMode] = useState<boolean>(true);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
 
@@ -108,9 +115,9 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   const zenFocusSectionRef = useRef(zenFocusSection);
   zenFocusSectionRef.current = zenFocusSection;
 
-  const saveZenSessionTime = () => {
-    if (mode === 'zen') {
-      const currentMs = Math.round(engine.totalPlayTimeMs);
+  const saveZenSessionTime = (sourceEngine: GameEngine = engine, sourceMode: string = mode) => {
+    if (sourceMode === 'zen') {
+      const currentMs = Math.round(sourceEngine.totalPlayTimeMs);
       const deltaMs = currentMs - zenTimeRecordedRef.current;
       if (deltaMs >= 1000) {
         zenTimeRecordedRef.current = currentMs;
@@ -128,10 +135,17 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   // Save any accrued zen playtime on unmount or tab switch
   useEffect(() => {
     return () => {
-      saveZenSessionTime();
+      saveZenSessionTime(engine, mode);
       soundManager.stopBgm();
     };
   }, [mode, engine]);
+
+  // Detach the global keyboard listener when leaving the page
+  useEffect(() => {
+    return () => {
+      keyboardManagerRef.current?.detach();
+    };
+  }, []);
 
   // Handle zen action triggers (avoids stale closure in RAF loop)
   useEffect(() => {
@@ -379,6 +393,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     const newEngine = new GameEngine({
       das: settings.das,
       arr: settings.arr,
+      softDropFactor: settings.softDropFactor,
       lockDelay,
       startingLevel,
       fixedGravity,
@@ -411,11 +426,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
         else if (state === 'playing') soundManager.resumeBgm();
         else if (state === 'gameover' || state === 'completed') soundManager.stopBgm();
       },
-      onGameOver: () => handleGameOver(false)
+      onGameOver: () => handleGameOver(false, newEngine, activeMode)
     });
 
     setEngine(newEngine);
-    zenTimeRecordedRef.current = 0;
     setGameState('ready');
     setScore(0);
     setLines(0);
@@ -460,6 +474,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
 
   const handleCountdownComplete = () => {
     setIsCountingDown(false);
+    // A fresh session starts here; previous zen time has already been saved.
+    zenTimeRecordedRef.current = 0;
     engine.state = 'playing';
     engine.startTime = Date.now();
     engine.spawnPiece();
@@ -487,19 +503,19 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           // Sprint mode victory condition (allow final line clear animation to complete)
           if (mode === 'sprint' && engine.lines >= sprintGoal && engine.clearingRows.length === 0) {
             engine.state = 'completed';
-            handleGameOver(true);
+            handleGameOver(true, engine, mode);
           }
 
           // Ultra mode timer expiration
           if (mode === 'ultra' && engine.totalPlayTimeMs >= ultraDuration && engine.clearingRows.length === 0) {
             engine.state = 'completed';
-            handleGameOver(true);
+            handleGameOver(true, engine, mode);
           }
 
           // Marathon standard 150 lines victory
           if (mode === 'marathon' && engine.lines >= 150 && engine.clearingRows.length === 0) {
             engine.state = 'completed';
-            handleGameOver(true);
+            handleGameOver(true, engine, mode);
           }
         }
       }
@@ -511,7 +527,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     return () => cancelAnimationFrame(animId);
   }, [engine, mode, sprintGoal, ultraDuration, isSelectingMode, isCountingDown]);
 
-  const handleGameOver = async (victory: boolean) => {
+  const handleGameOver = async (victory: boolean, sourceEngine: GameEngine = engine, sourceMode: string = mode) => {
     soundManager.stopBgm();
     setIsVictory(victory);
     setIsGameOverModalOpen(true);
@@ -521,10 +537,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       soundManager.playClear(4);
     }
 
-    const stats = engine.getStats();
+    const stats = sourceEngine.getStats();
 
     // Zen Mode: ONLY track playtime, no other statistics or leaderboard submissions
-    if (mode === 'zen') {
+    if (sourceMode === 'zen') {
       const currentMs = Math.round(stats.duration);
       const deltaMs = currentMs - zenTimeRecordedRef.current;
       if (deltaMs >= 1000) {
@@ -543,7 +559,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
 
     // Persist result for competitive solo modes
     const resultPayload = {
-      mode: mode === 'sprint' ? `sprint_${sprintGoal}` : mode === 'ultra' ? 'ultra_3m' : 'marathon_150',
+      mode: sourceMode === 'sprint' ? `sprint_${sprintGoal}` : sourceMode === 'ultra' ? 'ultra_3m' : 'marathon_150',
       score: stats.score,
       lines: stats.lines,
       level: stats.level,
@@ -593,7 +609,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           textAlign: 'left'
         }}>
           {/* Marathon */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => launchSelectedMode('marathon')}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => launchSelectedMode('marathon')} onKeyDown={handleCardKey(() => launchSelectedMode('marathon'))}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Flame size={24} />
@@ -609,7 +625,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           </div>
 
           {/* Sprint */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => launchSelectedMode('sprint')}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => launchSelectedMode('sprint')} onKeyDown={handleCardKey(() => launchSelectedMode('sprint'))}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(234, 179, 8, 0.2)', color: 'var(--accent-yellow)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Zap size={24} />
@@ -625,7 +641,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           </div>
 
           {/* Ultra */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => launchSelectedMode('ultra')}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => launchSelectedMode('ultra')} onKeyDown={handleCardKey(() => launchSelectedMode('ultra'))}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(236, 72, 153, 0.2)', color: 'var(--accent-pink)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Timer size={24} />
@@ -641,7 +657,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           </div>
 
           {/* Zen */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => launchSelectedMode('zen')}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => launchSelectedMode('zen')} onKeyDown={handleCardKey(() => launchSelectedMode('zen'))}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(168, 85, 247, 0.2)', color: 'var(--accent-purple)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Smile size={24} />

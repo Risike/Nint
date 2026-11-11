@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { GameEngine } from '../game/engine/gameEngine';
 import { KeyboardManager } from '../game/input/keyboardManager';
-import { GamepadManager } from '../game/input/gamepadManager';
+import { GamepadManager, DEFAULT_GAMEPAD_BINDINGS } from '../game/input/gamepadManager';
 import { soundManager } from '../game/audio/soundManager';
 import { PlayfieldCanvas } from '../components/game/PlayfieldCanvas';
 import { HoldDisplay } from '../components/game/HoldDisplay';
@@ -33,8 +33,9 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
   const [opponentName, setOpponentName] = useState<string>('Opponent');
   const [opponentRating, setOpponentRating] = useState<number>(1000);
-  const opponentRatingRef = useRef<number>(1000);
+  const [isRankedMatch, setIsRankedMatch] = useState<boolean>(false);
   const opponentUserIdRef = useRef<string | null>(null);
+  const isRankedRef = useRef<boolean>(false);
   const [eloResult, setEloResult] = useState<{ oldRating: number; newRating: number; delta: number; opponentRating: number } | null>(null);
 
   const [playerEngine, setPlayerEngine] = useState<GameEngine>(() => new GameEngine());
@@ -128,6 +129,11 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     }
   };
 
+  const setRankedMode = (ranked: boolean) => {
+    isRankedRef.current = ranked;
+    setIsRankedMatch(ranked);
+  };
+
   // Shared forfeit logic: mark player as disconnected, record loss, cleanup
   const forfeitAndLeave = () => {
     if (matchEndedRef.current) return;
@@ -140,19 +146,23 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
 
     // Mark as disconnected in Firebase so opponent gets the win
     if (code && mId) {
-      FirebaseRealtimeService.leaveRoom(code, mId);
+      FirebaseRealtimeService.leaveRoom(code, mId, isHostRef.current);
     }
 
-    // Record defeat if in an active game
-    if (status === 'in_game' && isAuthenticatedRef.current) {
+    // Record defeat if in an active game and the opponent account is known
+    if (status === 'in_game' && isAuthenticatedRef.current && opponentUserIdRef.current) {
       const stats = playerEngineRef.current.getStats();
-      ApiClient.sendBeaconRecordMatch({
+      ApiClient.sendBeaconForfeit({
         opponentName: currentOpponentNameRef.current,
         opponentType: 'human',
+        mode: 'versus_online',
+        matchId: mId,
+        opponentId: opponentUserIdRef.current,
+        ranked: isRankedRef.current,
         result: 'loss',
         playerScore: playerEngineRef.current.score,
         playerLines: playerEngineRef.current.lines,
-        duration: playerEngineRef.current.totalPlayTimeMs,
+        duration: Math.round(playerEngineRef.current.totalPlayTimeMs || 0),
         piecesPlaced: stats.piecesPlaced || 0,
         tetrises: stats.tetrises || 0,
         tSpins: stats.tSpins || 0,
@@ -170,12 +180,17 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+    };
   }, []);
 
   // Handle component unmount (user navigates to another page/tab in the app)
   useEffect(() => {
     return () => {
+      keyboardRef.current?.detach();
       soundManager.stopBgm();
       forfeitAndLeave();
       cleanupSubscriptions();
@@ -195,10 +210,11 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
   }, [matchStatus]);
 
   // Quick Search Matchmaking Action
-  const handleQuickSearch = async () => {
+  const handleQuickSearch = async (ranked: boolean) => {
     setErrorMsg(null);
     cleanupSubscriptions();
     gameStartedRef.current = false;
+    setRankedMode(ranked);
     setMatchStatus('quick_searching');
     soundManager.playRotate();
 
@@ -223,13 +239,15 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
           startLiveGame(seed, mId);
         },
         myRating,
-        user?.id
+        user?.id,
+        ranked
       );
 
       cancelQuickSearchRef.current = cancelFn;
     } catch (e: any) {
       console.warn('Quick search failed:', e);
       setErrorMsg(e.message || 'Quick search failed to connect.');
+      setRankedMode(false);
       setMatchStatus('lobby');
     }
   };
@@ -241,6 +259,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       cancelQuickSearchRef.current = null;
     }
     cleanupSubscriptions();
+    setRankedMode(false);
     setMatchStatus('lobby');
     setMatchId(null);
     setRoomCode('');
@@ -271,14 +290,16 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       const displayName = user?.display_name || 'Player 1';
       const myRating = user?.rating || 1000;
       setEloResult(null);
+      setRankedMode(false);
       await FirebaseRealtimeService.authenticate(displayName);
-      const { matchId: mId, seed } = await FirebaseRealtimeService.createRoom(code, displayName, myRating, user?.id);
+      const { matchId: mId, seed } = await FirebaseRealtimeService.createRoom(code, displayName, myRating, user?.id, false);
       setMatchId(mId);
 
       // Listen strictly once for when status becomes 'active'
       unsubscribeMatchRef.current = FirebaseRealtimeService.listenToMatchStart(mId, (matchData) => {
         if (gameStartedRef.current) return;
         gameStartedRef.current = true;
+        setRankedMode(matchData.ranked === true);
 
         // Unsubscribe from match start listener to prevent any repeated calls
         if (unsubscribeMatchRef.current) {
@@ -295,7 +316,6 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
               currentOpponentNameRef.current = p.displayName || 'Player 2';
               if (p.rating) {
                 setOpponentRating(p.rating);
-                opponentRatingRef.current = p.rating;
               }
               if (p.userId) {
                 opponentUserIdRef.current = p.userId;
@@ -322,6 +342,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     gameStartedRef.current = false;
     setIsHost(false);
     isHostRef.current = false;
+    setRankedMode(false);
 
     const code = inputCode.trim().toUpperCase();
     setRoomCode(code);
@@ -331,7 +352,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       const myRating = user?.rating || 1000;
       setEloResult(null);
       await FirebaseRealtimeService.authenticate(displayName);
-      const { matchId: mId, seed } = await FirebaseRealtimeService.joinRoom(code, displayName, myRating, user?.id);
+      const { matchId: mId, seed } = await FirebaseRealtimeService.joinRoom(code, displayName, myRating, user?.id, false);
       setMatchId(mId);
       setOpponentName('Host');
 
@@ -351,6 +372,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       seed,
       das: settings.das,
       arr: settings.arr,
+      softDropFactor: settings.softDropFactor,
       lockDelay: settings.lockDelay
     });
 
@@ -425,7 +447,6 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       }
       if (opponentState.rating) {
         setOpponentRating(opponentState.rating);
-        opponentRatingRef.current = opponentState.rating;
       }
       if (opponentState.userId) {
         opponentUserIdRef.current = opponentState.userId;
@@ -486,7 +507,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     km.attach();
     keyboardRef.current = km;
 
-    gamepadRef.current = new GamepadManager(pEngine);
+    gamepadRef.current = new GamepadManager(pEngine, settings.gamepadBindings || DEFAULT_GAMEPAD_BINDINGS);
 
     // Before countdown: show exact upcoming pieces with the 1st falling piece on top
     pEngine.activePiece = null;
@@ -621,26 +642,31 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       soundManager.playGameOver();
     }
 
-    if (isAuthenticated) {
+    const matchIdForRecord = matchIdRef.current;
+    const opponentIdForRecord = opponentUserIdRef.current;
+
+    if (isAuthenticated && matchIdForRecord && opponentIdForRecord) {
       try {
         const stats = engine.getStats();
-        const res = await ApiClient.recordMatch({
+        const payload = {
           opponentName: currentOpponentNameRef.current || opponentName,
           opponentType: 'human',
-          opponentRating: opponentRatingRef.current || 1000,
-          opponentId: opponentUserIdRef.current || null,
+          matchId: matchIdForRecord,
+          opponentId: opponentIdForRecord,
           mode: 'versus_online',
+          ranked: isRankedRef.current,
           result,
           playerScore: engine.score,
           playerLines: engine.lines,
-          duration: Math.round(engine.totalPlayTimeMs),
+          duration: Math.round(engine.totalPlayTimeMs || 0),
           piecesPlaced: stats.piecesPlaced || 0,
           tetrises: stats.tetrises || 0,
           tSpins: stats.tSpins || 0,
           perfectClears: stats.perfectClears || 0,
           maxCombo: stats.maxCombo || 0,
           maxB2B: stats.maxB2B || 0
-        });
+        };
+        const res = await ApiClient.recordMatch(payload);
 
         if (res && res.elo) {
           setEloResult(res.elo);
@@ -706,6 +732,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     setRematchOpponentReady(false);
     setRematchOpponentLeft(false);
     nextMatchTriggeredRef.current = false;
+    setRankedMode(false);
     setMatchStatus('lobby');
     setMatchId(null);
     setRoomCode('');
@@ -781,7 +808,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
           <div style={{ marginBottom: '2rem' }}>
             <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>Online Player vs Player</h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1rem' }}>
-              Real-time competitive multiplayer. Quick match with any online player or create a private room for a friend.
+              Real-time competitive multiplayer. Play a casual quick match, a ranked ELO match, or create a private room for a friend.
             </p>
             <div style={{
               display: 'inline-flex',
@@ -836,11 +863,11 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
                   background: 'var(--accent-cyan)',
                   color: '#000'
                 }}>
-                  RECOMMENDED
+                  CASUAL
                 </span>
               </div>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
-                Jump straight into action! Instantly match against another player currently in quick search without exchanging codes.
+                Jump into a casual match against another player in the Quick Search queue. Casual matches are recorded but never affect your ELO.
               </p>
               <button
                 className="btn-primary"
@@ -855,9 +882,66 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
                   fontWeight: 700,
                   background: 'linear-gradient(135deg, #06b6d4, #a855f7)'
                 }}
-                onClick={handleQuickSearch}
+                onClick={() => handleQuickSearch(false)}
               >
                 <Zap size={18} /> Quick Play
+              </button>
+            </div>
+
+            {/* Ranked Match Card */}
+            <div
+              className="panel-card"
+              style={{
+                padding: '1.75rem',
+                gap: '1rem',
+                display: 'flex',
+                flexDirection: 'column',
+                border: '2px solid rgba(234, 179, 8, 0.55)',
+                background: 'linear-gradient(180deg, rgba(234, 179, 8, 0.1) 0%, var(--bg-card) 100%)',
+                boxShadow: '0 8px 24px rgba(234, 179, 8, 0.14)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ background: 'rgba(234, 179, 8, 0.2)', color: 'var(--accent-yellow)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
+                    <Trophy size={24} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Ranked Match</h3>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-yellow)', fontWeight: 600 }}>Competitive ELO Matchmaking</span>
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.05em',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '999px',
+                  background: 'var(--accent-yellow)',
+                  color: '#000'
+                }}>
+                  ELO
+                </span>
+              </div>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+                Same instant matchmaking as Quick Search, but every win or loss updates your ELO rating.
+              </p>
+              <button
+                className="btn-primary"
+                style={{
+                  marginTop: 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  padding: '0.75rem',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #eab308, #f97316)'
+                }}
+                onClick={() => handleQuickSearch(true)}
+              >
+                <Trophy size={18} /> Find Ranked Match
               </button>
             </div>
 
@@ -873,7 +957,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
                 </div>
               </div>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
-                Host a private match and share the code with a friend. The game waits until your friend joins before starting.
+Host a casual private match and share the code with a friend. The game waits until your friend joins before starting. Does not affect ELO.
               </p>
               <button className="btn-secondary" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.7rem' }} onClick={handleCreateRoom}>
                 <Plus size={18} /> Host Room
@@ -892,7 +976,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
                 </div>
               </div>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
-                Enter the 6-letter code generated by the host to join their room immediately.
+Enter the 6-letter code generated by the host to join their casual room immediately. Does not affect ELO.
               </p>
               <div style={{ display: 'flex', gap: '0.5rem', width: '100%', marginTop: 'auto' }}>
                 <input
@@ -955,10 +1039,12 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
 
             <div>
               <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.4rem' }}>
-                Searching for Opponent...
+                {isRankedMatch ? 'Searching for Ranked Opponent...' : 'Searching for Opponent...'}
               </h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                Looking for another player in Quick Match queue. The match will launch automatically!
+                {isRankedMatch
+                  ? 'Looking for another player in the Ranked queue. ELO is on the line!'
+                  : 'Looking for another player in the casual Quick Match queue. The match will launch automatically!'}
               </p>
               <div style={{
                 marginTop: '1rem',
@@ -1085,14 +1171,14 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
             </button>
 
             <div style={{
-              background: 'rgba(16, 185, 129, 0.2)',
-              color: 'var(--accent-green)',
+              background: isRankedMatch ? 'rgba(234, 179, 8, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+              color: isRankedMatch ? 'var(--accent-yellow)' : 'var(--accent-green)',
               padding: '0.2rem 0.6rem',
               borderRadius: '4px',
               fontWeight: 800,
               fontSize: '0.8rem'
             }}>
-              MATCH IN PROGRESS
+              {isRankedMatch ? 'RANKED MATCH' : 'CASUAL MATCH'}
             </div>
 
             <button className="btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }} onClick={handleLeaveRoom}>

@@ -53,6 +53,9 @@ export class AdminController {
       if (message === undefined || message === null) {
         return res.status(400).json({ error: 'Message field is required' });
       }
+      if (String(message).length > 2000) {
+        return res.status(400).json({ error: 'Message must be at most 2000 characters' });
+      }
       const result = AdminService.setNews(String(message));
       res.json(result);
     } catch (err) {

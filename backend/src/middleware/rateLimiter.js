@@ -11,5 +11,15 @@ export const authLimiter = rateLimit({
 export const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 300,
-  message: { error: 'Too many requests, please slow down' }
+  message: { error: 'Too many requests, please slow down' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+export const writeLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 60,
+  message: { error: 'Too many submissions, please wait before sending more' },
+  standardHeaders: true,
+  legacyHeaders: false
 });

@@ -3,12 +3,10 @@ import { ResultService } from '../services/resultService.js';
 export class ResultController {
   static submit(req, res, next) {
     try {
-      // Reject guests – they have no JWT
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ error: 'Authentication required to submit scores' });
-    }
-    const userId = req.user.id;
-      const result = ResultService.submitResult(userId, req.body);
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Authentication required to submit scores' });
+      }
+      const result = ResultService.submitResult(req.user.id, req.body || {});
       res.status(201).json(result);
     } catch (err) {
       next(err);
@@ -17,13 +15,15 @@ export class ResultController {
 
   static getMyResults(req, res, next) {
     try {
-      // Reject guests – they have no JWT
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ error: 'Authentication required to submit scores' });
-    }
-    const userId = req.user.id;
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Authentication required to read scores' });
+      }
       const { mode, limit } = req.query;
-      const results = ResultService.getUserResults(userId, mode, limit ? parseInt(limit, 10) : 20);
+      const parsedLimit = Number.parseInt(limit, 10);
+      const safeLimit = Number.isFinite(parsedLimit)
+        ? Math.min(Math.max(parsedLimit, 1), 100)
+        : 20;
+      const results = ResultService.getUserResults(req.user.id, mode, safeLimit);
       res.json(results);
     } catch (err) {
       next(err);

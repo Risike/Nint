@@ -25,6 +25,13 @@ export const VersusAiPage: React.FC = () => {
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
   const [difficulty, setDifficulty] = useState<number>(5);
 
+  const handleCardKey = (action: () => void) => (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      action();
+    }
+  };
+
   const [playerEngine, setPlayerEngine] = useState<GameEngine>(() => new GameEngine());
   const [aiEngine, setAiEngine] = useState<GameEngine>(() => new GameEngine());
 
@@ -61,6 +68,7 @@ export const VersusAiPage: React.FC = () => {
 
   useEffect(() => {
     return () => {
+      keyboardRef.current?.detach();
       soundManager.stopBgm();
     };
   }, []);
@@ -94,6 +102,7 @@ export const VersusAiPage: React.FC = () => {
       seed,
       das: settings.das,
       arr: settings.arr,
+      softDropFactor: settings.softDropFactor,
       lockDelay: settings.lockDelay
     });
 
@@ -319,7 +328,7 @@ export const VersusAiPage: React.FC = () => {
           textAlign: 'left'
         }}>
           {/* Beginner Lv 2 */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(2)}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(2)} onKeyDown={handleCardKey(() => launchWithDifficulty(2))}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(34, 197, 94, 0.2)', color: 'var(--accent-green)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Shield size={24} />
@@ -335,7 +344,7 @@ export const VersusAiPage: React.FC = () => {
           </div>
 
           {/* Casual Lv 4 */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(4)}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(4)} onKeyDown={handleCardKey(() => launchWithDifficulty(4))}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Bot size={24} />
@@ -351,7 +360,7 @@ export const VersusAiPage: React.FC = () => {
           </div>
 
           {/* Intermediate Lv 6 */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(6)}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(6)} onKeyDown={handleCardKey(() => launchWithDifficulty(6))}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Zap size={24} />
@@ -367,7 +376,7 @@ export const VersusAiPage: React.FC = () => {
           </div>
 
           {/* Advanced Lv 8 */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(8)}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(8)} onKeyDown={handleCardKey(() => launchWithDifficulty(8))}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(236, 72, 153, 0.2)', color: 'var(--accent-pink)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Flame size={24} />
@@ -383,7 +392,7 @@ export const VersusAiPage: React.FC = () => {
           </div>
 
           {/* Master Lv 10 */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(10)}>
+          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(10)} onKeyDown={handleCardKey(() => launchWithDifficulty(10))}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--accent-red)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
                 <Swords size={24} />

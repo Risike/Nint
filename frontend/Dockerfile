@@ -1,11 +1,14 @@
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/package.json
+COPY frontend/package.json ./frontend/package.json
 
-COPY . .
+RUN npm ci --workspace frontend
+
+COPY frontend ./frontend
 
 ARG VITE_API_URL=/api
 ARG VITE_FIREBASE_API_KEY
@@ -27,12 +30,12 @@ ENV VITE_FIREBASE_MESSAGING_SENDER_ID=${VITE_FIREBASE_MESSAGING_SENDER_ID}
 ENV VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID}
 ENV VITE_USE_FIREBASE_EMULATOR=${VITE_USE_FIREBASE_EMULATOR}
 
-RUN npm run build
+RUN npm --workspace frontend run build
 
 FROM nginx:alpine
 
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/frontend/dist /usr/share/nginx/html
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

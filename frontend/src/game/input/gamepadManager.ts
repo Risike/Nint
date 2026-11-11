@@ -51,6 +51,7 @@ export class GamepadManager {
   private dasTimer: number = 0;
   private arrTimer: number = 0;
   private activeDirection: 'left' | 'right' | null = null;
+  private softDropTimer: number = 0;
 
   private onPauseCallback?: () => void;
   private onRestartCallback?: () => void;
@@ -124,7 +125,14 @@ export class GamepadManager {
       // Soft Drop: Bound buttons or Left Analog Stick Down
       const isSoftDrop = isPressed(this.bindings.softDrop) || (axes[1] && axes[1] > 0.5);
       if (isSoftDrop) {
-        this.engine.softDrop();
+        this.softDropTimer += deltaMs;
+        const interval = this.engine.getSoftDropInterval();
+        while (this.softDropTimer >= interval) {
+          this.softDropTimer -= interval;
+          if (!this.engine.softDrop()) break;
+        }
+      } else {
+        this.softDropTimer = 0;
       }
 
       // Horizontal Movement: Bound buttons or Left Stick

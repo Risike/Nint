@@ -1,14 +1,32 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSettings } from '../context/SettingsContext';
-import { useGamepadActive } from '../context/GamepadNavContext';
+import { useGamepadActive, useGamepadBack, useGamepadNav } from '../context/GamepadNavContext';
 import { DEFAULT_GAMEPAD_BINDINGS, GAMEPAD_BUTTON_NAMES } from '../game/input/gamepadManager';
-import { Volume2, Keyboard, Eye, RotateCcw, Gamepad2, Check } from 'lucide-react';
+import { Volume2, Keyboard, Eye, RotateCcw, Gamepad2, Check, ChevronDown } from 'lucide-react';
+
+const THEME_OPTIONS: { value: string; label: string; group: 'Dark Themes' | 'Light Themes' }[] = [
+  { value: 'dark-01', label: 'Dark — Midnight', group: 'Dark Themes' },
+  { value: 'dark-02', label: 'Dark — Ocean', group: 'Dark Themes' },
+  { value: 'dark-03', label: 'Dark — Forest', group: 'Dark Themes' },
+  { value: 'dark-04', label: 'Dark — Ember', group: 'Dark Themes' },
+  { value: 'dark-05', label: 'Dark — Amethyst', group: 'Dark Themes' },
+  { value: 'light-01', label: 'Light — Clean', group: 'Light Themes' },
+  { value: 'light-02', label: 'Light — Sky', group: 'Light Themes' },
+  { value: 'light-03', label: 'Light — Mint', group: 'Light Themes' },
+  { value: 'light-04', label: 'Light — Peach', group: 'Light Themes' },
+  { value: 'light-05', label: 'Light — Lavender', group: 'Light Themes' }
+];
 
 export const SettingsPage: React.FC = () => {
   const { settings, updateSettings, resetDefaults } = useSettings();
   const [rebindingKeyAction, setRebindingKeyAction] = useState<string | null>(null);
   const [rebindingGamepadAction, setRebindingGamepadAction] = useState<string | null>(null);
   const [connectedGamepadName, setConnectedGamepadName] = useState<string | null>(null);
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+  const themeMenuRef = useRef<HTMLDivElement | null>(null);
+  const themeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const themeOptionRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const { setFocusedElement } = useGamepadNav();
 
   useGamepadActive(rebindingGamepadAction !== null);
 
@@ -100,6 +118,50 @@ export const SettingsPage: React.FC = () => {
   };
 
   const currentGamepadBindings = settings.gamepadBindings || DEFAULT_GAMEPAD_BINDINGS;
+  const selectedTheme = THEME_OPTIONS.find((option) => option.value === settings.theme) || THEME_OPTIONS[0];
+
+  const closeThemeMenu = () => {
+    setThemeMenuOpen(false);
+    requestAnimationFrame(() => setFocusedElement(themeButtonRef.current));
+  };
+
+  useGamepadBack(() => {
+    if (!themeMenuOpen) return false;
+    closeThemeMenu();
+    return true;
+  }, [themeMenuOpen]);
+
+  useEffect(() => {
+    if (!themeMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (themeMenuRef.current && !themeMenuRef.current.contains(event.target as Node)) {
+        closeThemeMenu();
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeThemeMenu();
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    const focusFrame = requestAnimationFrame(() => {
+      setFocusedElement(themeOptionRefs.current[settings.theme] || null);
+    });
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+      cancelAnimationFrame(focusFrame);
+    };
+  }, [themeMenuOpen, settings.theme, setFocusedElement]);
+
+  const handleThemeSelect = (theme: string) => {
+    updateSettings({ theme });
+    closeThemeMenu();
+  };
 
   return (
     <div style={{ width: '100%', maxWidth: '780px' }}>
@@ -113,36 +175,102 @@ export const SettingsPage: React.FC = () => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           {/* Theme selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div ref={themeMenuRef} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative' }}>
             <label style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap' }}>UI Theme</label>
-            <select
-              value={settings.theme}
-              onChange={e => updateSettings({ theme: e.target.value })}
+            <button
+              ref={themeButtonRef}
+              type="button"
+              className="btn-secondary"
+              aria-label="UI Theme"
+              aria-haspopup="listbox"
+              aria-expanded={themeMenuOpen}
+              onClick={() => {
+                if (themeMenuOpen) {
+                  closeThemeMenu();
+                } else {
+                  setThemeMenuOpen(true);
+                }
+              }}
               style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '0.6rem',
+                minWidth: '185px',
                 padding: '0.4rem 0.6rem',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--bg-tertiary)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-color)',
                 fontSize: '0.85rem',
                 cursor: 'pointer'
               }}
             >
-              <optgroup label="Dark Themes">
-                <option value="dark-01">Dark — Midnight</option>
-                <option value="dark-02">Dark — Ocean</option>
-                <option value="dark-03">Dark — Forest</option>
-                <option value="dark-04">Dark — Ember</option>
-                <option value="dark-05">Dark — Amethyst</option>
-              </optgroup>
-              <optgroup label="Light Themes">
-                <option value="light-01">Light — Clean</option>
-                <option value="light-02">Light — Sky</option>
-                <option value="light-03">Light — Mint</option>
-                <option value="light-04">Light — Peach</option>
-                <option value="light-05">Light — Lavender</option>
-              </optgroup>
-            </select>
+              <span>{selectedTheme.label}</span>
+              <ChevronDown size={16} />
+            </button>
+
+            {themeMenuOpen && (
+              <div
+                role="listbox"
+                aria-label="UI Theme"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 0.35rem)',
+                  right: 0,
+                  zIndex: 80,
+                  width: '240px',
+                  maxHeight: '330px',
+                  overflowY: 'auto',
+                  padding: '0.35rem',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: '0 14px 34px rgba(0, 0, 0, 0.4)'
+                }}
+              >
+                {(['Dark Themes', 'Light Themes'] as const).map((group) => (
+                  <div key={group}>
+                    <div style={{
+                      padding: '0.35rem 0.5rem 0.2rem',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                      color: 'var(--text-muted)'
+                    }}>
+                      {group}
+                    </div>
+                    {THEME_OPTIONS.filter((option) => option.group === group).map((option) => {
+                      const isSelected = option.value === settings.theme;
+                      return (
+                        <button
+                          key={option.value}
+                          ref={(element) => { themeOptionRefs.current[option.value] = element; }}
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          onClick={() => handleThemeSelect(option.value)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            width: '100%',
+                            padding: '0.45rem 0.5rem',
+                            border: 'none',
+                            borderRadius: 'var(--radius-sm)',
+                            background: isSelected ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
+                            color: 'var(--text-primary)',
+                            fontSize: '0.82rem',
+                            textAlign: 'left',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <span>{option.label}</span>
+                          {isSelected && <Check size={14} color="var(--accent-cyan)" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} onClick={resetDefaults}>
