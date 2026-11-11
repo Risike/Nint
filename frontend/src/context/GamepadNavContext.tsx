@@ -128,7 +128,6 @@ interface GamepadNavProviderProps {
   children: React.ReactNode;
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  isAuthenticated: boolean;
   onMenuMute?: () => void;
   onMenuFullscreen?: () => void;
 }
@@ -137,7 +136,6 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
   children,
   activeTab,
   setActiveTab,
-  isAuthenticated,
   onMenuMute,
   onMenuFullscreen
 }) => {
@@ -151,9 +149,6 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
 
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
-
-  const isAuthenticatedRef = useRef(isAuthenticated);
-  isAuthenticatedRef.current = isAuthenticated;
 
   const focusedElementRef = useRef<HTMLElement | null>(null);
   const backHandlersRef = useRef<BackHandlerRecord[]>([]);
@@ -207,18 +202,17 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
     }
   }, [setActiveTab, setFocusedElement]);
 
-  // Tab switching via bumpers
+  // Tab switching via bumpers: only the six main tabs, wrapping both ways.
+  // Profile/login remain reachable through their explicit navbar controls.
   const navigateTab = useCallback((direction: number) => {
-    const authTab = isAuthenticatedRef.current ? 'profile' : 'login';
-    const allTabs = [...MAIN_TABS, authTab];
-    const currentIndex = allTabs.indexOf(getMainTab(activeTabRef.current));
+    const currentIndex = MAIN_TABS.indexOf(getMainTab(activeTabRef.current));
     const validIndex = currentIndex >= 0 ? currentIndex : 0;
     let nextIndex = validIndex + direction;
 
-    if (nextIndex < 0) nextIndex = allTabs.length - 1;
-    if (nextIndex >= allTabs.length) nextIndex = 0;
+    if (nextIndex < 0) nextIndex = MAIN_TABS.length - 1;
+    if (nextIndex >= MAIN_TABS.length) nextIndex = 0;
 
-    const nextTab = allTabs[nextIndex];
+    const nextTab = MAIN_TABS[nextIndex];
     soundManager.playRotate();
     setActiveTab(nextTab);
     setFocusedElement(null);

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { GamepadNavProvider } from './context/GamepadNavContext';
 import { Navbar } from './components/layout/Navbar';
@@ -21,7 +21,6 @@ import { toggleFullscreen } from './utils/fullscreen';
 import './styles/main.css';
 
 export const AppContent: React.FC = () => {
-  const { isAuthenticated } = useAuth();
   const { toggleMute } = useSettings();
   const [resetToken, setResetToken] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -97,7 +96,6 @@ export const AppContent: React.FC = () => {
     <GamepadNavProvider
       activeTab={activeTab}
       setActiveTab={setActiveTab}
-      isAuthenticated={isAuthenticated}
       onMenuMute={toggleMute}
       onMenuFullscreen={toggleFullscreen}
     >

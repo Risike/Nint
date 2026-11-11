@@ -85,7 +85,6 @@ describe('menu gamepad system actions', () => {
           <GamepadNavProvider
             activeTab="home"
             setActiveTab={() => {}}
-            isAuthenticated={false}
             onMenuMute={onMenuMute}
             onMenuFullscreen={onMenuFullscreen}
           >
@@ -130,7 +129,6 @@ describe('menu gamepad system actions', () => {
           <GamepadNavProvider
             activeTab="home"
             setActiveTab={() => {}}
-            isAuthenticated={false}
           >
             <TestHarness active={active} />
           </GamepadNavProvider>
@@ -165,5 +163,40 @@ describe('menu gamepad system actions', () => {
     await renderProvider(true);
     await scrollWithStick(0.9);
     expect(verticalDeltas().some((delta) => delta > 0)).toBe(true);
+  });
+
+  it('wraps LB/RB between Home and Settings without profile or login', async () => {
+    const setActiveTab = vi.fn();
+
+    const renderProvider = async (activeTab: string) => {
+      await act(async () => {
+        root!.render(
+          <GamepadNavProvider activeTab={activeTab} setActiveTab={setActiveTab}>
+            <TestHarness active={false} />
+          </GamepadNavProvider>
+        );
+      });
+      await settle(100);
+    };
+
+    const press = async (index: number) => {
+      gamepad.buttons[index].pressed = true;
+      await settle(40);
+      gamepad.buttons[index].pressed = false;
+      await settle(40);
+    };
+
+    await renderProvider('settings');
+    await press(5); // RB
+    expect(setActiveTab).toHaveBeenCalledTimes(1);
+    expect(setActiveTab).toHaveBeenCalledWith('home');
+
+    setActiveTab.mockClear();
+    await renderProvider('home');
+    await press(4); // LB
+    expect(setActiveTab).toHaveBeenCalledTimes(1);
+    expect(setActiveTab).toHaveBeenCalledWith('settings');
+    expect(setActiveTab).not.toHaveBeenCalledWith('profile');
+    expect(setActiveTab).not.toHaveBeenCalledWith('login');
   });
 });

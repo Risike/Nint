@@ -122,7 +122,7 @@ describe('Marathon starting level with gamepad', () => {
   it('changes the level with left/right and keeps it when moving down to the buttons', async () => {
     await act(async () => {
       root!.render(
-        <GamepadNavProvider activeTab="solo" setActiveTab={() => {}} isAuthenticated={false}>
+        <GamepadNavProvider activeTab="solo" setActiveTab={() => {}}>
           <MarathonLevelHarness />
         </GamepadNavProvider>
       );
