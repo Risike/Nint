@@ -10,6 +10,18 @@ html {
   min-height: 100vh;
 }
 
+.app-container--game {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-container--game .navbar,
+.app-container--game footer {
+  flex-shrink: 0;
+}
+
 .main-content {
   flex: 1;
   display: flex;
@@ -19,6 +31,12 @@ html {
   max-width: 1440px;
   margin: 0 auto;
   width: 100%;
+}
+
+.main-content--game {
+  min-height: 0;
+  padding: 0.75rem 1rem;
+  overflow-y: auto;
 }
 
 /* Navbar */
@@ -124,6 +142,191 @@ html {
 }
 
 /* Playfield & Game Layout */
+.versus-page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-height: 0;
+}
+
+.versus-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+  padding: 0.45rem 0.9rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.versus-arena {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: flex-start;
+  justify-content: center;
+  justify-content: safe center;
+  gap: 1rem;
+  width: 100%;
+  min-height: 0;
+  padding: 0 0.25rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.versus-side {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 0;
+}
+
+.versus-side-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  height: 22px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.versus-side-title--cyan { color: var(--accent-cyan); }
+.versus-side-title--orange { color: var(--accent-orange); }
+.versus-side-title--purple { color: var(--accent-purple); }
+
+.versus-side-title > .versus-elo-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: currentColor;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+}
+
+.versus-side-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.versus-side .versus-side-panel {
+  flex: 0 0 clamp(76px, 7.5vw, 110px);
+  width: clamp(76px, 7.5vw, 110px);
+  min-width: clamp(76px, 7.5vw, 110px);
+  gap: 0.6rem;
+}
+
+.versus-side-panel .panel-card {
+  padding: 0.5rem;
+}
+
+.versus-side-panel canvas {
+  display: block;
+  max-width: 100%;
+  height: auto !important;
+}
+
+.versus-stats-card {
+  width: 100%;
+  gap: 0.3rem;
+}
+
+.versus-stat-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.3rem;
+}
+
+.versus-stat-row span {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.versus-stat-row strong {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.versus-board-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.versus-vs {
+  align-self: center;
+  flex: 0 0 auto;
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.versus-vs--red {
+  color: var(--accent-red);
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.versus-vs--green {
+  color: var(--accent-green);
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.versus-pause-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.versus-pause-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1.5rem 2.25rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.versus-pause-card h2 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.versus-pause-card p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
 .game-layout {
   display: flex;
   gap: 1.5rem;

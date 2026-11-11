@@ -1,5 +1,4 @@
 import {
-  BOARD_BUFFER_HEIGHT,
   BOARD_TOTAL_HEIGHT,
   BOARD_WIDTH,
   PIECES,
@@ -13,6 +12,8 @@ export interface PlacementCandidate {
   y: number;
   score: number;
   linesCleared: number;
+  piece?: TetrominoType;
+  useHold?: boolean;
 }
 
 export interface HeuristicWeights {
@@ -25,12 +26,24 @@ export interface HeuristicWeights {
 }
 
 export const AI_WEIGHTS_PRESETS: Record<number, HeuristicWeights> = {
-  1: { aggregateHeight: -0.15, completeLines: 0.2, holes: -0.4, bumpiness: -0.05, wellDepth: 0.05, blockades: -0.1 },
-  3: { aggregateHeight: -0.3, completeLines: 0.5, holes: -0.8, bumpiness: -0.1, wellDepth: 0.2, blockades: -0.3 },
-  5: { aggregateHeight: -0.5, completeLines: 0.8, holes: -1.5, bumpiness: -0.2, wellDepth: 0.4, blockades: -0.6 },
-  7: { aggregateHeight: -0.65, completeLines: 1.2, holes: -2.5, bumpiness: -0.3, wellDepth: 0.7, blockades: -1.0 },
-  10: { aggregateHeight: -0.75, completeLines: 1.8, holes: -3.8, bumpiness: -0.38, wellDepth: 1.2, blockades: -1.8 }
+  1: { aggregateHeight: -0.18, completeLines: 0.35, holes: -0.55, bumpiness: -0.06, wellDepth: 0.05, blockades: -0.15 },
+  3: { aggregateHeight: -0.3, completeLines: 0.65, holes: -1.1, bumpiness: -0.12, wellDepth: 0.15, blockades: -0.35 },
+  5: { aggregateHeight: -0.45, completeLines: 1.2, holes: -2.2, bumpiness: -0.2, wellDepth: 0.3, blockades: -0.8 },
+  7: { aggregateHeight: -0.5, completeLines: 2.2, holes: -4.5, bumpiness: -0.26, wellDepth: 0.45, blockades: -1.3 },
+  8: { aggregateHeight: -0.48, completeLines: 2.8, holes: -5.8, bumpiness: -0.28, wellDepth: 0.5, blockades: -1.5 },
+  10: { aggregateHeight: -0.42, completeLines: 4.0, holes: -8.0, bumpiness: -0.3, wellDepth: 0.55, blockades: -2.0 }
 };
+
+interface SimulatedPlacement {
+  candidate: PlacementCandidate;
+  board: (string | null)[][];
+}
+
+interface PlanOption {
+  piece: TetrominoType;
+  useHold: boolean;
+  following: TetrominoType[];
+}
 
 export class BoardEvaluator {
   public static evaluate(
@@ -44,6 +57,7 @@ export class BoardEvaluator {
     const bumpiness = this.calculateBumpiness(colHeights);
     const wellDepth = this.getWellDepth(colHeights);
     const blockades = this.countBlockades(board, colHeights);
+    const perfectClear = linesCleared > 0 && board.every(row => row.every(cell => cell === null));
 
     return (
       weights.aggregateHeight * aggregateHeight +
@@ -51,7 +65,8 @@ export class BoardEvaluator {
       weights.holes * holes +
       weights.bumpiness * bumpiness +
       weights.wellDepth * wellDepth +
-      weights.blockades * blockades
+      weights.blockades * blockades +
+      (perfectClear ? 24 : 0)
     );
   }
 
@@ -90,11 +105,12 @@ export class BoardEvaluator {
   }
 
   public static getWellDepth(heights: number[]): number {
-    // Reward well on the right column (col 9) for standard Tetris setups
+    // Reward a deep right-side well for Tetris setups, but never reward
+    // simply stacking the rest of the board higher than the well.
     const wellCol = BOARD_WIDTH - 1;
     const wellHeight = heights[wellCol];
     const adjacentHeight = heights[wellCol - 1];
-    return Math.max(0, adjacentHeight - wellHeight);
+    return Math.max(0, Math.min(4, adjacentHeight - wellHeight));
   }
 
   public static countBlockades(board: (string | null)[][], heights: number[]): number {
@@ -112,19 +128,164 @@ export class BoardEvaluator {
     return blockades;
   }
 
+  private static getWeights(difficulty: number): HeuristicWeights {
+    const clampedDiff = Math.max(1, Math.min(10, difficulty));
+    const lowerKey = [1, 3, 5, 7, 8, 10].reverse().find(k => k <= clampedDiff) || 1;
+    return AI_WEIGHTS_PRESETS[lowerKey] || AI_WEIGHTS_PRESETS[5];
+  }
+
   public static findBestPlacement(
     board: (string | null)[][],
     pieceType: TetrominoType,
     difficulty: number
   ): PlacementCandidate | null {
-    // Interpolate weights based on difficulty 1..10
-    const clampedDiff = Math.max(1, Math.min(10, difficulty));
-    const lowerKey = [1, 3, 5, 7, 10].reverse().find(k => k <= clampedDiff) || 1;
-    const weights = AI_WEIGHTS_PRESETS[lowerKey] || AI_WEIGHTS_PRESETS[5];
+    const weights = this.getWeights(difficulty);
+    const placements = this.enumeratePlacements(board, pieceType, weights);
+    if (placements.length === 0) return null;
 
     let bestScore = -Infinity;
     let bestPlacement: PlacementCandidate | null = null;
 
+    for (const placement of placements) {
+      let evalScore = placement.candidate.score;
+
+      // Lower levels make deliberately imperfect decisions.
+      if (difficulty < 8) {
+        const noiseRange = (9 - difficulty) * 0.8;
+        evalScore += (Math.random() - 0.5) * noiseRange;
+      }
+
+      if (evalScore > bestScore) {
+        bestScore = evalScore;
+        bestPlacement = {
+          ...placement.candidate,
+          piece: pieceType,
+          useHold: false,
+          score: evalScore
+        };
+      }
+    }
+
+    return bestPlacement;
+  }
+
+  /**
+   * Plans one piece using a short lookahead of the upcoming queue and hold.
+   * Grandmaster looks three pieces ahead with a beam over the best replies;
+   * lower levels progressively fall back to shorter searches.
+   */
+  public static findBestPlan(
+    board: (string | null)[][],
+    currentPiece: TetrominoType,
+    nextPieces: TetrominoType[] = [],
+    holdPiece: TetrominoType | null = null,
+    canHold: boolean = true,
+    difficulty: number = 5
+  ): PlacementCandidate | null {
+    const clampedDiff = Math.max(1, Math.min(10, difficulty));
+
+    if (clampedDiff < 6) {
+      return this.findBestPlacement(board, currentPiece, clampedDiff);
+    }
+
+    const weights = this.getWeights(clampedDiff);
+    const depth = clampedDiff >= 9 ? 3 : 2;
+    const options: PlanOption[] = [{
+      piece: currentPiece,
+      useHold: false,
+      following: nextPieces.slice(0, 2)
+    }];
+
+    if (clampedDiff >= 8 && canHold) {
+      if (holdPiece) {
+        options.push({
+          piece: holdPiece,
+          useHold: true,
+          following: nextPieces.slice(0, 2)
+        });
+      } else if (nextPieces.length > 0) {
+        options.push({
+          piece: nextPieces[0],
+          useHold: true,
+          following: nextPieces.slice(1, 3)
+        });
+      }
+    }
+
+    let best: PlacementCandidate | null = null;
+    let bestScore = -Infinity;
+
+    for (const option of options) {
+      const firstPlacements = this.enumeratePlacements(board, option.piece, weights);
+      if (firstPlacements.length === 0) continue;
+
+      firstPlacements.sort((a, b) => b.candidate.score - a.candidate.score);
+
+      // Keep the search broad but bounded so the AI remains responsive.
+      const firstBeam = depth === 3 ? 12 : 24;
+
+      for (const first of firstPlacements.slice(0, firstBeam)) {
+        let totalScore = first.candidate.score;
+
+        if (depth >= 2 && option.following.length > 0) {
+          const secondPlacements = this.enumeratePlacements(first.board, option.following[0], weights);
+          secondPlacements.sort((a, b) => b.candidate.score - a.candidate.score);
+
+          if (secondPlacements.length === 0) {
+            totalScore = first.candidate.score - 1000;
+          } else if (depth >= 3 && option.following.length > 1) {
+            let bestPairScore = -Infinity;
+
+            for (const second of secondPlacements.slice(0, 5)) {
+              const thirdPlacements = this.enumeratePlacements(second.board, option.following[1], weights);
+              thirdPlacements.sort((a, b) => b.candidate.score - a.candidate.score);
+
+              const thirdScore = thirdPlacements.length > 0
+                ? thirdPlacements[0].candidate.score
+                : second.candidate.score - 1000;
+
+              const pairScore = thirdScore + weights.completeLines * (
+                first.candidate.linesCleared + second.candidate.linesCleared
+              );
+
+              if (pairScore > bestPairScore) {
+                bestPairScore = pairScore;
+              }
+            }
+
+            totalScore = bestPairScore;
+          } else {
+            totalScore = secondPlacements[0].candidate.score
+              + weights.completeLines * first.candidate.linesCleared;
+          }
+        }
+
+        if (totalScore > bestScore) {
+          bestScore = totalScore;
+          best = {
+            ...first.candidate,
+            piece: option.piece,
+            useHold: option.useHold,
+            score: totalScore
+          };
+        }
+      }
+    }
+
+    if (best && clampedDiff < 8) {
+      const noiseRange = (9 - clampedDiff) * 0.4;
+      best.score += (Math.random() - 0.5) * noiseRange;
+    }
+
+    return best;
+  }
+
+  private static enumeratePlacements(
+    board: (string | null)[][],
+    pieceType: TetrominoType,
+    weights: HeuristicWeights
+  ): SimulatedPlacement[] {
+    const placements: SimulatedPlacement[] = [];
     const numRotations = (pieceType === 'O' ? 1 : (pieceType === 'I' || pieceType === 'S' || pieceType === 'Z') ? 2 : 4);
 
     for (let r = 0; r < numRotations; r++) {
@@ -134,7 +295,6 @@ export class BoardEvaluator {
       const maxX = Math.max(...shape.map(p => p.x));
 
       for (let x = -minX; x < BOARD_WIDTH - maxX; x++) {
-        // Drop to lowest valid Y
         let y = 0;
         let valid = false;
 
@@ -147,30 +307,23 @@ export class BoardEvaluator {
           continue;
         }
 
-        // Simulate placement
         const sim = this.simulatePlacement(board, pieceType, rot, x, y);
-        let evalScore = this.evaluate(sim.newBoard, weights, sim.linesCleared);
+        const score = this.evaluate(sim.newBoard, weights, sim.linesCleared);
 
-        // Add small random noise at lower difficulty to simulate human mistake rate
-        if (difficulty < 8) {
-          const noiseRange = (9 - difficulty) * 0.8;
-          evalScore += (Math.random() - 0.5) * noiseRange;
-        }
-
-        if (evalScore > bestScore) {
-          bestScore = evalScore;
-          bestPlacement = {
+        placements.push({
+          candidate: {
             rotation: rot,
             x,
             y,
-            score: evalScore,
+            score,
             linesCleared: sim.linesCleared
-          };
-        }
+          },
+          board: sim.newBoard
+        });
       }
     }
 
-    return bestPlacement;
+    return placements;
   }
 
   private static isValidPosition(
@@ -201,7 +354,6 @@ export class BoardEvaluator {
     x: number,
     y: number
   ): { newBoard: (string | null)[][]; linesCleared: number } {
-    // Clone board rows
     const newBoard = board.map(row => [...row]);
     const shape = PIECES[type].shapes[rot];
 
@@ -219,7 +371,7 @@ export class BoardEvaluator {
         newBoard.splice(r, 1);
         newBoard.unshift(new Array(BOARD_WIDTH).fill(null));
         linesCleared++;
-        r++; // check row index again
+        r++;
       }
     }
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../../game/engine/gameEngine';
+import { BOARD_VISIBLE_HEIGHT, BOARD_WIDTH } from '../../game/engine/constants';
 import { CanvasRenderer } from '../../game/rendering/canvasRenderer';
 import { useSettings } from '../../context/SettingsContext';
 
@@ -82,7 +83,14 @@ export const PlayfieldCanvas: React.FC<PlayfieldCanvasProps> = ({
 
   return (
     <div className="board-container">
-      <canvas ref={canvasRef} className="board-canvas" />
+      <canvas
+        ref={canvasRef}
+        className="board-canvas"
+        style={{
+          width: `${BOARD_WIDTH * cellSize}px`,
+          height: `${BOARD_VISIBLE_HEIGHT * cellSize}px`
+        }}
+      />
     </div>
   );
 };

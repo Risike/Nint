@@ -7,7 +7,8 @@ export class AIController {
   private stepInterval: number = 300; // ms
   private timer: number = 0;
   private currentPlan: PlacementCandidate | null = null;
-  private isExecuting: boolean = false;
+  private planPiece: string | null = null;
+  private failedActions: number = 0;
 
   constructor(engine: GameEngine, difficulty: number = 5) {
     this.engine = engine;
@@ -21,12 +22,14 @@ export class AIController {
   }
 
   private updateSpeed() {
-    // Difficulty 1: ~700ms per action; Difficulty 10: ~75ms per action
-    this.stepInterval = Math.max(70, Math.floor(750 - (this.difficulty - 1) * 75));
+    // Difficulty 1: ~700ms per action; Difficulty 10: ~70ms per action.
+    this.stepInterval = Math.max(50, Math.floor(700 - (this.difficulty - 1) * 70));
   }
 
   public update(deltaMs: number) {
     if (this.engine.state !== 'playing' || !this.engine.activePiece) {
+      this.currentPlan = null;
+      this.planPiece = null;
       return;
     }
 
@@ -36,13 +39,20 @@ export class AIController {
     }
     this.timer = 0;
 
-    // If no plan, compute one
-    if (!this.currentPlan) {
-      this.currentPlan = BoardEvaluator.findBestPlacement(
+    // If there is no plan, or the active piece changed without a held piece,
+    // compute a fresh plan using the next pieces in the queue.
+    if (!this.currentPlan || this.planPiece !== this.engine.activePiece) {
+      const lookahead = this.engine.randomizer.peek(3);
+      this.currentPlan = BoardEvaluator.findBestPlan(
         this.engine.board,
         this.engine.activePiece,
+        lookahead,
+        this.engine.holdPiece,
+        this.engine.canHold,
         this.difficulty
       );
+      this.planPiece = this.engine.activePiece;
+      this.failedActions = 0;
     }
 
     if (!this.currentPlan) {
@@ -50,23 +60,71 @@ export class AIController {
       return;
     }
 
-    // Step 1: Rotate towards planned rotation
-    if (this.engine.activeRotation !== this.currentPlan.rotation) {
-      this.engine.rotateCW();
+    // Use hold only when the planner explicitly chose the held/next piece.
+    if (this.currentPlan.useHold) {
+      if (this.engine.canHold) {
+        this.engine.hold();
+        this.currentPlan = { ...this.currentPlan, useHold: false };
+        this.planPiece = this.engine.activePiece;
+        this.failedActions = 0;
+        return;
+      }
+
+      this.currentPlan = null;
+      this.planPiece = null;
       return;
     }
 
-    // Step 2: Shift X towards target X
-    if (this.engine.activeX < this.currentPlan.x) {
-      this.engine.moveRight();
-      return;
-    } else if (this.engine.activeX > this.currentPlan.x) {
-      this.engine.moveLeft();
+    if (this.planPiece !== this.engine.activePiece) {
+      this.currentPlan = null;
       return;
     }
 
-    // Step 3: Once aligned in rotation and X position, Hard Drop!
-    this.engine.hardDrop();
-    this.currentPlan = null;
+    // Grandmaster batches several movement steps per tick; lower levels
+    // deliberately move at a more human pace.
+    const maxSteps = this.difficulty >= 8 ? 4 : this.difficulty >= 6 ? 2 : 1;
+
+    for (let step = 0; step < maxSteps; step++) {
+      if (!this.currentPlan) return;
+
+      if (this.engine.activeRotation !== this.currentPlan.rotation) {
+        if (!this.engine.rotateCW()) {
+          this.failedActions++;
+          break;
+        }
+        this.failedActions = 0;
+        continue;
+      }
+
+      if (this.engine.activeX < this.currentPlan.x) {
+        if (!this.engine.moveRight()) {
+          this.failedActions++;
+          break;
+        }
+        this.failedActions = 0;
+        continue;
+      }
+
+      if (this.engine.activeX > this.currentPlan.x) {
+        if (!this.engine.moveLeft()) {
+          this.failedActions++;
+          break;
+        }
+        this.failedActions = 0;
+        continue;
+      }
+
+      this.engine.hardDrop();
+      this.currentPlan = null;
+      this.planPiece = null;
+      return;
+    }
+
+    // Never get stuck forever on a blocked rotation or kick sequence.
+    if (this.failedActions > 12) {
+      this.engine.hardDrop();
+      this.currentPlan = null;
+      this.planPiece = null;
+    }
   }
 }

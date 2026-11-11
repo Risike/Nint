@@ -33,6 +33,7 @@ export const AppContent: React.FC = () => {
     return 'home';
   });
   const [soloInitialMode, setSoloInitialMode] = useState<string | null>(null);
+  const isGameRoute = activeTab === 'solo' || activeTab === 'versus_ai' || activeTab === 'online';
 
   const handleNavigate = (tab: string) => {
     if (resetToken) {
@@ -96,9 +97,9 @@ export const AppContent: React.FC = () => {
       setActiveTab={setActiveTab}
       isAuthenticated={isAuthenticated}
     >
-      <div className="app-container">
+      <div className={`app-container${isGameRoute ? ' app-container--game' : ''}`}>
         <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
-        <main className="main-content">
+        <main className={`main-content${isGameRoute ? ' main-content--game' : ''}`}>
           {renderActivePage()}
         </main>
         <Footer />

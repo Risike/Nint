@@ -31,4 +31,23 @@ describe('AI Opponent Engine', () => {
     expect(engine.piecesPlaced).toBeGreaterThan(initialPlaced);
     expect(engine.state).toBe('playing');
   });
+
+  it('Grandmaster keeps a clean, low stack instead of leaving holes', () => {
+    const engine = new GameEngine({ seed: 12345 });
+    engine.start();
+    const ai = new AIController(engine, 10);
+
+    for (let step = 0; step < 480 && engine.state === 'playing'; step++) {
+      ai.update(16.67);
+      engine.update(16.67);
+    }
+
+    const heights = BoardEvaluator.getColumnHeights(engine.board);
+    const holes = BoardEvaluator.countHoles(engine.board, heights);
+
+    expect(engine.state).toBe('playing');
+    expect(engine.piecesPlaced).toBeGreaterThan(20);
+    expect(holes).toBeLessThanOrEqual(2);
+    expect(Math.max(...heights)).toBeLessThan(12);
+  });
 });

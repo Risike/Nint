@@ -4,25 +4,24 @@ import { AIController } from '../game/ai/aiController';
 import { KeyboardManager } from '../game/input/keyboardManager';
 import { GamepadManager, DEFAULT_GAMEPAD_BINDINGS } from '../game/input/gamepadManager';
 import { soundManager } from '../game/audio/soundManager';
-import { PlayfieldCanvas } from '../components/game/PlayfieldCanvas';
-import { HoldDisplay } from '../components/game/HoldDisplay';
-import { QueueDisplay } from '../components/game/QueueDisplay';
 import { GameOverModal } from '../components/game/GameOverModal';
-import { CountdownOverlay } from '../components/game/CountdownOverlay';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { ApiClient } from '../services/api';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
-import { Bot, User as UserIcon, RotateCcw, ArrowLeft, Swords, Shield, Zap, Flame } from 'lucide-react';
+import { VersusArena } from '../components/game/VersusArena';
+import { Bot, User as UserIcon, RotateCcw, ArrowLeft, Swords, Shield, Zap, Flame, Play, Pause } from 'lucide-react';
 
 export const VersusAiPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { settings } = useSettings();
-  const cellSize = useDynamicCellSize(true);
+  const arenaRef = useRef<HTMLDivElement>(null);
+  const cellSize = useDynamicCellSize(true, arenaRef);
 
   const [isSelectingDifficulty, setIsSelectingDifficulty] = useState<boolean>(true);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
   const [difficulty, setDifficulty] = useState<number>(5);
 
   const handleCardKey = (action: () => void) => (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -50,7 +49,7 @@ export const VersusAiPage: React.FC = () => {
   const [isGameOverOpen, setIsGameOverOpen] = useState<boolean>(false);
   const [lastStats, setLastStats] = useState<any>(null);
 
-  const isPlaying = !isSelectingDifficulty && !isGameOverOpen && (playerEngine.state === 'playing' || isCountingDown);
+  const isPlaying = !isSelectingDifficulty && !isGameOverOpen && (playerEngine.state === 'playing' || playerEngine.state === 'paused' || isCountingDown);
   useGamepadActive(isPlaying);
 
   useGamepadBack(() => {
@@ -82,6 +81,23 @@ export const VersusAiPage: React.FC = () => {
   const aiControllerRef = useRef<AIController | null>(null);
   const keyboardRef = useRef<KeyboardManager | null>(null);
   const gamepadRef = useRef<GamepadManager | null>(null);
+
+  const togglePause = () => {
+    const pEngine = playerEngineRef.current;
+    const aEngine = aiEngineRef.current;
+
+    if (pEngine.state === 'playing') {
+      pEngine.pause();
+      aEngine.pause();
+      setIsPaused(true);
+      soundManager.pauseBgm();
+    } else if (pEngine.state === 'paused') {
+      pEngine.resume();
+      aEngine.resume();
+      setIsPaused(false);
+      soundManager.resumeBgm();
+    }
+  };
 
   const launchWithDifficulty = (level: number) => {
     difficultyRef.current = level;
@@ -160,6 +176,7 @@ export const VersusAiPage: React.FC = () => {
     setAiLinesDisplay(0);
     setMatchResult(null);
     setIsGameOverOpen(false);
+    setIsPaused(false);
     setPlayerGarbage(0);
     setAiGarbage(0);
 
@@ -169,14 +186,16 @@ export const VersusAiPage: React.FC = () => {
     // Keyboard Manager
     if (keyboardRef.current) keyboardRef.current.detach();
     const km = new KeyboardManager(pEngine, settings.keybindings, {
-      onRestart: () => startMatch()
+      onRestart: () => startMatch(),
+      onPause: togglePause
     });
     km.attach();
     keyboardRef.current = km;
 
     // Gamepad Manager
     gamepadRef.current = new GamepadManager(pEngine, settings.gamepadBindings || DEFAULT_GAMEPAD_BINDINGS, {
-      onRestart: () => startMatch()
+      onRestart: () => startMatch(),
+      onPause: togglePause
     });
 
     // Before countdown: show exact upcoming pieces with the 1st falling piece on top
@@ -191,6 +210,7 @@ export const VersusAiPage: React.FC = () => {
 
   const handleCountdownComplete = () => {
     setIsCountingDown(false);
+    setIsPaused(false);
     matchStartTimeRef.current = Date.now();
 
     const pEngine = playerEngineRef.current;
@@ -222,10 +242,12 @@ export const VersusAiPage: React.FC = () => {
       const aEng = aiEngineRef.current;
 
       if (!isSelectingDifficulty && !isCountingDown) {
+        // Poll the gamepad even while paused so Start/Options can resume.
+        gamepadRef.current?.update(delta);
+
         if (pEng && pEng.state === 'playing') {
           pEng.update(delta);
           keyboardRef.current?.update(delta);
-          gamepadRef.current?.update(delta);
           setPlayerHold(pEng.holdPiece);
           setPlayerQueue([...pEng.randomizer.peek(5)]);
           setPlayerGarbage(pEng.garbageManager.getPendingCount());
@@ -261,6 +283,7 @@ export const VersusAiPage: React.FC = () => {
 
     pEngine.state = 'gameover';
     aEngine.state = 'gameover';
+    setIsPaused(false);
 
     const pStats = pEngine.getStats();
     setLastStats(pStats);
@@ -412,20 +435,9 @@ export const VersusAiPage: React.FC = () => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+    <div className="versus-page">
       {/* Top Bar with Difficulty and Menu return */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        marginBottom: '1rem',
-        background: 'var(--bg-secondary)',
-        padding: '0.6rem 1.25rem',
-        borderRadius: 'var(--radius-md)',
-        border: '1px solid var(--border-color)',
-        flexWrap: 'wrap',
-        justifyContent: 'center'
-      }}>
+      <div className="versus-toolbar">
         <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.8rem' }} onClick={() => setIsSelectingDifficulty(true)}>
           <ArrowLeft size={16} /> Difficulty Menu
         </button>
@@ -441,78 +453,60 @@ export const VersusAiPage: React.FC = () => {
           Opponent: Lv {difficulty} ({getDifficultyLabel(difficulty)})
         </div>
 
+        <button
+          className="btn-secondary"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
+          onClick={togglePause}
+          disabled={isCountingDown || isGameOverOpen}
+        >
+          {isPaused ? <Play size={14} /> : <Pause size={14} />}
+          {isPaused ? 'Resume' : 'Pause'}
+        </button>
+
         <button className="btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }} onClick={() => startMatch()}>
           <RotateCcw size={14} /> Restart Match
         </button>
       </div>
 
-      {/* Dual Arena: Player vs AI */}
-      <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', flexWrap: 'nowrap', alignItems: 'flex-start', maxWidth: '100%', overflowX: 'auto', padding: '0 0.5rem' }}>
-        {/* Player Side */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.95rem' }}>
-            <UserIcon size={18} color="var(--accent-cyan)" />
-            <span>You</span>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-            <div className="side-panel" style={{ minWidth: '80px' }}>
-              <HoldDisplay piece={playerHold} canHold={playerEngine.canHold} />
-              <div className="panel-card" style={{ padding: '0.5rem' }}>
-                <div className="stat-label">Lines</div>
-                <div className="stat-value" style={{ fontSize: '1.2rem' }}>{playerLinesDisplay}</div>
-              </div>
-            </div>
-
-            <div style={{ position: 'relative' }}>
-              <PlayfieldCanvas engine={playerEngine} incomingGarbage={playerGarbage} cellSize={cellSize} />
-              <CountdownOverlay active={isCountingDown} onComplete={handleCountdownComplete} />
-            </div>
-
-            <div className="side-panel" style={{ minWidth: '70px' }}>
-              <QueueDisplay queue={playerQueue} count={5} />
-            </div>
-          </div>
-        </div>
-
-        {/* VS Divider Badge */}
-        <div style={{
-          alignSelf: 'center',
-          fontWeight: 900,
-          fontSize: '1.2rem',
-          color: 'var(--accent-red)',
-          background: 'rgba(239, 68, 68, 0.1)',
-          padding: '0.5rem 0.8rem',
-          borderRadius: '999px',
-          border: '1px solid rgba(239, 68, 68, 0.3)'
-        }}>
-          VS
-        </div>
-
-        {/* AI Opponent Side */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.95rem' }}>
-            <Bot size={18} color="var(--accent-purple)" />
-            <span>Nint Bot (Lv {difficulty})</span>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-            <div className="side-panel" style={{ minWidth: '80px' }}>
-              <HoldDisplay piece={aiHold} canHold={aiEngine.canHold} />
-              <div className="panel-card" style={{ padding: '0.5rem' }}>
-                <div className="stat-label">Lines</div>
-                <div className="stat-value" style={{ fontSize: '1.2rem' }}>{aiLinesDisplay}</div>
-              </div>
-            </div>
-
-            <PlayfieldCanvas engine={aiEngine} incomingGarbage={aiGarbage} cellSize={cellSize} />
-
-            <div className="side-panel" style={{ minWidth: '70px' }}>
-              <QueueDisplay queue={aiQueue} count={5} />
+      <VersusArena
+        arenaRef={arenaRef}
+        cellSize={cellSize}
+        player={{
+          label: <><UserIcon size={18} color="var(--accent-cyan)" /><span>You</span></>,
+          tone: 'cyan',
+          hold: playerHold,
+          canHold: playerEngine.canHold,
+          queue: playerQueue,
+          score: playerEngine.score,
+          lines: playerLinesDisplay,
+          engine: playerEngine,
+          garbage: playerGarbage
+        }}
+        opponent={{
+          label: <><Bot size={18} color="var(--accent-purple)" /><span>Nint Bot (Lv {difficulty})</span></>,
+          tone: 'purple',
+          hold: aiHold,
+          canHold: aiEngine.canHold,
+          queue: aiQueue,
+          score: aiEngine.score,
+          lines: aiLinesDisplay,
+          engine: aiEngine,
+          garbage: aiGarbage
+        }}
+        isCountingDown={isCountingDown}
+        onCountdownComplete={handleCountdownComplete}
+        overlay={isPaused ? (
+          <div className="versus-pause-overlay">
+            <div className="versus-pause-card">
+              <h2>PAUSED</h2>
+              <p>Press Start / Escape or click Resume to continue.</p>
+              <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={togglePause}>
+                <Play size={18} /> Resume
+              </button>
             </div>
           </div>
-        </div>
-      </div>
+        ) : null}
+      />
 
       {/* Match Result Modal */}
       <GameOverModal
