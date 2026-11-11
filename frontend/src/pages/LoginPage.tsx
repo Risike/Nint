@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { ApiClient } from '../services/api';
+import { useI18n } from '../i18n/useI18n';
 
 interface LoginPageProps {
   onNavigate: (tab: string) => void;
@@ -9,6 +10,7 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   const { login, playAsGuest } = useAuth();
+  const { t } = useI18n();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
       await login(identifier, password);
       onNavigate('solo');
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      setError(err.message || t('Login failed'));
     } finally {
       setLoading(false);
     }
@@ -42,7 +44,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
       await ApiClient.requestPasswordReset(forgotEmail);
       setForgotSuccess(true);
     } catch (err: any) {
-      setError(err.message || 'Failed to send reset email');
+      setError(err.message || t('Failed to send reset email'));
     } finally {
       setForgotLoading(false);
     }
@@ -56,9 +58,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
             <div style={{ display: 'inline-flex', padding: '0.75rem', borderRadius: '50%', background: 'rgba(0, 229, 255, 0.1)', color: 'var(--accent-cyan)', marginBottom: '0.5rem' }}>
               <Mail size={28} />
             </div>
-            <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.4rem' }}>Reset Password</h2>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Reset Password')}</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Enter your email address and we'll send you a link to reset your password.
+              {t("Enter your email address and we'll send you a link to reset your password.")}
             </p>
           </div>
 
@@ -72,10 +74,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'center' }}>
               <div style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green, #10b981)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                 <CheckCircle size={28} />
-                <span>If an account exists with that email, a password reset link has been sent to <strong>{forgotEmail}</strong>.</span>
+                <span>{t('If an account exists with that email, a password reset link has been sent to {email}.', { email: forgotEmail })}</span>
               </div>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Check your inbox (and spam folder). The link will expire in 1 hour.
+                {t('Check your inbox (and spam folder). The link will expire in 1 hour.')}
               </p>
               <button
                 type="button"
@@ -84,21 +86,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
               >
                 <ArrowLeft size={16} />
-                <span>Back to Sign In</span>
+                <span>{t('Back to Sign In')}</span>
               </button>
             </div>
           ) : (
             <form onSubmit={handleForgotSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem', color: 'var(--text-secondary)' }}>
-                  Email Address
+                  {t('Email Address')}
                 </label>
                 <input
                   type="email"
                   required
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder={t('you@example.com')}
                   style={{
                     width: '100%',
                     padding: '0.75rem',
@@ -118,7 +120,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
               >
                 <Mail size={18} />
-                <span>{forgotLoading ? 'Sending link...' : 'Send Reset Link'}</span>
+                <span>{forgotLoading ? t('Sending link...') : t('Send Reset Link')}</span>
               </button>
 
               <button
@@ -128,7 +130,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
               >
                 <ArrowLeft size={16} />
-                <span>Back to Sign In</span>
+                <span>{t('Back to Sign In')}</span>
               </button>
             </form>
           )}
@@ -141,9 +143,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
     <div style={{ width: '100%', maxWidth: '420px', margin: '2rem auto' }}>
       <div className="panel-card" style={{ padding: '2rem', gap: '1.25rem' }}>
         <div style={{ textAlign: 'center' }}>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.4rem' }}>Welcome Back</h2>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Welcome Back')}</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-            Sign in to track personal bests and leaderboard ranks.
+            {t('Sign in to track personal bests and leaderboard ranks.')}
           </p>
         </div>
 
@@ -156,7 +158,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
           <div>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.3rem', color: 'var(--text-secondary)' }}>
-              Email or Username
+              {t('Email or Username')}
             </label>
             <input
               type="text"
@@ -164,7 +166,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
               autoComplete="username"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="you@example.com or test"
+              placeholder={t('you@example.com or test')}
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -180,7 +182,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Password
+                {t('Password')}
               </label>
               <a
                 href="#"
@@ -192,7 +194,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                 }}
                 style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', textDecoration: 'none' }}
               >
-                Forgot password?
+                {t('Forgot password?')}
               </a>
             </div>
             <input
@@ -213,21 +215,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
 
           {import.meta.env.DEV && (
             <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-              Dev accounts: <strong>test</strong> and <strong>test2</strong> — leave the password empty.
+              {t('Dev accounts: {accounts} — leave the password empty.', { accounts: 'test, test2' })}
             </p>
           )}
 
           <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
             <LogIn size={18} />
-            <span>{loading ? 'Signing in...' : 'Sign In'}</span>
+            <span>{loading ? t('Signing in...') : t('Sign In')}</span>
           </button>
         </form>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem', textAlign: 'center', fontSize: '0.85rem' }}>
           <div>
-            Don't have an account?{' '}
+            {t("Don't have an account?")}{' '}
             <a href="#" onClick={(e) => { e.preventDefault(); onNavigate('register'); }} style={{ color: 'var(--accent-cyan)', fontWeight: 600, textDecoration: 'none' }}>
-              Create Account
+              {t('Create Account')}
             </a>
           </div>
 
@@ -236,7 +238,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
             onClick={() => { playAsGuest(); onNavigate('solo'); }}
             style={{ padding: '0.5rem', fontSize: '0.8rem' }}
           >
-            Continue as Guest (No Account)
+            {t('Continue as Guest (No Account)')}
           </button>
         </div>
       </div>

@@ -266,16 +266,26 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
       const step = parseFloat(slider.step || '1');
       const curVal = parseFloat(slider.value || '0');
 
-      if (direction === 'left' && curVal > min) {
-        slider.value = String(Math.max(min, curVal - step));
+      const setSliderValue = (value: number) => {
+        // React tracks the DOM value; assigning `slider.value` first makes the
+        // synthetic change invisible to React. Use the native setter so the
+        // controlled slider actually updates its state.
+        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        if (nativeSetter) {
+          nativeSetter.call(slider, String(value));
+        } else {
+          slider.value = String(value);
+        }
         slider.dispatchEvent(new Event('input', { bubbles: true }));
         slider.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+
+      if (direction === 'left' && curVal > min) {
+        setSliderValue(Math.max(min, curVal - step));
         soundManager.playMove();
         return;
       } else if (direction === 'right' && curVal < max) {
-        slider.value = String(Math.min(max, curVal + step));
-        slider.dispatchEvent(new Event('input', { bubbles: true }));
-        slider.dispatchEvent(new Event('change', { bubbles: true }));
+        setSliderValue(Math.min(max, curVal + step));
         soundManager.playMove();
         return;
       }

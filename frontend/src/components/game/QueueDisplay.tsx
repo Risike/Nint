@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { TetrominoType } from '../../game/engine/constants';
 import { CanvasRenderer } from '../../game/rendering/canvasRenderer';
+import { useI18n } from '../../i18n/useI18n';
 
 interface QueueDisplayProps {
   queue: TetrominoType[];
@@ -8,12 +9,13 @@ interface QueueDisplayProps {
   previewSize?: number;
 }
 
-export const QueueDisplay: React.FC<QueueDisplayProps> = ({ queue, count = 5, previewSize = 64 }) => {
+export const QueueDisplay: React.FC<QueueDisplayProps> = ({ queue, count = 6, previewSize = 64 }) => {
+  const { t } = useI18n();
   const pieces = queue.slice(0, count);
 
   return (
     <div className="panel-card" style={{ gap: '0.4rem' }}>
-      <div className="panel-title">Next</div>
+      <div className="panel-title">{t('Next')}</div>
       {pieces.map((type, idx) => (
         <PreviewSlot key={idx} piece={type} size={previewSize} />
       ))}

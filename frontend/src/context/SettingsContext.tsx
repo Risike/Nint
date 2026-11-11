@@ -5,8 +5,10 @@ import { soundManager } from '../game/audio/soundManager';
 import { ApiClient } from '../services/api';
 import { LocalStorageManager } from '../services/storage';
 import { useAuth } from './AuthContext';
+import { Language, isLanguage } from '../i18n/translations';
 
 export interface SettingsState {
+  language: Language;
   theme: string; // e.g., 'dark-01', 'light-03', etc.
   das: number;
   arr: number;
@@ -22,7 +24,10 @@ export interface SettingsState {
   gamepadBindings: GamepadBindings;
 }
 
+const DEV_SOUND_DEFAULT_KEY = 'dev_sound_default_muted';
+
 const DEFAULT_SETTINGS: SettingsState = {
+  language: 'en',
   theme: 'dark-01',
   das: 167,
   arr: 33,
@@ -30,7 +35,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   lockDelay: 500,
   soundVolume: 0.7,
   musicVolume: 0.5,
-  isMuted: false,
+  isMuted: import.meta.env.DEV,
   ghostPiece: true,
   colorblindMode: 'none',
   reducedMotion: false,
@@ -49,6 +54,7 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 
 function toRemoteSettings(settings: SettingsState) {
   return {
+    language: settings.language,
     theme: settings.theme,
     das: settings.das,
     arr: settings.arr,
@@ -68,23 +74,38 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const { isAuthenticated } = useAuth();
   const [settings, setSettings] = useState<SettingsState>(() => {
     const stored = LocalStorageManager.getItem<Partial<SettingsState>>('settings', {});
-    return {
+    const initial: SettingsState = {
       ...DEFAULT_SETTINGS,
       ...stored,
       // Older saved settings may miss fields added later; merge defaults instead of
       // letting undefined values reach the engine or the API.
+      language: isLanguage(stored.language) ? stored.language : DEFAULT_SETTINGS.language,
       theme: /^(dark|light)-0[1-5]$/.test(stored.theme || '')
         ? (stored.theme as string)
         : DEFAULT_SETTINGS.theme,
       keybindings: { ...DEFAULT_KEYBINDINGS, ...(stored.keybindings || {}) },
       gamepadBindings: { ...DEFAULT_GAMEPAD_BINDINGS, ...(stored.gamepadBindings || {}) }
     };
+
+    // Dev builds start muted once, even for an existing local profile. After
+    // that one-time migration the player's explicit mute choice is preserved.
+    if (import.meta.env.DEV && !LocalStorageManager.getItem<boolean>(DEV_SOUND_DEFAULT_KEY, false)) {
+      initial.isMuted = true;
+      LocalStorageManager.setItem('settings', initial);
+      LocalStorageManager.setItem(DEV_SOUND_DEFAULT_KEY, true);
+    }
+
+    return initial;
   });
 
-  // Apply theme to document attribute
+  // Apply theme and language to document attributes
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', settings.theme);
   }, [settings.theme]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('lang', settings.language);
+  }, [settings.language]);
 
   // Apply sound and music volume
   useEffect(() => {
@@ -103,6 +124,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setSettings((prev) => {
           const merged: SettingsState = {
             ...prev,
+            language: isLanguage(remote.language) ? remote.language : prev.language,
             theme: typeof remote.theme === 'string' ? remote.theme : prev.theme,
             das: typeof remote.das === 'number' ? remote.das : prev.das,
             arr: typeof remote.arr === 'number' ? remote.arr : prev.arr,

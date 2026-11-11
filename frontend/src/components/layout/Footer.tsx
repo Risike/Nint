@@ -1,7 +1,9 @@
 import React from 'react';
 import { Github } from 'lucide-react';
+import { useI18n } from '../../i18n/useI18n';
 
 export const Footer: React.FC = () => {
+  const { t } = useI18n();
   return (
     <footer style={{
       textAlign: 'center',
@@ -25,7 +27,7 @@ export const Footer: React.FC = () => {
         flexWrap: 'wrap'
       }}>
         <span>
-          Created by <strong>Risike</strong>. Licence{' '}
+          {t('Created by {name}. Licence', { name: 'Risike' })}{' '}
           <a
             href="/LICENSE-GPL-3.0.txt"
             target="_blank"

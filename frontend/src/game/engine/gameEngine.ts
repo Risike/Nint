@@ -186,7 +186,6 @@ export class GameEngine {
     const def = PIECES[nextType];
     this.activeX = def.spawnOffset.x;
     this.activeY = def.spawnOffset.y;
-    this.lowestY = this.activeY;
     this.lockResets = 0;
     this.isLocking = false;
     this.lockTimer = 0;
@@ -194,11 +193,20 @@ export class GameEngine {
     this.lastActionWasRotation = false;
     this.lastKickIndex = 0;
 
-    // Check for block out (immediate spawn collision) -> Game Over
+    // Check for block out at the Guideline generation position.
     if (!this.isValidPosition(this.activePiece, this.activeRotation, this.activeX, this.activeY)) {
       this.gameOver('block_out');
       return;
     }
+
+    // The Guideline immediately drops the new Tetrimino one row when the
+    // path below its generation position is clear. Keeping the generation
+    // row separate also preserves the "peeking" behaviour when the skyline
+    // is blocked, instead of declaring a block out too early.
+    if (this.isValidPosition(this.activePiece, this.activeRotation, this.activeX, this.activeY + 1)) {
+      this.activeY++;
+    }
+    this.lowestY = this.activeY;
 
     this.events.onPieceSpawn?.(this.activePiece);
   }
@@ -359,13 +367,16 @@ export class GameEngine {
   private onPieceMoved() {
     this.events.onPieceMove?.();
 
-    // If piece descended below its previous lowest point, reset lock delay allowances
+    // If the piece reached a new lowest row, the Guideline resets both the
+    // placement counter and the lock-down timer.
     if (this.activeY > this.lowestY) {
       this.lowestY = this.activeY;
       this.lockResets = 0;
+      this.lockTimer = 0;
     }
 
-    // Check if resting on surface
+    // Check if resting on surface. A move/rotation while on the surface
+    // restarts the 0.5 s lock timer; once airborne, the timer stays at zero.
     if (!this.isValidPosition(this.activePiece, this.activeRotation, this.activeX, this.activeY + 1)) {
       if (!this.isLocking) {
         this.isLocking = true;
@@ -376,6 +387,7 @@ export class GameEngine {
       }
     } else {
       this.isLocking = false;
+      this.lockTimer = 0;
     }
   }
 

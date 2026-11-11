@@ -44,6 +44,9 @@ export interface RemotePlayerState {
   holdPiece?: string | null;
   queue?: string[];
   clearingRows?: number[];
+  combo?: number;
+  b2b?: boolean;
+  b2bChain?: number;
   lastSeen: number;
 }
 

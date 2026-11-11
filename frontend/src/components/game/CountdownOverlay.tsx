@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { soundManager } from '../../game/audio/soundManager';
+import { useI18n } from '../../i18n/useI18n';
 
 interface CountdownOverlayProps {
   onComplete: () => void;
@@ -7,6 +8,7 @@ interface CountdownOverlayProps {
 }
 
 export const CountdownOverlay: React.FC<CountdownOverlayProps> = ({ onComplete, active }) => {
+  const { t } = useI18n();
   const [count, setCount] = useState<number | string>(3);
 
   useEffect(() => {
@@ -72,7 +74,7 @@ export const CountdownOverlay: React.FC<CountdownOverlayProps> = ({ onComplete, 
           animation: 'countdownPop 0.8s ease-out forwards'
         }}
       >
-        {count}
+        {count === 'GO!' ? t('GO!') : count}
       </div>
 
       <style>{`

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Trophy, RotateCcw, Home, CheckCircle2 } from 'lucide-react';
 import { useGamepadNav, useGamepadBack } from '../../context/GamepadNavContext';
+import { useI18n } from '../../i18n/useI18n';
 
 interface GameOverModalProps {
   isOpen: boolean;
@@ -46,6 +47,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   eloChange
 }) => {
   const { setFocusedElement } = useGamepadNav();
+  const { t } = useI18n();
   const playAgainBtnRef = useRef<HTMLButtonElement | null>(null);
   const [canInteract, setCanInteract] = React.useState(false);
 
@@ -96,22 +98,22 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   const isOnline = mode === 'online_1v1';
 
   // Determine button state and label for online rematch
-  let restartButtonLabel = 'Play Again';
+  let restartButtonLabel = t('Play Again');
   let isRestartDisabled = !canInteract;
   let restartButtonBg: string | undefined = undefined;
 
   if (isOnline) {
     if (rematchOpponentLeft) {
-      restartButtonLabel = 'Opponent Left';
+      restartButtonLabel = t('Opponent Left');
       isRestartDisabled = true;
     } else if (rematchPlayerReady && rematchOpponentReady) {
-      restartButtonLabel = 'Starting... (2/2)';
+      restartButtonLabel = t('Starting... (2/2)');
       isRestartDisabled = true;
     } else if (rematchPlayerReady) {
-      restartButtonLabel = 'Waiting... (1/2)';
+      restartButtonLabel = t('Waiting... (1/2)');
       isRestartDisabled = true;
     } else if (rematchOpponentReady) {
-      restartButtonLabel = 'Accept Rematch (1/2)';
+      restartButtonLabel = t('Accept Rematch (1/2)');
       restartButtonBg = 'linear-gradient(135deg, #10b981, #06b6d4)';
     }
   }
@@ -131,7 +133,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         </div>
 
         <h2 className="modal-title" style={{ color: isVictory ? 'var(--accent-green)' : 'var(--text-primary)' }}>
-          {isVictory ? 'VICTORY!' : 'GAME OVER'}
+          {isVictory ? t('VICTORY!') : t('GAME OVER')}
         </h2>
 
         {eloChange && (
@@ -176,42 +178,42 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           textAlign: 'left'
         }}>
           <div>
-            <div className="stat-label">Score</div>
+            <div className="stat-label">{t('Score')}</div>
             <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--accent-cyan)' }}>
               {stats.score.toLocaleString()}
             </div>
           </div>
 
           <div>
-            <div className="stat-label">Lines</div>
+            <div className="stat-label">{t('Lines')}</div>
             <div style={{ fontWeight: 800, fontSize: '1.2rem' }}>
               {stats.lines}
             </div>
           </div>
 
           <div>
-            <div className="stat-label">Time</div>
+            <div className="stat-label">{t('Time')}</div>
             <div style={{ fontWeight: 700 }}>
               {formatDuration(stats.duration)}
             </div>
           </div>
 
           <div>
-            <div className="stat-label">Speed</div>
+            <div className="stat-label">{t('Speed')}</div>
             <div style={{ fontWeight: 700 }}>
               {stats.pps} PPS / {stats.apm} APM
             </div>
           </div>
 
           <div>
-            <div className="stat-label">Tetrises / T-Spins</div>
+            <div className="stat-label">{t('Tetrises / T-Spins')}</div>
             <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
               {stats.tetrises} / {stats.tSpins}
             </div>
           </div>
 
           <div>
-            <div className="stat-label">Max Combo / B2B</div>
+            <div className="stat-label">{t('Max Combo / B2B')}</div>
             <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
               x{stats.maxCombo > 0 ? stats.maxCombo : 0} / {stats.maxB2B}
             </div>
@@ -221,11 +223,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         {isSaved ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: 'var(--accent-green)', fontSize: '0.85rem' }}>
             <CheckCircle2 size={16} />
-            <span>Score saved to leaderboard!</span>
+            <span>{t('Score saved to leaderboard!')}</span>
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            <span>Score not saved to the leaderboard</span>
+            <span>{t('Score not saved to the leaderboard')}</span>
           </div>
         )}
 
@@ -243,7 +245,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 textAlign: 'center',
                 fontWeight: 600
               }}>
-                ⚠️ Opponent left the room
+                {t('⚠️ Opponent left the room')}
               </div>
             )}
 
@@ -258,7 +260,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 textAlign: 'center',
                 fontWeight: 600
               }}>
-                🚀 Both players ready! Launching rematch... (2/2)
+                {t('🚀 Both players ready! Launching rematch... (2/2)')}
               </div>
             )}
 
@@ -273,7 +275,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 textAlign: 'center',
                 fontWeight: 600
               }}>
-                ⏳ Waiting for opponent to accept rematch... (1/2)
+                {t('⏳ Waiting for opponent to accept rematch... (1/2)')}
               </div>
             )}
 
@@ -288,7 +290,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
                 textAlign: 'center',
                 fontWeight: 600
               }}>
-                🎮 Opponent wants a rematch! (1/2)
+                {t('🎮 Opponent wants a rematch! (1/2)')}
               </div>
             )}
           </div>
@@ -301,7 +303,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             onClick={handleExit}
             disabled={!canInteract}
           >
-            <Home size={18} /> Menu
+            <Home size={18} /> {t('Menu')}
           </button>
           <button
             ref={playAgainBtnRef}

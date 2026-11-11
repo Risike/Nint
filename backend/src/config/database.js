@@ -47,6 +47,7 @@ export function initSchema(db = getDatabase()) {
 
   // Dynamic migrations for databases created by older versions
   try {
+    ensureColumn(db, 'user_settings', 'language', "TEXT DEFAULT 'en'");
     ensureColumn(db, 'users', 'is_admin', 'INTEGER DEFAULT 0');
     ensureColumn(db, 'users', 'token_version', 'INTEGER DEFAULT 0');
     ensureColumn(db, 'users', 'username', 'TEXT');

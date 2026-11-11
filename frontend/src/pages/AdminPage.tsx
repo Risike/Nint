@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Newspaper, Trash2, Search, UserX, BarChart3, AlertTriangle, CheckCircle, RotateCcw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ApiClient } from '../services/api';
+import { useI18n } from '../i18n/useI18n';
 
 interface AdminPageProps {
   onNavigate?: (tab: string) => void;
@@ -9,6 +10,7 @@ interface AdminPageProps {
 
 export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
   const { user } = useAuth();
+  const { t } = useI18n();
 
   // Guard: redirect if not admin
   useEffect(() => {
@@ -38,7 +40,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
       setNewsSaved(true);
       setTimeout(() => setNewsSaved(false), 3000);
     } catch (e: any) {
-      setNewsError(e?.message || 'Failed to save news message.');
+      setNewsError(e?.message || t('Failed to save news message.'));
     }
     setNewsLoading(false);
   };
@@ -58,7 +60,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
       setShowLeaderboardConfirm(false);
       setTimeout(() => setLeaderboardCleared(false), 3000);
     } catch (e: any) {
-      setLeaderboardError(e?.message || 'Failed to clear leaderboards.');
+      setLeaderboardError(e?.message || t('Failed to clear leaderboards.'));
     }
     setLeaderboardClearing(false);
   };
@@ -79,7 +81,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
       const results = await ApiClient.adminSearchUsers(searchQuery);
       setSearchResults(results);
     } catch (e: any) {
-      setActionError(e?.message || 'Failed to search users.');
+      setActionError(e?.message || t('Failed to search users.'));
     }
     setSearchLoading(false);
   };
@@ -95,12 +97,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
     setActionError(null);
     try {
       await ApiClient.adminClearUserStats(userId);
-      setActionSuccess('Player stats cleared successfully.');
+      setActionSuccess(t('Player stats cleared successfully.'));
       setTimeout(() => setActionSuccess(null), 3000);
       setConfirmAction(null);
       handleSearch();
     } catch (e: any) {
-      setActionError(e?.message || 'Failed to clear user stats.');
+      setActionError(e?.message || t('Failed to clear user stats.'));
     }
   };
 
@@ -108,12 +110,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
     setActionError(null);
     try {
       await ApiClient.adminDeleteUser(userId);
-      setActionSuccess('User account deleted successfully.');
+      setActionSuccess(t('User account deleted successfully.'));
       setTimeout(() => setActionSuccess(null), 3000);
       setConfirmAction(null);
       setSearchResults(prev => prev.filter(u => u.id !== userId));
     } catch (e: any) {
-      setActionError(e?.message || 'Failed to delete user account.');
+      setActionError(e?.message || t('Failed to delete user account.'));
     }
   };
 
@@ -121,8 +123,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
     return (
       <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
         <Shield size={48} style={{ color: 'var(--accent-red)', marginBottom: '1rem' }} />
-        <h2 style={{ color: 'var(--text-primary)' }}>Access Denied</h2>
-        <p style={{ color: 'var(--text-muted)' }}>You must have administrator privileges to view this page.</p>
+        <h2 style={{ color: 'var(--text-primary)' }}>{t('Access Denied')}</h2>
+        <p style={{ color: 'var(--text-muted)' }}>{t('You must have administrator privileges to view this page.')}</p>
       </div>
     );
   }
@@ -141,10 +143,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
         </div>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-            Admin Panel
+            {t('Admin Panel')}
           </h1>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-            Platform configuration, user management, and leaderboard controls
+            {t('Platform configuration, user management, and leaderboard controls')}
           </p>
         </div>
       </div>
@@ -176,16 +178,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
           <Newspaper size={20} style={{ color: 'var(--accent-cyan)' }} />
           <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            Homepage Announcement / News
+            {t('Homepage Announcement / News')}
           </h2>
         </div>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-          This announcement is displayed as a banner on top of the home page for all players. Leave empty to hide the banner.
+          {t('This announcement is displayed as a banner on top of the home page for all players. Leave empty to hide the banner.')}
         </p>
         <textarea
           value={newsMessage}
           onChange={(e) => setNewsMessage(e.target.value)}
-          placeholder="Enter announcement message to display on the home page (e.g. Weekend Tournament starts Saturday at 8 PM UTC!)..."
+          placeholder={t('Enter announcement message to display on the home page (e.g. Weekend Tournament starts Saturday at 8 PM UTC!)...')}
           rows={3}
           style={{
             width: '100%', padding: '0.75rem',
@@ -205,11 +207,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
             disabled={newsLoading}
             style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
           >
-            {newsLoading ? 'Saving...' : 'Save Announcement'}
+            {newsLoading ? t('Saving...') : t('Save Announcement')}
           </button>
           {newsSaved && (
             <span style={{ color: 'var(--accent-green)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <CheckCircle size={14} /> Saved successfully!
+              <CheckCircle size={14} /> {t('Saved successfully!')}
             </span>
           )}
         </div>
@@ -220,11 +222,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
           <BarChart3 size={20} style={{ color: 'var(--accent-cyan)' }} />
           <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            Global Leaderboards
+            {t('Global Leaderboards')}
           </h2>
         </div>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-          Wipes all recorded scores and personal bests (Marathon, Sprint, Ultra) across all players. This action cannot be undone.
+          {t('Wipes all recorded scores and personal bests (Marathon, Sprint, Ultra) across all players. This action cannot be undone.')}
         </p>
 
         {leaderboardError && (
@@ -241,7 +243,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
               cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.4rem'
             }}
           >
-            <Trash2 size={14} /> Wipe All Leaderboards
+            <Trash2 size={14} /> {t('Wipe All Leaderboards')}
           </button>
         ) : (
           <div style={{
@@ -249,10 +251,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
             border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: 'var(--radius-sm)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem', color: 'var(--accent-red)', fontWeight: 600, fontSize: '0.9rem' }}>
-              <AlertTriangle size={16} /> Confirm leaderboard wipe?
+              <AlertTriangle size={16} /> {t('Confirm leaderboard wipe?')}
             </div>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-              All solo game results and personal bests will be permanently erased for every player.
+              {t('All solo game results and personal bests will be permanently erased for every player.')}
             </p>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
@@ -265,7 +267,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                   cursor: 'pointer', fontWeight: 600
                 }}
               >
-                {leaderboardClearing ? 'Wiping...' : 'Yes, Wipe Everything'}
+                {leaderboardClearing ? t('Wiping...') : t('Yes, Wipe Everything')}
               </button>
               <button
                 onClick={() => setShowLeaderboardConfirm(false)}
@@ -276,7 +278,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                   cursor: 'pointer'
                 }}
               >
-                Cancel
+                {t('Cancel')}
               </button>
             </div>
           </div>
@@ -284,7 +286,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
 
         {leaderboardCleared && (
           <div style={{ color: 'var(--accent-green)', fontSize: '0.85rem', marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            <CheckCircle size={14} /> Leaderboards wiped successfully!
+            <CheckCircle size={14} /> {t('Leaderboards wiped successfully!')}
           </div>
         )}
       </div>
@@ -294,11 +296,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
           <Search size={20} style={{ color: 'var(--accent-cyan)' }} />
           <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            User Management
+            {t('User Management')}
           </h2>
         </div>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-          Search players by display name or email to clear their statistics or delete their account.
+          {t('Search players by display name or email to clear their statistics or delete their account.')}
         </p>
 
         <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
@@ -306,7 +308,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter by name or email address..."
+            placeholder={t('Filter by name or email address...')}
             style={{
               flex: 1, padding: '0.6rem 0.85rem',
               background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
@@ -321,7 +323,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
             style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
             <Search size={14} />
-            {searchLoading ? 'Searching...' : 'Search'}
+            {searchLoading ? t('Searching...') : t('Search')}
           </button>
         </form>
 
@@ -336,13 +338,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.4rem', color: 'var(--accent-red)', fontWeight: 700, fontSize: '0.95rem' }}>
               <AlertTriangle size={18} />
               {confirmAction.type === 'clear_stats'
-                ? `Reset statistics for ${confirmAction.displayName} (${confirmAction.email})?`
-                : `Permanently delete account for ${confirmAction.displayName} (${confirmAction.email})?`}
+                ? t('Reset statistics for {name} ({email})?', { name: confirmAction.displayName, email: confirmAction.email })
+                : t('Permanently delete account for {name} ({email})?', { name: confirmAction.displayName, email: confirmAction.email })}
             </div>
             <p style={{ fontSize: '0.83rem', color: 'var(--text-secondary)', marginBottom: '0.85rem' }}>
               {confirmAction.type === 'clear_stats'
-                ? 'This will reset their W/L ratio, restore ELO rating to 1000, and clear all match history and scores. The account remains active.'
-                : 'Warning: This permanently deletes this user account, including settings, scores, and all associated match history. This action cannot be undone.'}
+                ? t('This will reset their W/L ratio, restore ELO rating to 1000, and clear all match history and scores. The account remains active.')
+                : t('Warning: This permanently deletes this user account, including settings, scores, and all associated match history. This action cannot be undone.')}
             </p>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
@@ -356,7 +358,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                   cursor: 'pointer', fontWeight: 600
                 }}
               >
-                {confirmAction.type === 'clear_stats' ? 'Confirm: Clear Stats' : 'Confirm: Delete Account'}
+                {confirmAction.type === 'clear_stats' ? t('Confirm: Clear Stats') : t('Confirm: Delete Account')}
               </button>
               <button
                 onClick={() => setConfirmAction(null)}
@@ -367,7 +369,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                   cursor: 'pointer'
                 }}
               >
-                Cancel
+                {t('Cancel')}
               </button>
             </div>
           </div>
@@ -376,7 +378,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
         {/* User list */}
         {searchResults.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-            No users found.
+            {t('No users found.')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -410,15 +412,15 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   <div>
-                    <span style={{ color: 'var(--text-muted)' }}>ELO: </span>
+                    <span style={{ color: 'var(--text-muted)' }}>{t('ELO:')} </span>
                     <strong style={{ color: 'var(--accent-cyan)' }}>{u.rating}</strong>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Matches: </span>
+                    <span style={{ color: 'var(--text-muted)' }}>{t('Matches:')} </span>
                     <strong>{u.games_played}</strong>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--text-muted)' }}>W/L: </span>
+                    <span style={{ color: 'var(--text-muted)' }}>{t('W/L:')} </span>
                     <span style={{ color: 'var(--accent-green)' }}>{u.wins}</span> / <span style={{ color: 'var(--accent-red)' }}>{u.losses}</span>
                   </div>
                 </div>
@@ -426,7 +428,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                 <div style={{ display: 'flex', gap: '0.4rem', marginLeft: 'auto' }}>
                   <button
                     onClick={() => setConfirmAction({ type: 'clear_stats', userId: u.id, email: u.email, displayName: u.display_name })}
-                    title="Clear this user's stats"
+                    title={t("Clear this user's stats")}
                     style={{
                       padding: '0.4rem 0.75rem', fontSize: '0.78rem',
                       background: 'rgba(234, 179, 8, 0.15)', color: '#eab308',
@@ -434,12 +436,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                       cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600
                     }}
                   >
-                    <RotateCcw size={12} /> Clear Stats
+                    <RotateCcw size={12} /> {t('Clear Stats')}
                   </button>
                   {u.is_admin !== 1 && (
                     <button
                       onClick={() => setConfirmAction({ type: 'delete', userId: u.id, email: u.email, displayName: u.display_name })}
-                      title="Delete this account permanently"
+                      title={t('Delete this account permanently')}
                       style={{
                         padding: '0.4rem 0.75rem', fontSize: '0.78rem',
                         background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-red)',
@@ -447,7 +449,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
                         cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600
                       }}
                     >
-                      <UserX size={12} /> Delete
+                      <UserX size={12} /> {t('Delete')}
                     </button>
                   )}
                 </div>

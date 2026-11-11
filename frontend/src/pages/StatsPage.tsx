@@ -3,9 +3,11 @@ import { ApiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { LocalStorageManager } from '../services/storage';
 import { BarChart2, Trophy, Clock, Zap, Target, Swords, Flame, Timer, Bot, Users } from 'lucide-react';
+import { useI18n } from '../i18n/useI18n';
 
 export const StatsPage: React.FC = () => {
   const { isAuthenticated, isGuest } = useAuth();
+  const { t, formatDate } = useI18n();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [historyTab, setHistoryTab] = useState<'cpu' | 'pvp'>('cpu');
@@ -80,7 +82,7 @@ export const StatsPage: React.FC = () => {
   };
 
   if (loading) {
-    return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading stats...</div>;
+    return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>{t('Loading stats...')}</div>;
   }
 
   const stats = data?.stats || {};
@@ -104,8 +106,8 @@ export const StatsPage: React.FC = () => {
   const soloModes = [
     {
       id: 'marathon_150',
-      title: 'Marathon (150 Lines)',
-      description: 'Score attack & gravity endurance',
+      title: t('Marathon (150 Lines)'),
+      description: t('Score attack & gravity endurance'),
       icon: <Flame size={20} color="var(--accent-cyan)" />,
       badgeBg: 'rgba(6, 182, 212, 0.15)',
       primaryMetric: 'score' as const,
@@ -113,8 +115,8 @@ export const StatsPage: React.FC = () => {
     },
     {
       id: 'sprint_40',
-      title: 'Sprint (40 Lines)',
-      description: 'Clear 40 lines as fast as possible',
+      title: t('Sprint (40 Lines)'),
+      description: t('Clear 40 lines as fast as possible'),
       icon: <Timer size={20} color="var(--accent-orange)" />,
       badgeBg: 'rgba(249, 115, 22, 0.15)',
       primaryMetric: 'time' as const,
@@ -122,8 +124,8 @@ export const StatsPage: React.FC = () => {
     },
     {
       id: 'ultra_3m',
-      title: 'Ultra (3 Minutes)',
-      description: 'Max score within 3 minutes',
+      title: t('Ultra (3 Minutes)'),
+      description: t('Max score within 3 minutes'),
       icon: <Zap size={20} color="var(--accent-yellow)" />,
       badgeBg: 'rgba(234, 179, 8, 0.15)',
       primaryMetric: 'score' as const,
@@ -134,9 +136,9 @@ export const StatsPage: React.FC = () => {
   return (
     <div style={{ width: '100%', maxWidth: '960px' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.4rem' }}>Your Statistics</h1>
+        <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Your Statistics')}</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          Personal bests, lifetime performance overview and match records.
+          {t('Personal bests, lifetime performance overview and match records.')}
         </p>
       </div>
 
@@ -144,9 +146,9 @@ export const StatsPage: React.FC = () => {
         <div className="panel-card" style={{ padding: '1rem 1.25rem', marginBottom: '2rem', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderColor: 'rgba(59, 130, 246, 0.3)' }}>
           <BarChart2 size={28} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
           <div>
-            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Playing as Guest</div>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('Playing as Guest')}</div>
             <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-              Your best scores are temporarily tracked in this browser. Log in or create an account to save them to the global leaderboards permanently!
+              {t('Your best scores are temporarily tracked in this browser. Log in or create an account to save them to the global leaderboards permanently!')}
             </div>
           </div>
         </div>
@@ -156,7 +158,7 @@ export const StatsPage: React.FC = () => {
       <div style={{ marginBottom: '2.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
           <Trophy size={20} color="var(--accent-yellow)" />
-          <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>Solo Personal Bests</h2>
+          <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>{t('Solo Personal Bests')}</h2>
         </div>
 
         <div style={{
@@ -197,14 +199,14 @@ export const StatsPage: React.FC = () => {
                   marginTop: '0.25rem'
                 }}>
                   <div>
-                    <div className="stat-label" style={{ fontSize: '0.7rem' }}>Best Score</div>
+                    <div className="stat-label" style={{ fontSize: '0.7rem' }}>{t('Best Score')}</div>
                     <div style={{ fontWeight: 800, fontSize: '1.25rem', color: m.primaryMetric === 'score' ? m.color : 'var(--text-primary)' }}>
                       {best?.score !== undefined ? best.score.toLocaleString() : '—'}
                     </div>
                   </div>
 
                   <div>
-                    <div className="stat-label" style={{ fontSize: '0.7rem' }}>Best Time</div>
+                    <div className="stat-label" style={{ fontSize: '0.7rem' }}>{t('Best Time')}</div>
                     <div style={{ fontWeight: 800, fontSize: '1.25rem', color: m.primaryMetric === 'time' ? m.color : 'var(--text-primary)' }}>
                       {best?.time !== undefined ? formatDuration(best.time) : '—'}
                     </div>
@@ -213,7 +215,7 @@ export const StatsPage: React.FC = () => {
 
                 {best?.date && (
                   <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'right' }}>
-                    Achieved: {new Date(best.date).toLocaleDateString()}
+                    {t('Achieved: {date}', { date: formatDate(best.date) })}
                   </div>
                 )}
               </div>
@@ -225,7 +227,7 @@ export const StatsPage: React.FC = () => {
       {/* Lifetime Overview Metric Cards Grid */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
         <Target size={20} color="var(--accent-purple)" />
-        <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>Lifetime Performance</h2>
+        <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>{t('Lifetime Performance')}</h2>
       </div>
 
       <div style={{
@@ -235,22 +237,22 @@ export const StatsPage: React.FC = () => {
         marginBottom: '2.5rem'
       }}>
         <div className="panel-card" style={{ borderTop: '2px solid var(--accent-cyan)' }}>
-          <div className="stat-label">Online PvP Rating</div>
+          <div className="stat-label">{t('Online PvP Rating')}</div>
           <div className="stat-value" style={{ color: 'var(--accent-cyan)' }}>
             {isAuthenticated ? (stats.rating ?? 1000) : '—'} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>ELO</span>
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Chess ELO system
+            {t('Chess ELO system')}
           </div>
         </div>
 
         <div className="panel-card">
-          <div className="stat-label">Games Played</div>
+          <div className="stat-label">{t('Games Played')}</div>
           <div className="stat-value">{stats.games_played ?? (guestStats.gamesPlayed || 0)}</div>
         </div>
 
         <div className="panel-card">
-          <div className="stat-label">Win Rate (Versus)</div>
+          <div className="stat-label">{t('Win Rate (Versus)')}</div>
           <div className="stat-value" style={{ color: 'var(--accent-green)' }}>
             {data?.winRate || '0.0'}%
           </div>
@@ -260,40 +262,40 @@ export const StatsPage: React.FC = () => {
         </div>
 
         <div className="panel-card">
-          <div className="stat-label">Total Lines Cleared</div>
+          <div className="stat-label">{t('Total Lines Cleared')}</div>
           <div className="stat-value">{(stats.total_lines ?? guestStats.lines ?? 0).toLocaleString()}</div>
         </div>
 
         <div className="panel-card">
-          <div className="stat-label">Total Playtime</div>
+          <div className="stat-label">{t('Total Playtime')}</div>
           <div className="stat-value" style={{ fontSize: '1.25rem' }}>
             {formatPlaytime(stats.total_playtime_ms || guestStats.playtime || 0)}
           </div>
         </div>
 
         <div className="panel-card">
-          <div className="stat-label">Tetrises Made</div>
+          <div className="stat-label">{t('Tetrises Made')}</div>
           <div className="stat-value" style={{ color: 'var(--accent-cyan)' }}>
             {stats.total_tetrises ?? guestStats.tetrises ?? 0}
           </div>
         </div>
 
         <div className="panel-card">
-          <div className="stat-label">T-Spins Executed</div>
+          <div className="stat-label">{t('T-Spins Executed')}</div>
           <div className="stat-value" style={{ color: 'var(--accent-purple)' }}>
             {stats.total_tspins ?? guestStats.tspins ?? 0}
           </div>
         </div>
 
         <div className="panel-card">
-          <div className="stat-label">Max Combo / Max B2B</div>
+          <div className="stat-label">{t('Max Combo / Max B2B')}</div>
           <div className="stat-value" style={{ fontSize: '1.25rem' }}>
             x{stats.highest_combo ?? guestStats.maxCombo ?? 0} / {stats.highest_b2b ?? guestStats.maxB2B ?? 0}
           </div>
         </div>
 
         <div className="panel-card">
-          <div className="stat-label">Perfect Clears</div>
+          <div className="stat-label">{t('Perfect Clears')}</div>
           <div className="stat-value" style={{ color: 'var(--accent-yellow)' }}>
             {stats.total_perfect_clears ?? guestStats.perfectClears ?? 0}
           </div>
@@ -304,7 +306,7 @@ export const StatsPage: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Swords size={20} color="var(--accent-blue)" />
-          <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>Recent Match History</h2>
+          <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>{t('Recent Match History')}</h2>
         </div>
 
         {/* Two Tabs: Player vs CPU & Online PvP */}
@@ -334,7 +336,7 @@ export const StatsPage: React.FC = () => {
             }}
           >
             <Bot size={15} />
-            <span>Player vs CPU</span>
+            <span>{t('Player vs CPU')}</span>
             <span style={{
               fontSize: '0.75rem',
               padding: '0.1rem 0.4rem',
@@ -364,7 +366,7 @@ export const StatsPage: React.FC = () => {
             }}
           >
             <Users size={15} />
-            <span>Online 1v1</span>
+            <span>{t('Online 1v1')}</span>
             <span style={{
               fontSize: '0.75rem',
               padding: '0.1rem 0.4rem',
@@ -390,14 +392,14 @@ export const StatsPage: React.FC = () => {
                 {historyTab === 'cpu' ? (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                     <Bot size={32} style={{ opacity: 0.5 }} />
-                    <p style={{ margin: 0, fontWeight: 600 }}>No Player vs CPU matches recorded yet.</p>
-                    <span style={{ fontSize: '0.8rem' }}>Jump into Player vs CPU to challenge the bot!</span>
+                    <p style={{ margin: 0, fontWeight: 600 }}>{t('No Player vs CPU matches recorded yet.')}</p>
+                    <span style={{ fontSize: '0.8rem' }}>{t('Jump into Player vs CPU to challenge the bot!')}</span>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                     <Users size={32} style={{ opacity: 0.5 }} />
-                    <p style={{ margin: 0, fontWeight: 600 }}>No Online 1v1 matches recorded yet.</p>
-                    <span style={{ fontSize: '0.8rem' }}>Create a room or join a friend in Online Player vs Player!</span>
+                    <p style={{ margin: 0, fontWeight: 600 }}>{t('No Online 1v1 matches recorded yet.')}</p>
+                    <span style={{ fontSize: '0.8rem' }}>{t('Create a room or join a friend in Online Player vs Player!')}</span>
                   </div>
                 )}
               </div>
@@ -405,20 +407,20 @@ export const StatsPage: React.FC = () => {
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                    <th style={{ padding: '0.6rem 1rem' }}>Result</th>
+                    <th style={{ padding: '0.6rem 1rem' }}>{t('Result')}</th>
                     {historyTab === 'pvp' && <th style={{ padding: '0.6rem 1rem' }}>ELO</th>}
-                    <th style={{ padding: '0.6rem 1rem' }}>Opponent</th>
-                    <th style={{ padding: '0.6rem 1rem' }}>Your Lines</th>
-                    <th style={{ padding: '0.6rem 1rem' }}>Opponent Lines</th>
-                    <th style={{ padding: '0.6rem 1rem' }}>Duration</th>
-                    <th style={{ padding: '0.6rem 1rem' }}>Date</th>
+                    <th style={{ padding: '0.6rem 1rem' }}>{t('Opponent')}</th>
+                    <th style={{ padding: '0.6rem 1rem' }}>{t('Your Lines')}</th>
+                    <th style={{ padding: '0.6rem 1rem' }}>{t('Opponent Lines')}</th>
+                    <th style={{ padding: '0.6rem 1rem' }}>{t('Duration')}</th>
+                    <th style={{ padding: '0.6rem 1rem' }}>{t('Date')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredMatches.map((m: any) => (
                     <tr key={m.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '0.6rem 1rem', fontWeight: 800, color: m.result === 'win' ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                        {m.result.toUpperCase()}
+                        {m.result === 'win' ? t('WIN') : t('LOSS')}
                       </td>
                       {historyTab === 'pvp' && (
                         <td style={{ padding: '0.6rem 1rem', fontWeight: 700 }}>
@@ -446,7 +448,7 @@ export const StatsPage: React.FC = () => {
                       <td style={{ padding: '0.6rem 1rem' }}>{m.opponent_lines}</td>
                       <td style={{ padding: '0.6rem 1rem' }}>{(m.duration / 1000).toFixed(1)}s</td>
                       <td style={{ padding: '0.6rem 1rem', color: 'var(--text-muted)' }}>
-                        {new Date(m.created_at).toLocaleDateString()}
+                        {formatDate(m.created_at)}
                       </td>
                     </tr>
                   ))}

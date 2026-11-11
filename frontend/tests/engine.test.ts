@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BOARD_BUFFER_HEIGHT, BOARD_TOTAL_HEIGHT, BOARD_WIDTH } from '../src/game/engine/constants';
 import { GameEngine } from '../src/game/engine/gameEngine';
 import { GarbageManager } from '../src/game/engine/garbage';
@@ -170,9 +170,49 @@ describe('Scoring & Back-to-Back Chains', () => {
     expect(res2.scoreGained).toBe(1200 + 50); // 800 * 1.5 + combo 1 bonus (50)
     expect(res2.garbageSent).toBe(5); // 4 + 1 B2B
   });
+
+  it('uses the Guideline combo attack ladder', () => {
+    const attackAtCombo = (currentCombo: number) => ScoringSystem.evaluateClear({
+      linesCleared: 1,
+      tSpin: 'none',
+      currentLevel: 1,
+      isB2BActive: false,
+      currentCombo,
+      isPerfectClear: false
+    }).garbageSent;
+
+    // A single sends no base garbage; only the combo bonus is measured here.
+    expect(attackAtCombo(-1)).toBe(0); // first clear, combo 0
+    expect(attackAtCombo(0)).toBe(0);  // combo 1
+    expect(attackAtCombo(1)).toBe(1);  // combo 2
+    expect(attackAtCombo(2)).toBe(1);  // combo 3
+    expect(attackAtCombo(3)).toBe(1);  // combo 4
+    expect(attackAtCombo(4)).toBe(2);  // combo 5
+  });
 });
 
 describe('Garbage Manager', () => {
+  it('keeps the same hole for each group of eight inserted lines', () => {
+    const random = vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0.1)
+      .mockReturnValueOnce(0.9);
+    const gm = new GarbageManager();
+    const board: (string | null)[][] = Array.from(
+      { length: BOARD_TOTAL_HEIGHT },
+      () => new Array(BOARD_WIDTH).fill(null)
+    );
+
+    gm.enqueueGarbage(16);
+    const { insertedLines } = gm.insertGarbage(board);
+    const inserted = board.slice(BOARD_TOTAL_HEIGHT - insertedLines);
+    const holeOf = (row: (string | null)[]) => row.findIndex(cell => cell === null);
+
+    expect(insertedLines).toBe(16);
+    expect(inserted.slice(0, 8).every(row => holeOf(row) === 1)).toBe(true);
+    expect(inserted.slice(8, 16).every(row => holeOf(row) === 9)).toBe(true);
+    random.mockRestore();
+  });
+
   it('queues, cancels and inserts garbage correctly', () => {
     const gm = new GarbageManager();
     gm.enqueueGarbage(4);
@@ -221,6 +261,31 @@ describe('Line Clear Logic and Timing', () => {
     expect(engine.activePiece).not.toBeNull();
     // Row 39 should now be empty (row above collapsed down)
     expect(engine.board[39].every(cell => cell === null)).toBe(true);
+  });
+});
+
+describe('Combo versus integration', () => {
+  it('sends combo garbage through the engine after consecutive clears', () => {
+    const engine = new GameEngine({ lineClearDelay: 10 });
+    const attacks: number[] = [];
+    engine.events.onGarbageSent = amount => attacks.push(amount);
+    engine.start();
+
+    for (let i = 0; i < 3; i++) {
+      for (let c = 0; c < BOARD_WIDTH; c++) {
+        engine.board[39][c] = '#ff0000';
+      }
+      engine.lockPiece();
+      // This test locks at the top repeatedly; clear that area so the next
+      // spawn is not a block-out before the next simulated clear.
+      for (let r = 18; r < 23; r++) {
+        engine.board[r].fill(null);
+      }
+      engine.update(20);
+    }
+
+    expect(engine.comboCount).toBe(2);
+    expect(attacks).toEqual([1]);
   });
 });
 

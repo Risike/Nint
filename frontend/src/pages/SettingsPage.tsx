@@ -2,7 +2,21 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useGamepadActive, useGamepadBack, useGamepadNav } from '../context/GamepadNavContext';
 import { DEFAULT_GAMEPAD_BINDINGS, GAMEPAD_BUTTON_NAMES } from '../game/input/gamepadManager';
-import { Volume2, Keyboard, Eye, RotateCcw, Gamepad2, Check, ChevronDown } from 'lucide-react';
+import { Volume2, Keyboard, Eye, RotateCcw, Gamepad2, Check, ChevronDown, Languages } from 'lucide-react';
+import { useI18n } from '../i18n/useI18n';
+import { LANGUAGES, Language } from '../i18n/translations';
+
+const ACTION_LABELS: Record<string, string> = {
+  moveLeft: 'Move Left',
+  moveRight: 'Move Right',
+  softDrop: 'Soft Drop',
+  hardDrop: 'Hard Drop',
+  rotateCW: 'Rotate Cw',
+  rotateCCW: 'Rotate Ccw',
+  hold: 'Hold',
+  pause: 'Pause',
+  restart: 'Restart'
+};
 
 const THEME_OPTIONS: { value: string; label: string; group: 'Dark Themes' | 'Light Themes' }[] = [
   { value: 'dark-01', label: 'Dark — Midnight', group: 'Dark Themes' },
@@ -19,9 +33,14 @@ const THEME_OPTIONS: { value: string; label: string; group: 'Dark Themes' | 'Lig
 
 export const SettingsPage: React.FC = () => {
   const { settings, updateSettings, resetDefaults } = useSettings();
+  const { t } = useI18n();
   const [rebindingKeyAction, setRebindingKeyAction] = useState<string | null>(null);
   const [rebindingGamepadAction, setRebindingGamepadAction] = useState<string | null>(null);
   const [connectedGamepadName, setConnectedGamepadName] = useState<string | null>(null);
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
+  const languageMenuRef = useRef<HTMLDivElement | null>(null);
+  const languageButtonRef = useRef<HTMLButtonElement | null>(null);
+  const languageOptionRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const themeMenuRef = useRef<HTMLDivElement | null>(null);
   const themeButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -113,12 +132,20 @@ export const SettingsPage: React.FC = () => {
   }, [rebindingGamepadAction, settings.gamepadBindings]);
 
   const formatGamepadButtons = (buttonIndices: number[] = []) => {
-    if (!buttonIndices || buttonIndices.length === 0) return 'None';
-    return buttonIndices.map(idx => GAMEPAD_BUTTON_NAMES[idx] || `Button ${idx}`).join(', ');
+    if (!buttonIndices || buttonIndices.length === 0) return t('None');
+    return buttonIndices.map(idx => t(GAMEPAD_BUTTON_NAMES[idx] || 'Button {index}', { index: idx })).join(', ');
   };
 
+  const formatActionName = (action: string) => t(ACTION_LABELS[action] || action);
+
   const currentGamepadBindings = settings.gamepadBindings || DEFAULT_GAMEPAD_BINDINGS;
+  const selectedLanguage = LANGUAGES.find((option) => option.code === settings.language) || LANGUAGES[0];
   const selectedTheme = THEME_OPTIONS.find((option) => option.value === settings.theme) || THEME_OPTIONS[0];
+
+  const closeLanguageMenu = () => {
+    setLanguageMenuOpen(false);
+    requestAnimationFrame(() => setFocusedElement(languageButtonRef.current));
+  };
 
   const closeThemeMenu = () => {
     setThemeMenuOpen(false);
@@ -126,10 +153,41 @@ export const SettingsPage: React.FC = () => {
   };
 
   useGamepadBack(() => {
+    if (languageMenuOpen) {
+      closeLanguageMenu();
+      return true;
+    }
     if (!themeMenuOpen) return false;
     closeThemeMenu();
     return true;
-  }, [themeMenuOpen]);
+  }, [languageMenuOpen, themeMenuOpen]);
+
+  useEffect(() => {
+    if (!languageMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (languageMenuRef.current && !languageMenuRef.current.contains(event.target as Node)) {
+        closeLanguageMenu();
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeLanguageMenu();
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    const focusFrame = requestAnimationFrame(() => {
+      setFocusedElement(languageOptionRefs.current[settings.language] || null);
+    });
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+      cancelAnimationFrame(focusFrame);
+    };
+  }, [languageMenuOpen, settings.language, setFocusedElement]);
 
   useEffect(() => {
     if (!themeMenuOpen) return;
@@ -158,6 +216,11 @@ export const SettingsPage: React.FC = () => {
     };
   }, [themeMenuOpen, settings.theme, setFocusedElement]);
 
+  const handleLanguageSelect = (language: Language) => {
+    updateSettings({ language });
+    closeLanguageMenu();
+  };
+
   const handleThemeSelect = (theme: string) => {
     updateSettings({ theme });
     closeThemeMenu();
@@ -167,27 +230,118 @@ export const SettingsPage: React.FC = () => {
     <div style={{ width: '100%', maxWidth: '780px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.4rem' }}>Settings</h1>
+          <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Settings')}</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Customize your audio, keyboard keybinds, gamepad controller buttons, and accessibility.
+            {t('Customize your audio, keyboard keybinds, gamepad controller buttons, and accessibility.')}
           </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          {/* Language selector — a custom listbox so gamepad navigation works like the theme picker */}
+          <div ref={languageMenuRef} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative' }}>
+            <label style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+              {t('Language')}
+            </label>
+            <button
+              ref={languageButtonRef}
+              type="button"
+              className="btn-secondary"
+              aria-label={t('Interface Language')}
+              aria-haspopup="listbox"
+              aria-expanded={languageMenuOpen}
+              aria-controls="language-menu"
+              title={t('Choose the language used across the game.')}
+              onClick={() => {
+                if (languageMenuOpen) {
+                  closeLanguageMenu();
+                } else {
+                  setThemeMenuOpen(false);
+                  setLanguageMenuOpen(true);
+                }
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '0.5rem',
+                minWidth: '150px',
+                padding: '0.4rem 0.6rem',
+                fontSize: '0.85rem',
+                cursor: 'pointer'
+              }}
+            >
+              <Languages size={16} color="var(--accent-cyan)" />
+              <span>{selectedLanguage.label}</span>
+              <ChevronDown size={16} />
+            </button>
+
+            {languageMenuOpen && (
+              <div
+                id="language-menu"
+                role="listbox"
+                aria-label={t('Interface Language')}
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 0.35rem)',
+                  right: 0,
+                  zIndex: 80,
+                  width: '180px',
+                  padding: '0.35rem',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: '0 14px 34px rgba(0, 0, 0, 0.4)'
+                }}
+              >
+                {LANGUAGES.map((item) => {
+                  const isSelected = item.code === settings.language;
+                  return (
+                    <button
+                      key={item.code}
+                      ref={(element) => { languageOptionRefs.current[item.code] = element; }}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => handleLanguageSelect(item.code)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        padding: '0.5rem 0.55rem',
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        background: isSelected ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.85rem',
+                        textAlign: 'left',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span>{item.label}</span>
+                      {isSelected && <Check size={14} color="var(--accent-cyan)" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Theme selector */}
           <div ref={themeMenuRef} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative' }}>
-            <label style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap' }}>UI Theme</label>
+            <label style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap' }}>{t('UI Theme')}</label>
             <button
               ref={themeButtonRef}
               type="button"
               className="btn-secondary"
-              aria-label="UI Theme"
+              aria-label={t('UI Theme')}
               aria-haspopup="listbox"
               aria-expanded={themeMenuOpen}
               onClick={() => {
                 if (themeMenuOpen) {
                   closeThemeMenu();
                 } else {
+                  setLanguageMenuOpen(false);
                   setThemeMenuOpen(true);
                 }
               }}
@@ -202,14 +356,14 @@ export const SettingsPage: React.FC = () => {
                 cursor: 'pointer'
               }}
             >
-              <span>{selectedTheme.label}</span>
+              <span>{t(selectedTheme.label)}</span>
               <ChevronDown size={16} />
             </button>
 
             {themeMenuOpen && (
               <div
                 role="listbox"
-                aria-label="UI Theme"
+                aria-label={t('UI Theme')}
                 style={{
                   position: 'absolute',
                   top: 'calc(100% + 0.35rem)',
@@ -235,7 +389,7 @@ export const SettingsPage: React.FC = () => {
                       textTransform: 'uppercase',
                       color: 'var(--text-muted)'
                     }}>
-                      {group}
+                      {t(group)}
                     </div>
                     {THEME_OPTIONS.filter((option) => option.group === group).map((option) => {
                       const isSelected = option.value === settings.theme;
@@ -262,7 +416,7 @@ export const SettingsPage: React.FC = () => {
                             cursor: 'pointer'
                           }}
                         >
-                          <span>{option.label}</span>
+                          <span>{t(option.label)}</span>
                           {isSelected && <Check size={14} color="var(--accent-cyan)" />}
                         </button>
                       );
@@ -274,7 +428,7 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} onClick={resetDefaults}>
-            <RotateCcw size={16} /> Reset Defaults
+            <RotateCcw size={16} /> {t('Reset Defaults')}
           </button>
         </div>
       </div>
@@ -285,7 +439,7 @@ export const SettingsPage: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.1rem', color: 'var(--accent-cyan)' }}>
               <Gamepad2 size={22} />
-              <span>Gamepad Controller Buttons / Manette</span>
+              <span>{t('Gamepad Controller Buttons')}</span>
             </div>
 
             <div style={{
@@ -296,12 +450,12 @@ export const SettingsPage: React.FC = () => {
               color: connectedGamepadName ? 'var(--accent-green)' : 'var(--text-muted)',
               fontWeight: 600
             }}>
-              {connectedGamepadName ? `Connected: ${connectedGamepadName.slice(0, 24)}...` : 'No controller detected (Press any button)'}
+              {connectedGamepadName ? t('Connected: {name}...', { name: connectedGamepadName.slice(0, 24) }) : t('No controller detected (Press any button)')}
             </div>
           </div>
 
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Click on any action button below to rebind it by pressing a button on your gamepad. Left analog stick is also active for navigation.
+            {t('Click on any action button below to rebind it by pressing a button on your gamepad. Left analog stick is also active for navigation.')}
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
@@ -318,7 +472,7 @@ export const SettingsPage: React.FC = () => {
                 }}
               >
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, textTransform: 'capitalize' }}>
-                  {action.replace(/([A-Z])/g, ' $1')}
+                  {formatActionName(action)}
                 </span>
                 <button
                   className="btn-secondary"
@@ -332,7 +486,7 @@ export const SettingsPage: React.FC = () => {
                   }}
                   onClick={() => setRebindingGamepadAction(rebindingGamepadAction === action ? null : action)}
                 >
-                  {rebindingGamepadAction === action ? 'Press button...' : formatGamepadButtons(btnIndices)}
+                  {rebindingGamepadAction === action ? t('Press button...') : formatGamepadButtons(btnIndices)}
                 </button>
               </div>
             ))}
@@ -342,11 +496,10 @@ export const SettingsPage: React.FC = () => {
         {/* Keyboard Keybindings Table */}
         <div className="panel-card" style={{ alignItems: 'stretch', gap: '1rem', padding: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.1rem' }}>
-            <Keyboard size={20} color="var(--accent-pink)" />
-            <span>Keyboard Keybindings</span>
+            <Keyboard size={20} color="var(--accent-pink)" />                <span>{t('Keyboard Keybindings')}</span>
           </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Click on any action button below to rebind it to a new keyboard key.
+            {t('Click on any action button below to rebind it to a new keyboard key.')}
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
@@ -363,7 +516,7 @@ export const SettingsPage: React.FC = () => {
                 }}
               >
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, textTransform: 'capitalize' }}>
-                  {action.replace(/([A-Z])/g, ' $1')}
+                  {formatActionName(action)}
                 </span>
                 <button
                   className="btn-secondary"
@@ -377,7 +530,7 @@ export const SettingsPage: React.FC = () => {
                   }}
                   onClick={() => handleKeyCapture(action)}
                 >
-                  {rebindingKeyAction === action ? 'Press key...' : keys.join(', ')}
+                  {rebindingKeyAction === action ? t('Press key...') : keys.join(', ')}
                 </button>
               </div>
             ))}
@@ -388,12 +541,12 @@ export const SettingsPage: React.FC = () => {
         <div className="panel-card" style={{ alignItems: 'stretch', gap: '1.25rem', padding: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.1rem' }}>
             <Volume2 size={20} color="var(--accent-blue)" />
-            <span>Sound & Volume</span>
+            <span>{t('Sound & Volume')}</span>
           </div>
 
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Music Volume</span>
+              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{t('Music Volume')}</span>
               <span style={{ fontSize: '0.85rem', fontFamily: 'monospace' }}>{Math.round(settings.musicVolume * 100)}%</span>
             </div>
             <input
@@ -409,7 +562,7 @@ export const SettingsPage: React.FC = () => {
 
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Sound Effects Volume</span>
+              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{t('Sound Effects Volume')}</span>
               <span style={{ fontSize: '0.85rem', fontFamily: 'monospace' }}>{Math.round(settings.soundVolume * 100)}%</span>
             </div>
             <input
@@ -428,13 +581,13 @@ export const SettingsPage: React.FC = () => {
         <div className="panel-card" style={{ alignItems: 'stretch', gap: '1.25rem', padding: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.1rem' }}>
             <Eye size={20} color="var(--accent-purple)" />
-            <span>Display & Accessibility</span>
+            <span>{t('Display & Accessibility')}</span>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Ghost Piece</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Shows translucent outline of piece landing location.</div>
+              <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{t('Ghost Piece')}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Shows translucent outline of piece landing location.')}</div>
             </div>
             <input
               type="checkbox"

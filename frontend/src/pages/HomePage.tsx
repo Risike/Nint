@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Play, Swords, Globe, Zap, Timer, Flame, Trophy, Megaphone } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ApiClient } from '../services/api';
+import { useI18n } from '../i18n/useI18n';
 
 interface HomePageProps {
   onSelectMode: (mode: string) => void;
@@ -9,6 +10,7 @@ interface HomePageProps {
 
 export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
   const { isGuest, user } = useAuth();
+  const { t } = useI18n();
 
   const handleCardKey = (action: () => void) => (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -43,7 +45,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
           “Nint is not Tetris.”
         </p>
         <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginTop: '0.4rem', maxWidth: '600px', margin: '0.4rem auto 0' }}>
-          A modern, high-performance, Guideline-compliant online falling-block puzzle game.
+          {t('A modern, high-performance, Guideline-compliant online falling-block puzzle game.')}
         </p>
 
         {isGuest && (
@@ -56,7 +58,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
             fontSize: '0.8rem',
             color: 'var(--text-secondary)'
           }}>
-            Playing as <strong>Guest</strong> (Local progress only. Sign in to climb global leaderboards!)
+            {t('Playing as')} <strong>{t('Guest')}</strong> {t('(Local progress only. Sign in to climb global leaderboards!)')}
           </div>
         )}
         {newsMessage && (
@@ -87,12 +89,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
               <Flame size={24} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Marathon</h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>150 Lines or Endless</span>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Marathon')}</h3>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('150 Lines or Endless')}</span>
             </div>
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-            Classic endurance. Clear lines as gravity speeds up every 10 lines. Push for the highest score!
+            {t('Classic endurance. Clear lines as gravity speeds up every 10 lines. Push for the highest score!')}
           </p>
         </div>
 
@@ -103,12 +105,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
               <Zap size={24} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Sprint (40 Lines)</h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Speedrun Attack</span>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Sprint (40 Lines)')}</h3>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Speedrun Attack')}</span>
             </div>
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-            Clear 40 lines as fast as humanly possible. Test your DAS handling and execution speed.
+            {t('Clear 40 lines as fast as humanly possible. Test your DAS handling and execution speed.')}
           </p>
         </div>
 
@@ -119,12 +121,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
               <Timer size={24} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Ultra</h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>3 Minutes Score Attack</span>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Ultra')}</h3>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('3 Minutes Score Attack')}</span>
             </div>
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-            Score as many points as possible before the 3-minute timer runs out. Maximize B2B and T-Spins.
+            {t('Score as many points as possible before the 3-minute timer runs out. Maximize B2B and T-Spins.')}
           </p>
         </div>
 
@@ -135,12 +137,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
               <Swords size={24} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Player vs CPU</h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>10 Difficulty Tiers</span>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Player vs CPU')}</h3>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('10 Difficulty Tiers')}</span>
             </div>
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-            Battle against an intelligent AI opponent with realistic reaction times, flat stacking, and downstacking.
+            {t('Battle against an intelligent AI opponent with realistic reaction times, flat stacking, and downstacking.')}
           </p>
         </div>
 
@@ -151,12 +153,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
               <Globe size={24} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Online Player vs Player</h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Live Room & Matchmaking</span>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Online Player vs Player')}</h3>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Live Room & Matchmaking')}</span>
             </div>
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-            Play casual or ranked online matches with friends via room codes, or jump into quick matchmaking.
+            {t('Play casual or ranked online matches with friends via room codes, or jump into quick matchmaking.')}
           </p>
         </div>
 
@@ -167,12 +169,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onSelectMode }) => {
               <Play size={24} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Zen & Custom Practice</h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Endless Relaxation</span>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Zen & Custom Practice')}</h3>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Endless Relaxation')}</span>
             </div>
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-            No pressure, no game-over speedups. Configure starting parameters and practice setups freely.
+            {t('No pressure, no game-over speedups. Configure starting parameters and practice setups freely.')}
           </p>
         </div>
       </div>

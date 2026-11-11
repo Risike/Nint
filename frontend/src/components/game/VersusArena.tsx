@@ -5,6 +5,7 @@ import { PlayfieldCanvas } from './PlayfieldCanvas';
 import { HoldDisplay } from './HoldDisplay';
 import { QueueDisplay } from './QueueDisplay';
 import { CountdownOverlay } from './CountdownOverlay';
+import { useI18n } from '../../i18n/useI18n';
 
 export type VersusTone = 'cyan' | 'orange' | 'purple';
 
@@ -16,6 +17,9 @@ export interface VersusArenaSide {
   queue: TetrominoType[];
   score: number;
   lines: number;
+  combo: number;
+  b2b: boolean;
+  b2bChain: number;
   engine: GameEngine;
   garbage: number;
 }
@@ -67,6 +71,7 @@ const VersusSide: React.FC<VersusSideProps> = ({
   showCountdown = false,
   onCountdownComplete
 }) => {
+  const { t } = useI18n();
   return (
     <section className="versus-side">
       <div className={`versus-side-title versus-side-title--${side.tone}`}>
@@ -78,12 +83,24 @@ const VersusSide: React.FC<VersusSideProps> = ({
           <HoldDisplay piece={side.hold} canHold={side.canHold} />
           <div className="panel-card versus-stats-card">
             <div className="versus-stat-row">
-              <span>Score</span>
+              <span>{t('Score')}</span>
               <strong>{side.score.toLocaleString()}</strong>
             </div>
             <div className="versus-stat-row">
-              <span>Lines</span>
+              <span>{t('Lines')}</span>
               <strong>{side.lines}</strong>
+            </div>
+            <div className="versus-stat-row">
+              <span>{t('Combo')}</span>
+              <strong style={{ color: side.combo > 0 ? 'var(--accent-cyan)' : undefined }}>
+                {side.combo > 0 ? `x${side.combo}` : '—'}
+              </strong>
+            </div>
+            <div className="versus-stat-row">
+              <span>B2B</span>
+              <strong style={{ color: side.b2b ? 'var(--accent-pink)' : undefined }}>
+                {side.b2b ? (side.b2bChain > 1 ? `x${side.b2bChain}` : '✓') : '—'}
+              </strong>
             </div>
           </div>
         </div>
@@ -98,7 +115,7 @@ const VersusSide: React.FC<VersusSideProps> = ({
         <div className="side-panel versus-side-panel">
           <QueueDisplay
             queue={side.queue}
-            count={5}
+            count={6}
             previewSize={Math.max(18, Math.min(64, Math.round(cellSize * 2)))}
           />
         </div>

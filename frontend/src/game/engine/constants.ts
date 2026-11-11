@@ -33,7 +33,7 @@ export const PIECES: Record<TetrominoType, PieceDefinition> = {
       2: [{ x: 0, y: 2 }, { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 2 }],
       3: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 1, y: 2 }, { x: 1, y: 3 }]
     },
-    spawnOffset: { x: 3, y: 19 } // spawns just above/at row 20
+    spawnOffset: { x: 3, y: 18 } // starts on the 21st row, then drops one row
   },
   J: {
     type: 'J',
@@ -45,7 +45,7 @@ export const PIECES: Record<TetrominoType, PieceDefinition> = {
       2: [{ x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 2, y: 2 }],
       3: [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }]
     },
-    spawnOffset: { x: 3, y: 19 }
+    spawnOffset: { x: 3, y: 18 }
   },
   L: {
     type: 'L',
@@ -57,7 +57,7 @@ export const PIECES: Record<TetrominoType, PieceDefinition> = {
       2: [{ x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 0, y: 2 }],
       3: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 1, y: 2 }]
     },
-    spawnOffset: { x: 3, y: 19 }
+    spawnOffset: { x: 3, y: 18 }
   },
   O: {
     type: 'O',
@@ -69,7 +69,7 @@ export const PIECES: Record<TetrominoType, PieceDefinition> = {
       2: [{ x: 1, y: 0 }, { x: 2, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 }],
       3: [{ x: 1, y: 0 }, { x: 2, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 }]
     },
-    spawnOffset: { x: 3, y: 19 }
+    spawnOffset: { x: 3, y: 18 }
   },
   S: {
     type: 'S',
@@ -81,7 +81,7 @@ export const PIECES: Record<TetrominoType, PieceDefinition> = {
       2: [{ x: 1, y: 1 }, { x: 2, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }],
       3: [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 1, y: 2 }]
     },
-    spawnOffset: { x: 3, y: 19 }
+    spawnOffset: { x: 3, y: 18 }
   },
   T: {
     type: 'T',
@@ -93,7 +93,7 @@ export const PIECES: Record<TetrominoType, PieceDefinition> = {
       2: [{ x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 1, y: 2 }],
       3: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 1, y: 2 }]
     },
-    spawnOffset: { x: 3, y: 19 }
+    spawnOffset: { x: 3, y: 18 }
   },
   Z: {
     type: 'Z',
@@ -105,7 +105,7 @@ export const PIECES: Record<TetrominoType, PieceDefinition> = {
       2: [{ x: 0, y: 1 }, { x: 1, y: 1 }, { x: 1, y: 2 }, { x: 2, y: 2 }],
       3: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 0, y: 2 }]
     },
-    spawnOffset: { x: 3, y: 19 }
+    spawnOffset: { x: 3, y: 18 }
   }
 };
 
@@ -169,8 +169,9 @@ export const GARBAGE_ATTACK = {
   TSPIN_TRIPLE: 6,
   B2B_BONUS: 1,
   PERFECT_CLEAR: 10,
-  // Combo garbage curve: [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5...]
-  COMBO_BONUS: [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6]
+  // Guideline combo garbage ladder:
+  // combo 0..12 -> 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5
+  COMBO_BONUS: [0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 5]
 };
 
 // Official Guideline timing configuration (ms) - Tetris Holding LLC Standards

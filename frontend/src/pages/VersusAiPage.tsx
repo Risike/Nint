@@ -10,12 +10,15 @@ import { useSettings } from '../context/SettingsContext';
 import { ApiClient } from '../services/api';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
+import { isVersusGamepadGameplayActive } from '../game/input/gamepadNavigation';
 import { VersusArena } from '../components/game/VersusArena';
 import { Bot, User as UserIcon, RotateCcw, ArrowLeft, Swords, Shield, Zap, Flame, Play, Pause } from 'lucide-react';
+import { useI18n } from '../i18n/useI18n';
 
 export const VersusAiPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { settings } = useSettings();
+  const { t } = useI18n();
   const arenaRef = useRef<HTMLDivElement>(null);
   const cellSize = useDynamicCellSize(true, arenaRef);
 
@@ -49,8 +52,14 @@ export const VersusAiPage: React.FC = () => {
   const [isGameOverOpen, setIsGameOverOpen] = useState<boolean>(false);
   const [lastStats, setLastStats] = useState<any>(null);
 
-  const isPlaying = !isSelectingDifficulty && !isGameOverOpen && (playerEngine.state === 'playing' || playerEngine.state === 'paused' || isCountingDown);
-  useGamepadActive(isPlaying);
+  const isGamepadGameplayActive = isVersusGamepadGameplayActive({
+    isSelectingDifficulty,
+    isGameOverOpen,
+    isPaused,
+    playerState: playerEngine.state,
+    isCountingDown
+  });
+  useGamepadActive(isGamepadGameplayActive);
 
   useGamepadBack(() => {
     if (isGameOverOpen) {
@@ -201,8 +210,8 @@ export const VersusAiPage: React.FC = () => {
     // Before countdown: show exact upcoming pieces with the 1st falling piece on top
     pEngine.activePiece = null;
     aEngine.activePiece = null;
-    setPlayerQueue([...pEngine.randomizer.peek(5)]);
-    setAiQueue([...aEngine.randomizer.peek(5)]);
+    setPlayerQueue([...pEngine.randomizer.peek(6)]);
+    setAiQueue([...aEngine.randomizer.peek(6)]);
 
     // Start 3-second countdown
     setIsCountingDown(true);
@@ -219,12 +228,12 @@ export const VersusAiPage: React.FC = () => {
     pEngine.state = 'playing';
     pEngine.startTime = Date.now();
     pEngine.spawnPiece();
-    setPlayerQueue([...pEngine.randomizer.peek(5)]);
+    setPlayerQueue([...pEngine.randomizer.peek(6)]);
 
     aEngine.state = 'playing';
     aEngine.startTime = Date.now();
     aEngine.spawnPiece();
-    setAiQueue([...aEngine.randomizer.peek(5)]);
+    setAiQueue([...aEngine.randomizer.peek(6)]);
 
     soundManager.startBgm();
   };
@@ -249,7 +258,7 @@ export const VersusAiPage: React.FC = () => {
           pEng.update(delta);
           keyboardRef.current?.update(delta);
           setPlayerHold(pEng.holdPiece);
-          setPlayerQueue([...pEng.randomizer.peek(5)]);
+          setPlayerQueue([...pEng.randomizer.peek(6)]);
           setPlayerGarbage(pEng.garbageManager.getPendingCount());
           setPlayerLinesDisplay(pEng.lines);
         }
@@ -258,7 +267,7 @@ export const VersusAiPage: React.FC = () => {
           aEng.update(delta);
           aiControllerRef.current?.update(delta);
           setAiHold(aEng.holdPiece);
-          setAiQueue([...aEng.randomizer.peek(5)]);
+          setAiQueue([...aEng.randomizer.peek(6)]);
           setAiGarbage(aEng.garbageManager.getPendingCount());
           setAiLinesDisplay(aEng.lines);
         }
@@ -326,11 +335,11 @@ export const VersusAiPage: React.FC = () => {
   };
 
   const getDifficultyLabel = (diff: number) => {
-    if (diff <= 2) return 'Beginner';
-    if (diff <= 4) return 'Casual';
-    if (diff <= 6) return 'Intermediate';
-    if (diff <= 8) return 'Advanced';
-    return 'Master';
+    if (diff <= 2) return t('Beginner');
+    if (diff <= 4) return t('Casual');
+    if (diff <= 6) return t('Intermediate');
+    if (diff <= 8) return t('Advanced');
+    return t('Master');
   };
 
   // Difficulty selection menu
@@ -338,9 +347,9 @@ export const VersusAiPage: React.FC = () => {
     return (
       <div style={{ width: '100%', maxWidth: '880px', textAlign: 'center', marginTop: '1rem' }}>
         <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>Player vs CPU</h1>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Player vs CPU')}</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-            Select an AI opponent difficulty level. The game begins with a 3-second countdown.
+            {t('Select an AI opponent difficulty level. The game begins with a 3-second countdown.')}
           </p>
         </div>
 
@@ -357,12 +366,12 @@ export const VersusAiPage: React.FC = () => {
                 <Shield size={24} />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Beginner (Lv 2)</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Relaxed Pace</span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Beginner (Lv 2)')}</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Relaxed Pace')}</span>
               </div>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Slow placement speed (~700ms) with forgiving stacking and basic clears. Great for learning versus mechanics.
+              {t('Slow placement speed (~700ms) with forgiving stacking and basic clears. Great for learning versus mechanics.')}
             </p>
           </div>
 
@@ -373,12 +382,12 @@ export const VersusAiPage: React.FC = () => {
                 <Bot size={24} />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Casual (Lv 4)</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Balanced Battle</span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Casual (Lv 4)')}</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Balanced Battle')}</span>
               </div>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Solid flat stacking, downstacks when garbage arrives, and sends regular counter-attacks.
+              {t('Solid flat stacking, downstacks when garbage arrives, and sends regular counter-attacks.')}
             </p>
           </div>
 
@@ -389,12 +398,12 @@ export const VersusAiPage: React.FC = () => {
                 <Zap size={24} />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Intermediate (Lv 6)</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Fast Paced</span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Intermediate (Lv 6)')}</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Fast Paced')}</span>
               </div>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Maintains an open right-side well for Tetris clears, reacts quickly to attacks, and builds clean stacks.
+              {t('Maintains an open right-side well for Tetris clears, reacts quickly to attacks, and builds clean stacks.')}
             </p>
           </div>
 
@@ -405,12 +414,12 @@ export const VersusAiPage: React.FC = () => {
                 <Flame size={24} />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Advanced (Lv 8)</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Aggressive AI</span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Advanced (Lv 8)')}</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Aggressive AI')}</span>
               </div>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              High PPS (~200ms placements), deep heuristic evaluation, and proactive B2B Tetris attacks.
+              {t('High PPS (~200ms placements), deep heuristic evaluation, and proactive B2B Tetris attacks.')}
             </p>
           </div>
 
@@ -421,12 +430,12 @@ export const VersusAiPage: React.FC = () => {
                 <Swords size={24} />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Grandmaster (Lv 10)</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Peak Competitive AI</span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Grandmaster (Lv 10)')}</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Peak Competitive AI')}</span>
               </div>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Ultra-fast execution, lookahead optimization, ruthless garbage cancelling, and high APM.
+              {t('Ultra-fast execution, lookahead optimization, ruthless garbage cancelling, and high APM.')}
             </p>
           </div>
         </div>
@@ -439,7 +448,7 @@ export const VersusAiPage: React.FC = () => {
       {/* Top Bar with Difficulty and Menu return */}
       <div className="versus-toolbar">
         <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.8rem' }} onClick={() => setIsSelectingDifficulty(true)}>
-          <ArrowLeft size={16} /> Difficulty Menu
+          <ArrowLeft size={16} /> {t('Difficulty Menu')}
         </button>
 
         <div style={{
@@ -450,7 +459,7 @@ export const VersusAiPage: React.FC = () => {
           fontWeight: 800,
           fontSize: '0.85rem'
         }}>
-          Opponent: Lv {difficulty} ({getDifficultyLabel(difficulty)})
+          {t('Opponent: Lv {level} ({label})', { level: difficulty, label: getDifficultyLabel(difficulty) })}
         </div>
 
         <button
@@ -460,11 +469,11 @@ export const VersusAiPage: React.FC = () => {
           disabled={isCountingDown || isGameOverOpen}
         >
           {isPaused ? <Play size={14} /> : <Pause size={14} />}
-          {isPaused ? 'Resume' : 'Pause'}
+          {isPaused ? t('Resume') : t('Pause')}
         </button>
 
         <button className="btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }} onClick={() => startMatch()}>
-          <RotateCcw size={14} /> Restart Match
+          <RotateCcw size={14} /> {t('Restart Match')}
         </button>
       </div>
 
@@ -472,24 +481,30 @@ export const VersusAiPage: React.FC = () => {
         arenaRef={arenaRef}
         cellSize={cellSize}
         player={{
-          label: <><UserIcon size={18} color="var(--accent-cyan)" /><span>You</span></>,
+          label: <><UserIcon size={18} color="var(--accent-cyan)" /><span>{t('You')}</span></>,
           tone: 'cyan',
           hold: playerHold,
           canHold: playerEngine.canHold,
           queue: playerQueue,
           score: playerEngine.score,
           lines: playerLinesDisplay,
+          combo: playerEngine.comboCount,
+          b2b: playerEngine.b2bActive,
+          b2bChain: playerEngine.b2bChain,
           engine: playerEngine,
           garbage: playerGarbage
         }}
         opponent={{
-          label: <><Bot size={18} color="var(--accent-purple)" /><span>Nint Bot (Lv {difficulty})</span></>,
+          label: <><Bot size={18} color="var(--accent-purple)" /><span>{t('Nint Bot (Lv {level})', { level: difficulty })}</span></>,
           tone: 'purple',
           hold: aiHold,
           canHold: aiEngine.canHold,
           queue: aiQueue,
           score: aiEngine.score,
           lines: aiLinesDisplay,
+          combo: aiEngine.comboCount,
+          b2b: aiEngine.b2bActive,
+          b2bChain: aiEngine.b2bChain,
           engine: aiEngine,
           garbage: aiGarbage
         }}
@@ -498,10 +513,10 @@ export const VersusAiPage: React.FC = () => {
         overlay={isPaused ? (
           <div className="versus-pause-overlay">
             <div className="versus-pause-card">
-              <h2>PAUSED</h2>
-              <p>Press Start / Escape or click Resume to continue.</p>
+              <h2>{t('PAUSED')}</h2>
+              <p>{t('Press Start / Escape or click Resume to continue.')}</p>
               <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={togglePause}>
-                <Play size={18} /> Resume
+                <Play size={18} /> {t('Resume')}
               </button>
             </div>
           </div>
@@ -514,7 +529,7 @@ export const VersusAiPage: React.FC = () => {
         isVictory={matchResult === 'win'}
         mode="versus_ai"
         stats={lastStats || playerEngineRef.current.getStats()}
-        customMessage={matchResult === 'win' ? `Victory against AI Level ${difficulty}!` : `Defeat against AI Level ${difficulty}`}
+        customMessage={matchResult === 'win' ? t('Victory against AI Level {level}!', { level: difficulty }) : t('Defeat against AI Level {level}', { level: difficulty })}
         onRestart={() => startMatch()}
         onExit={() => setIsSelectingDifficulty(true)}
       />

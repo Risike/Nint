@@ -1,8 +1,9 @@
-import React from 'react';
-import { Gamepad2, Trophy, BarChart3, Settings, User, Volume2, VolumeX, Swords, Globe, Shield } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Gamepad2, Trophy, BarChart3, Settings, User, Volume2, VolumeX, Swords, Globe, Shield, Maximize2, Minimize2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useGamepadNav } from '../../context/GamepadNavContext';
+import { useI18n } from '../../i18n/useI18n';
 
 interface NavbarProps {
   activeTab: string;
@@ -13,6 +14,27 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
   const { user, isAuthenticated, logout } = useAuth();
   const { settings, updateSettings } = useSettings();
   const { gamepadConnected } = useGamepadNav();
+  const { t } = useI18n();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const syncFullscreenState = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', syncFullscreenState);
+    syncFullscreenState();
+    return () => document.removeEventListener('fullscreenchange', syncFullscreenState);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (error) {
+      console.warn('Unable to toggle fullscreen:', error);
+    }
+  };
 
   return (
     <nav className="navbar">
@@ -53,43 +75,43 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
 
       <div className="nav-links">
         {gamepadConnected && (
-          <span className="gamepad-nav-badge" title="Navigate tabs with LB/LT">LB</span>
+          <span className="gamepad-nav-badge" title={t('Navigate tabs with LB/LT')}>LB</span>
         )}
         <button
           className={`nav-item ${activeTab === 'solo' ? 'active' : ''}`}
           onClick={() => setActiveTab('solo')}
         >
-          Solo
+          {t('Solo')}
         </button>
         <button
           className={`nav-item ${activeTab === 'versus_ai' ? 'active' : ''}`}
           onClick={() => setActiveTab('versus_ai')}
         >
-          Player vs CPU
+          {t('Player vs CPU')}
         </button>
         <button
           className={`nav-item ${activeTab === 'online' ? 'active' : ''}`}
           onClick={() => setActiveTab('online')}
         >
-          Online Player vs Player
+          {t('Online Player vs Player')}
         </button>
         <button
           className={`nav-item ${activeTab === 'leaderboards' ? 'active' : ''}`}
           onClick={() => setActiveTab('leaderboards')}
         >
-          Leaderboards
+          {t('Leaderboards')}
         </button>
         <button
           className={`nav-item ${activeTab === 'stats' ? 'active' : ''}`}
           onClick={() => setActiveTab('stats')}
         >
-          Stats
+          {t('Stats')}
         </button>
         <button
           className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
           onClick={() => setActiveTab('settings')}
         >
-          Settings
+          {t('Settings')}
         </button>
         {user?.is_admin && (
           <button
@@ -97,11 +119,11 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             onClick={() => setActiveTab('admin')}
             style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--accent-cyan)' }}
           >
-            <Shield size={14} /> Admin
+            <Shield size={14} /> {t('Admin')}
           </button>
         )}
         {gamepadConnected && (
-          <span className="gamepad-nav-badge" title="Navigate tabs with RB/RT">RB</span>
+          <span className="gamepad-nav-badge" title={t('Navigate tabs with RB/RT')}>RB</span>
         )}
       </div>
 
@@ -109,10 +131,20 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
         <button
           className="icon-btn"
           onClick={() => updateSettings({ isMuted: !settings.isMuted })}
-          title={settings.isMuted ? 'Unmute' : 'Mute'}
-          aria-label="Toggle Sound"
+          title={settings.isMuted ? t('Unmute') : t('Mute')}
+          aria-label={t('Toggle Sound')}
         >
           {settings.isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+        </button>
+
+        <button
+          className="icon-btn"
+          onClick={toggleFullscreen}
+          title={isFullscreen ? t('Exit Fullscreen') : t('Fullscreen')}
+          aria-label={isFullscreen ? t('Exit Fullscreen') : t('Fullscreen')}
+          aria-pressed={isFullscreen}
+        >
+          {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </button>
 
         {isAuthenticated ? (
@@ -132,7 +164,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
             onClick={() => setActiveTab('login')}
           >
-            Sign In
+            {t('Sign In')}
           </button>
         )}
       </div>

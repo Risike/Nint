@@ -40,6 +40,7 @@ test('Auth flow: register, me, settings, and result submission', async () => {
     .send({
       das: 120,
       arr: 5,
+      language: 'fr',
       theme: 'light-01',
       keybindings: { moveLeft: [37], hardDrop: [32] },
       gamepad_bindings: { hold: [4] }
@@ -47,6 +48,7 @@ test('Auth flow: register, me, settings, and result submission', async () => {
   assert.equal(settingsRes.status, 200);
   assert.equal(settingsRes.body.das, 120);
   assert.equal(settingsRes.body.theme, 'light-01');
+  assert.equal(settingsRes.body.language, 'fr');
 
   // Partial updates must preserve the other fields (including JSON bindings).
   const partialSettings = await request(app)
@@ -57,6 +59,7 @@ test('Auth flow: register, me, settings, and result submission', async () => {
   assert.equal(partialSettings.body.das, 100);
   assert.equal(partialSettings.body.arr, 5);
   assert.equal(partialSettings.body.theme, 'light-01');
+  assert.equal(partialSettings.body.language, 'fr');
   assert.deepEqual(partialSettings.body.keybindings, { moveLeft: [37], hardDrop: [32] });
   assert.deepEqual(partialSettings.body.gamepad_bindings, { hold: [4] });
 

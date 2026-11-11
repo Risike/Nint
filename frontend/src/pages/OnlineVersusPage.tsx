@@ -12,6 +12,7 @@ import { ApiClient } from '../services/api';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
 import { Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2, Lock, ShieldAlert, Trophy } from 'lucide-react';
+import { useI18n } from '../i18n/useI18n';
 
 interface OnlineVersusPageProps {
   onNavigate?: (tab: string) => void;
@@ -20,6 +21,7 @@ interface OnlineVersusPageProps {
 export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }) => {
   const { user, isAuthenticated, refreshProfile } = useAuth();
   const { settings } = useSettings();
+  const { t } = useI18n();
   const arenaRef = useRef<HTMLDivElement>(null);
   const cellSize = useDynamicCellSize(true, arenaRef);
 
@@ -29,7 +31,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
   const [matchStatus, setMatchStatus] = useState<'lobby' | 'waiting' | 'quick_searching' | 'in_game' | 'finished'>('lobby');
   const [quickSearchSeconds, setQuickSearchSeconds] = useState<number>(0);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
-  const [opponentName, setOpponentName] = useState<string>('Opponent');
+  const [opponentName, setOpponentName] = useState<string>(() => t('Opponent'));
   const [opponentRating, setOpponentRating] = useState<number>(1000);
   const [isRankedMatch, setIsRankedMatch] = useState<boolean>(false);
   const opponentUserIdRef = useRef<string | null>(null);
@@ -92,7 +94,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
   const gameStartedRef = useRef<boolean>(false);
   const lastSyncTimeRef = useRef<number>(0);
   const matchEndedRef = useRef<boolean>(false);
-  const currentOpponentNameRef = useRef<string>('Online Opponent');
+  const currentOpponentNameRef = useRef<string>(t('Online Opponent'));
   const playerEngineRef = useRef<GameEngine>(playerEngine);
   playerEngineRef.current = playerEngine;
   const matchStatusRef = useRef(matchStatus);
@@ -217,7 +219,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     soundManager.playRotate();
 
     try {
-      const displayName = user?.display_name || 'Player';
+      const displayName = user?.display_name || t('Player 1');
       const myRating = user?.rating || 1000;
       setEloResult(null);
       const cancelFn = await FirebaseRealtimeService.startQuickMatch(
@@ -232,7 +234,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
           isHostRef.current = amIHost;
           setMatchId(mId);
           setRoomCode(rCode);
-          setOpponentName('Online Opponent');
+          setOpponentName(t('Online Opponent'));
 
           startLiveGame(seed, mId);
         },
@@ -244,7 +246,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       cancelQuickSearchRef.current = cancelFn;
     } catch (e: any) {
       console.warn('Quick search failed:', e);
-      setErrorMsg(e.message || 'Quick search failed to connect.');
+      setErrorMsg(e.message || t('Quick search failed to connect.'));
       setRankedMode(false);
       setMatchStatus('lobby');
     }
@@ -285,7 +287,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     setMatchStatus('waiting');
 
     try {
-      const displayName = user?.display_name || 'Player 1';
+      const displayName = user?.display_name || t('Player 1');
       const myRating = user?.rating || 1000;
       setEloResult(null);
       setRankedMode(false);
@@ -310,8 +312,8 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
         if (matchData.players) {
           for (const [uid, p] of Object.entries<any>(matchData.players)) {
             if (uid !== myUid) {
-              setOpponentName(p.displayName || 'Player 2');
-              currentOpponentNameRef.current = p.displayName || 'Player 2';
+              setOpponentName(p.displayName || t('Player 2'));
+              currentOpponentNameRef.current = p.displayName || t('Player 2');
               if (p.rating) {
                 setOpponentRating(p.rating);
               }
@@ -327,7 +329,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       });
     } catch (e: any) {
       console.warn('Failed to create room:', e);
-      setErrorMsg(e.message || 'Failed to create room on Firebase');
+      setErrorMsg(e.message || t('Failed to create room on Firebase'));
       setMatchStatus('lobby');
     }
   };
@@ -346,19 +348,19 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     setRoomCode(code);
 
     try {
-      const displayName = user?.display_name || 'Player 2';
+      const displayName = user?.display_name || t('Player 2');
       const myRating = user?.rating || 1000;
       setEloResult(null);
       await FirebaseRealtimeService.authenticate(displayName);
       const { matchId: mId, seed } = await FirebaseRealtimeService.joinRoom(code, displayName, myRating, user?.id, false);
       setMatchId(mId);
-      setOpponentName('Host');
+      setOpponentName(t('Host'));
 
       gameStartedRef.current = true;
       startLiveGame(seed, mId);
     } catch (e: any) {
       console.warn('Failed to join room:', e);
-      setErrorMsg(e.message || 'Failed to join room. Verify the code.');
+      setErrorMsg(e.message || t('Failed to join room. Verify the code.'));
     }
   };
 
@@ -454,7 +456,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
           setRematchOpponentLeft(true);
         } else {
           // Opponent left or disconnected -> player wins by forfeit!
-          handleEndMatch('win', pEngine, 'Opponent disconnected');
+          handleEndMatch('win', pEngine, t('Opponent disconnected'));
         }
         return;
       }
@@ -498,6 +500,15 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
         oEngine.clearingRows = opponentState.clearingRows || [];
         oEngine.lineClearTimer = opponentState.clearingRows && opponentState.clearingRows.length > 0 ? 240 : 0;
       }
+      if (opponentState.combo !== undefined) {
+        oEngine.comboCount = opponentState.combo;
+      }
+      if (opponentState.b2b !== undefined) {
+        oEngine.b2bActive = opponentState.b2b;
+      }
+      if (opponentState.b2bChain !== undefined) {
+        oEngine.b2bChain = opponentState.b2bChain;
+      }
     });
 
     if (keyboardRef.current) keyboardRef.current.detach();
@@ -509,7 +520,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
 
     // Before countdown: show exact upcoming pieces with the 1st falling piece on top
     pEngine.activePiece = null;
-    setPlayerQueue([...pEngine.randomizer.peek(5)]);
+    setPlayerQueue([...pEngine.randomizer.peek(6)]);
 
     // Start 3-second countdown before gameplay
     setIsCountingDown(true);
@@ -533,8 +544,11 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
         rotation: engine.activeRotation
       } : null,
       holdPiece: engine.holdPiece,
-      queue: [...engine.randomizer.peek(5)],
-      clearingRows: [...engine.clearingRows]
+      queue: [...engine.randomizer.peek(6)],
+      clearingRows: [...engine.clearingRows],
+      combo: engine.comboCount,
+      b2b: engine.b2bActive,
+      b2bChain: engine.b2bChain
     });
   };
 
@@ -543,7 +557,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     playerEngine.state = 'playing';
     playerEngine.startTime = Date.now();
     playerEngine.spawnPiece();
-    setPlayerQueue([...playerEngine.randomizer.peek(5)]);
+    setPlayerQueue([...playerEngine.randomizer.peek(6)]);
     if (matchId) {
       syncPlayerState(playerEngine, matchId, true);
     }
@@ -564,7 +578,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
           keyboardRef.current?.update(delta);
           gamepadRef.current?.update(delta);
           setPlayerHold(playerEngine.holdPiece);
-          setPlayerQueue([...playerEngine.randomizer.peek(5)]);
+          setPlayerQueue([...playerEngine.randomizer.peek(6)]);
           setPlayerGarbage(playerEngine.garbageManager.getPendingCount());
         }
 
@@ -754,10 +768,10 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
 
           <div>
             <h1 style={{ fontSize: '2.1rem', fontWeight: 800, marginBottom: '0.4rem' }}>
-              Authentication Required
+              {t('Authentication Required')}
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.5, maxWidth: '440px', margin: '0 auto' }}>
-              Online 1v1 multiplayer is exclusively reserved for registered and logged-in players to ensure fair play, prevent abuse, and record official stats.
+              {t('Online 1v1 multiplayer is exclusively reserved for registered and logged-in players to ensure fair play, prevent abuse, and record official stats.')}
             </p>
           </div>
 
@@ -767,14 +781,14 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
               style={{ flex: 1, padding: '0.75rem', fontSize: '1rem', fontWeight: 700 }}
               onClick={() => onNavigate?.('login')}
             >
-              Log In
+              {t('Log In')}
             </button>
             <button
               className="btn-secondary"
               style={{ flex: 1, padding: '0.75rem', fontSize: '1rem', fontWeight: 600 }}
               onClick={() => onNavigate?.('register')}
             >
-              Sign Up
+              {t('Sign Up')}
             </button>
           </div>
         </div>
@@ -804,9 +818,9 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       {matchStatus === 'lobby' && (
         <div style={{ width: '100%', maxWidth: '980px', textAlign: 'center', marginTop: '1rem' }}>
           <div style={{ marginBottom: '2rem' }}>
-            <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>Online Player vs Player</h1>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Online Player vs Player')}</h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1rem' }}>
-              Real-time competitive multiplayer. Play a casual quick match, a ranked ELO match, or create a private room for a friend.
+              {t('Real-time competitive multiplayer. Play a casual quick match, a ranked ELO match, or create a private room for a friend.')}
             </p>
             <div style={{
               display: 'inline-flex',
@@ -818,7 +832,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
               padding: '0.4rem 1rem'
             }}>
               <Trophy size={16} color="var(--accent-cyan)" />
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Your Rating:</span>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('Your Rating:')}</span>
               <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.95rem' }}>{user?.rating ?? 1000} ELO</strong>
             </div>
           </div>
@@ -848,8 +862,8 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
                     <Zap size={24} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Quick Search</h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>Instant 1v1 Matchmaking</span>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{t('Quick Search')}</h3>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>{t('Instant 1v1 Matchmaking')}</span>
                   </div>
                 </div>
                 <span style={{
@@ -861,11 +875,11 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
                   background: 'var(--accent-cyan)',
                   color: '#000'
                 }}>
-                  CASUAL
+                  {t('CASUAL')}
                 </span>
               </div>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
-                Jump into a casual match against another player in the Quick Search queue. Casual matches are recorded but never affect your ELO.
+                {t('Jump into a casual match against another player in the Quick Search queue. Casual matches are recorded but never affect your ELO.')}
               </p>
               <button
                 className="btn-primary"
@@ -882,7 +896,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
                 }}
                 onClick={() => handleQuickSearch(false)}
               >
-                <Zap size={18} /> Quick Play
+                <Zap size={18} /> {t('Quick Play')}
               </button>
             </div>
 
@@ -905,8 +919,8 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
                     <Trophy size={24} />
                   </div>
                   <div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Ranked Match</h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-yellow)', fontWeight: 600 }}>Competitive ELO Matchmaking</span>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{t('Ranked Match')}</h3>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-yellow)', fontWeight: 600 }}>{t('Competitive ELO Matchmaking')}</span>
                   </div>
                 </div>
                 <span style={{
@@ -922,7 +936,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
                 </span>
               </div>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
-                Same instant matchmaking as Quick Search, but every win or loss updates your ELO rating.
+                {t('Same instant matchmaking as Quick Search, but every win or loss updates your ELO rating.')}
               </p>
               <button
                 className="btn-primary"
@@ -939,7 +953,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
                 }}
                 onClick={() => handleQuickSearch(true)}
               >
-                <Trophy size={18} /> Find Ranked Match
+                <Trophy size={18} /> {t('Find Ranked Match')}
               </button>
             </div>
 
@@ -950,15 +964,15 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
                   <Plus size={24} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Create Private Room</h3>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Generate 6-letter room code</span>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{t('Create Private Room')}</h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Generate 6-letter room code')}</span>
                 </div>
               </div>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
-Host a casual private match and share the code with a friend. The game waits until your friend joins before starting. Does not affect ELO.
+{t('Host a casual private match and share the code with a friend. The game waits until your friend joins before starting. Does not affect ELO.')}
               </p>
               <button className="btn-secondary" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.7rem' }} onClick={handleCreateRoom}>
-                <Plus size={18} /> Host Room
+                <Plus size={18} /> {t('Host Room')}
               </button>
             </div>
 
@@ -969,17 +983,17 @@ Host a casual private match and share the code with a friend. The game waits unt
                   <LogIn size={24} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Join with Room Code</h3>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Enter your friend's code</span>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{t('Join with Room Code')}</h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t("Enter your friend's code")}</span>
                 </div>
               </div>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
-Enter the 6-letter code generated by the host to join their casual room immediately. Does not affect ELO.
+{t('Enter the 6-letter code generated by the host to join their casual room immediately. Does not affect ELO.')}
               </p>
               <div style={{ display: 'flex', gap: '0.5rem', width: '100%', marginTop: 'auto' }}>
                 <input
                   type="text"
-                  placeholder="CODE"
+                  placeholder={t('CODE')}
                   value={inputCode}
                   onChange={(e) => setInputCode(e.target.value.toUpperCase())}
                   style={{
@@ -999,7 +1013,7 @@ Enter the 6-letter code generated by the host to join their casual room immediat
                   maxLength={6}
                 />
                 <button className="btn-secondary" style={{ padding: '0.55rem 1rem', whiteSpace: 'nowrap', fontWeight: 600, fontSize: '0.85rem' }} onClick={handleJoinRoom}>
-                  Join
+                  {t('Join')}
                 </button>
               </div>
             </div>
@@ -1037,12 +1051,12 @@ Enter the 6-letter code generated by the host to join their casual room immediat
 
             <div>
               <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.4rem' }}>
-                {isRankedMatch ? 'Searching for Ranked Opponent...' : 'Searching for Opponent...'}
+                {isRankedMatch ? t('Searching for Ranked Opponent...') : t('Searching for Opponent...')}
               </h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                 {isRankedMatch
-                  ? 'Looking for another player in the Ranked queue. ELO is on the line!'
-                  : 'Looking for another player in the casual Quick Match queue. The match will launch automatically!'}
+                  ? t('Looking for another player in the Ranked queue. ELO is on the line!')
+                  : t('Looking for another player in the casual Quick Match queue. The match will launch automatically!')}
               </p>
               <div style={{
                 marginTop: '1rem',
@@ -1077,7 +1091,7 @@ Enter the 6-letter code generated by the host to join their casual room immediat
               }}
               onClick={handleCancelQuickSearch}
             >
-              <X size={18} /> Cancel Search
+              <X size={18} /> {t('Cancel Search')}
             </button>
           </div>
         </div>
@@ -1107,9 +1121,9 @@ Enter the 6-letter code generated by the host to join their casual room immediat
             </div>
 
             <div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.3rem' }}>Waiting for Opponent...</h2>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.3rem' }}>{t('Waiting for Opponent...')}</h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                Share this room code with your friend. The game will automatically start when they join!
+                {t('Share this room code with your friend. The game will automatically start when they join!')}
               </p>
             </div>
 
@@ -1125,19 +1139,19 @@ Enter the 6-letter code generated by the host to join their casual room immediat
               <span style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '0.2em', color: 'var(--accent-cyan)' }}>
                 {roomCode}
               </span>
-              <button className="icon-btn" onClick={copyCode} title="Copy Code" style={{ padding: '0.5rem' }}>
+              <button className="icon-btn" onClick={copyCode} title={t('Copy Code')} style={{ padding: '0.5rem' }}>
                 {copied ? <Check size={20} color="var(--accent-green)" /> : <Copy size={20} />}
               </button>
             </div>
 
             {copied && (
               <span style={{ color: 'var(--accent-green)', fontSize: '0.85rem', fontWeight: 600 }}>
-                Code copied to clipboard!
+                {t('Code copied to clipboard!')}
               </span>
             )}
 
             <button className="btn-secondary" style={{ marginTop: '0.5rem' }} onClick={handleLeaveRoom}>
-              Cancel & Back to Lobby
+              {t('Cancel & Back to Lobby')}
             </button>
           </div>
         </div>
@@ -1149,11 +1163,11 @@ Enter the 6-letter code generated by the host to join their casual room immediat
           {/* Room Banner */}
           <div className="versus-toolbar">
             <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Room Code: </span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('Room Code:')} </span>
               <strong style={{ fontSize: '1.1rem', letterSpacing: '0.1em', color: 'var(--accent-cyan)' }}>{roomCode}</strong>
             </div>
 
-            <button className="icon-btn" onClick={copyCode} title="Copy Code">
+            <button className="icon-btn" onClick={copyCode} title={t('Copy Code')}>
               {copied ? <Check size={16} color="var(--accent-green)" /> : <Copy size={16} />}
             </button>
 
@@ -1165,11 +1179,11 @@ Enter the 6-letter code generated by the host to join their casual room immediat
               fontWeight: 800,
               fontSize: '0.8rem'
             }}>
-              {isRankedMatch ? 'RANKED MATCH' : 'CASUAL MATCH'}
+              {isRankedMatch ? t('RANKED MATCH') : t('CASUAL MATCH')}
             </div>
 
             <button className="btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }} onClick={handleLeaveRoom}>
-              Leave Room
+              {t('Leave Room')}
             </button>
           </div>
 
@@ -1181,7 +1195,7 @@ Enter the 6-letter code generated by the host to join their casual room immediat
             player={{
               label: (
                 <>
-                  <span>You ({user?.display_name || 'Player 1'})</span>
+                  <span>{t('You ({name})', { name: user?.display_name || t('Player 1') })}</span>
                   <span className="versus-elo-badge">{user?.rating ?? 1000} ELO</span>
                 </>
               ),
@@ -1191,13 +1205,16 @@ Enter the 6-letter code generated by the host to join their casual room immediat
               queue: playerQueue,
               score: playerEngine.score,
               lines: playerEngine.lines,
+              combo: playerEngine.comboCount,
+              b2b: playerEngine.b2bActive,
+              b2bChain: playerEngine.b2bChain,
               engine: playerEngine,
               garbage: playerGarbage
             }}
             opponent={{
               label: (
                 <>
-                  <span>Opponent ({opponentName})</span>
+                  <span>{t('Opponent ({name})', { name: opponentName })}</span>
                   <span className="versus-elo-badge">{opponentRating} ELO</span>
                 </>
               ),
@@ -1207,6 +1224,9 @@ Enter the 6-letter code generated by the host to join their casual room immediat
               queue: opponentQueue,
               score: opponentEngine.score,
               lines: opponentEngine.lines,
+              combo: opponentEngine.comboCount,
+              b2b: opponentEngine.b2bActive,
+              b2bChain: opponentEngine.b2bChain,
               engine: opponentEngine,
               garbage: opponentGarbage
             }}

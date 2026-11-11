@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS user_settings (
     user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    language TEXT DEFAULT 'en',
     theme TEXT DEFAULT 'dark-01',
     das INTEGER DEFAULT 167,
     arr INTEGER DEFAULT 33,

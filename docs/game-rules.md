@@ -1,5 +1,8 @@
 # Nint Game Rules & Mechanics
 
+## 0. Marathon Starting Level
+- Marathon can start at any level from 1 to 15. The selected level controls both the initial gravity and the scoring multiplier.
+
 ## 1. Playfield
 - Standard 10 columns by 20 visible rows.
 - 20 buffer rows above the visible field for rotation kicks and garbage headroom (40 rows total). Pieces spawn at the top of the visible field.
@@ -55,7 +58,7 @@
 | T-Spin Triple | 6 lines |
 | Back-to-Back Bonus | +1 line |
 | Perfect Clear Bonus | +10 lines |
-| Combo Ladder | 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5... |
+| Combo Ladder | 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5... |
 
 - **Garbage Cancellation**: An outbound attack immediately reduces pending incoming garbage line-for-line before any garbage can penetrate.
-- **Hole Generation**: Incoming garbage enters from the bottom with 1 hole per line.
+- **Hole Generation**: Incoming garbage enters from the bottom with 1 hole per line; the gap stays in the same column for each group of eight lines, then moves to a new random column.

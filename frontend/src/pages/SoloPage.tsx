@@ -15,6 +15,7 @@ import { ApiClient } from '../services/api';
 import { LocalStorageManager } from '../services/storage';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack, scrollElementIntoViewSmart } from '../context/GamepadNavContext';
+import { useI18n } from '../i18n/useI18n';
 import { Play, Pause, RotateCcw, ArrowLeft, Flame, Zap, Timer, Smile, Sliders, Shield, RefreshCw } from 'lucide-react';
 
 interface SoloPageProps {
@@ -25,6 +26,7 @@ interface SoloPageProps {
 export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialMode }) => {
   const { user, isAuthenticated } = useAuth();
   const { settings } = useSettings();
+  const { t } = useI18n();
   const cellSize = useDynamicCellSize(false);
 
   const [mode, setMode] = useState<'marathon' | 'sprint' | 'ultra' | 'zen' | 'custom'>('marathon');
@@ -40,6 +42,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
 
   // Zen Custom Options
   const [isConfiguringZen, setIsConfiguringZen] = useState<boolean>(false);
+  const [isConfiguringMarathon, setIsConfiguringMarathon] = useState<boolean>(false);
   const [zenLevel, setZenLevel] = useState<number>(1);
   const [zenFixedGravity, setZenFixedGravity] = useState<boolean>(true);
   const [zenImmortal, setZenImmortal] = useState<boolean>(true);
@@ -52,6 +55,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
 
   const [sprintGoal, setSprintGoal] = useState<number>(40);
   const [ultraDuration, setUltraDuration] = useState<number>(180000); // 3 mins
+  const [marathonStartLevel, setMarathonStartLevel] = useState<number>(1);
 
   const [engine, setEngine] = useState<GameEngine>(() => new GameEngine());
   const [gameState, setGameState] = useState<string>('ready');
@@ -83,6 +87,11 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       setIsSelectingMode(true);
       return true;
     }
+    if (isConfiguringMarathon) {
+      setIsConfiguringMarathon(false);
+      setIsSelectingMode(true);
+      return true;
+    }
     if (!isSelectingMode) {
       if (gameState === 'paused' || gameState === 'ready') {
         saveZenSessionTime();
@@ -95,7 +104,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       }
     }
     return false;
-  }, [isGameOverModalOpen, isConfiguringZen, isSelectingMode, gameState, engine]);
+  }, [isGameOverModalOpen, isConfiguringZen, isConfiguringMarathon, isSelectingMode, gameState, engine]);
 
   const keyboardManagerRef = useRef<KeyboardManager | null>(null);
   const gamepadManagerRef = useRef<GamepadManager | null>(null);
@@ -348,12 +357,20 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       setMode('zen');
       setIsSelectingMode(false);
       setIsConfiguringZen(true);
+      setIsConfiguringMarathon(false);
       onClearInitialMode?.();
-    } else if (m === 'marathon' || m === 'sprint' || m === 'ultra') {
-      const validMode = m as 'marathon' | 'sprint' | 'ultra';
+    } else if (m === 'marathon') {
+      setMode('marathon');
+      setIsSelectingMode(false);
+      setIsConfiguringZen(false);
+      setIsConfiguringMarathon(true);
+      onClearInitialMode?.();
+    } else if (m === 'sprint' || m === 'ultra') {
+      const validMode = m as 'sprint' | 'ultra';
       setMode(validMode);
       setIsSelectingMode(false);
       setIsConfiguringZen(false);
+      setIsConfiguringMarathon(false);
       onClearInitialMode?.();
       // Use a microtask to ensure state is set before initGame reads it
       setTimeout(() => {
@@ -368,9 +385,15 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     if (selectedMode === 'zen') {
       setIsSelectingMode(false);
       setIsConfiguringZen(true);
+      setIsConfiguringMarathon(false);
+    } else if (selectedMode === 'marathon') {
+      setIsSelectingMode(false);
+      setIsConfiguringZen(false);
+      setIsConfiguringMarathon(true);
     } else {
       setIsSelectingMode(false);
       setIsConfiguringZen(false);
+      setIsConfiguringMarathon(false);
       initGame(selectedMode);
     }
   };
@@ -380,11 +403,16 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     initGame('zen');
   };
 
+  const startMarathonGame = () => {
+    setIsConfiguringMarathon(false);
+    initGame('marathon');
+  };
+
   const initGame = (targetMode?: 'marathon' | 'sprint' | 'ultra' | 'zen' | 'custom') => {
     soundManager.stopBgm();
     const activeMode = (typeof targetMode === 'string') ? targetMode : mode;
     const isZen = activeMode === 'zen';
-    const startingLevel = isZen ? zenLevel : 1;
+    const startingLevel = isZen ? zenLevel : activeMode === 'marathon' ? marathonStartLevel : 1;
     const fixedGravity = isZen ? zenFixedGravity : false;
     const immortal = isZen ? zenImmortal : false;
     const startingGarbageLines = isZen ? zenGarbageLines : 0;
@@ -401,7 +429,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       startingGarbageLines
     }, {
       onPieceSpawn: () => {
-        setNextQueue([...newEngine.randomizer.peek(5)]);
+        setNextQueue([...newEngine.randomizer.peek(6)]);
         setHoldPiece(newEngine.holdPiece);
         setCanHold(newEngine.canHold);
       },
@@ -442,7 +470,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
 
     // Next queue before countdown: show exact upcoming pieces with the 1st falling piece on top
     newEngine.activePiece = null;
-    setNextQueue([...newEngine.randomizer.peek(5)]);
+    setNextQueue([...newEngine.randomizer.peek(6)]);
     setHoldPiece(null);
     setCanHold(true);
 
@@ -479,7 +507,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     engine.state = 'playing';
     engine.startTime = Date.now();
     engine.spawnPiece();
-    setNextQueue([...engine.randomizer.peek(5)]);
+    setNextQueue([...engine.randomizer.peek(6)]);
     setGameState('playing');
     soundManager.startBgm();
   };
@@ -596,9 +624,9 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     return (
       <div style={{ width: '100%', maxWidth: '880px', textAlign: 'center', marginTop: '1rem' }}>
         <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>Solo Game Modes</h1>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Solo Game Modes')}</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-            Choose a single-player mode to begin.
+            {t('Choose a single-player mode to begin.')}
           </p>
         </div>
 
@@ -615,12 +643,12 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
                 <Flame size={24} />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Marathon</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>150 Lines Challenge</span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Marathon')}</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('150 Lines Challenge')}</span>
               </div>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Clear 150 lines as gravity steadily speeds up every 10 lines. Push for the ultimate high score!
+              {t('Clear 150 lines as gravity steadily speeds up every 10 lines. Push for the ultimate high score!')}
             </p>
           </div>
 
@@ -631,12 +659,12 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
                 <Zap size={24} />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Sprint (40 Lines)</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Speedrun Attack</span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Sprint (40 Lines)')}</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Speedrun Attack')}</span>
               </div>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Clear 40 lines as fast as humanly possible. Test your speed, execution, and personal best time.
+              {t('Clear 40 lines as fast as humanly possible. Test your speed, execution, and personal best time.')}
             </p>
           </div>
 
@@ -647,12 +675,12 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
                 <Timer size={24} />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Ultra</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>3 Minutes Score Attack</span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Ultra')}</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('3 Minutes Score Attack')}</span>
               </div>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Score as many points as possible before the 3-minute timer expires. Maximize B2B chains and T-Spins.
+              {t('Score as many points as possible before the 3-minute timer expires. Maximize B2B chains and T-Spins.')}
             </p>
           </div>
 
@@ -663,13 +691,75 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
                 <Smile size={24} />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Zen & Custom Practice</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Configurable Endless</span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Zen & Custom Practice')}</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Configurable Endless')}</span>
               </div>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Configure gravity, immortal recovery, lock delays, and starting downstack lines to practice freely.
+              {t('Configure gravity, immortal recovery, lock delays, and starting downstack lines to practice freely.')}
             </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Marathon pre-game configuration panel
+  if (isConfiguringMarathon) {
+    return (
+      <div style={{ width: '100%', maxWidth: '720px', marginTop: '1rem' }}>
+        <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
+          <div style={{ display: 'inline-flex', padding: '0.75rem', borderRadius: '50%', background: 'rgba(6, 182, 212, 0.15)', color: 'var(--accent-cyan)', marginBottom: '0.5rem' }}>
+            <Flame size={32} />
+          </div>
+          <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.3rem' }}>{t('Marathon')}</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+            {t('Choose your Marathon starting level before the game begins.')}
+          </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '0.3rem' }}>
+            {t('🎮 ↑↓ Navigate · ←→ Change value · A Confirm · B Back')}
+          </p>
+        </div>
+
+        <div className="panel-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '0.65rem' }}>
+              <label htmlFor="marathon-start-level" style={{ fontWeight: 700, fontSize: '0.95rem' }}>
+                {t('Marathon Starting Level')}
+              </label>
+              <span style={{ color: 'var(--accent-cyan)', fontWeight: 800, fontSize: '0.95rem' }}>
+                {t('Level {level} ({ms}ms)', { level: marathonStartLevel, ms: GameEngine.defaultGravityCurve(marathonStartLevel) })}
+              </span>
+            </div>
+            <input
+              id="marathon-start-level"
+              type="range"
+              min="1"
+              max="15"
+              step="1"
+              value={marathonStartLevel}
+              onChange={(e) => setMarathonStartLevel(parseInt(e.target.value, 10))}
+              style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
+            />
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+              {t('The Marathon starts at the selected speed and scoring level.')}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button
+              className="btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              onClick={() => {
+                setIsConfiguringMarathon(false);
+                setIsSelectingMode(true);
+              }}
+            >
+              <ArrowLeft size={16} /> {t('Back')}
+            </button>
+            <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} onClick={startMarathonGame}>
+              <Play size={16} /> {t('Start Marathon')}
+            </button>
           </div>
         </div>
       </div>
@@ -701,12 +791,12 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           <div style={{ display: 'inline-flex', padding: '0.75rem', borderRadius: '50%', background: 'rgba(168, 85, 247, 0.15)', color: 'var(--accent-purple)', marginBottom: '0.5rem' }}>
             <Smile size={32} />
           </div>
-          <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.3rem' }}>Zen &amp; Practice Settings</h1>
+          <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.3rem' }}>{t('Zen & Practice Settings')}</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Configure your custom session parameters before playing.
+            {t('Configure your custom session parameters before playing.')}
           </p>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '0.3rem' }}>
-            🎮 ↑↓ Navigate &nbsp;·&nbsp; ←→ Change value &nbsp;·&nbsp; A Confirm &nbsp;·&nbsp; B Back
+            {t('🎮 ↑↓ Navigate · ←→ Change value · A Confirm · B Back')}
           </p>
         </div>
 
@@ -715,18 +805,18 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           {/* Section 0 — Starting Speed / Level */}
           <div data-zen-section="0" style={zenSec(0)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <label style={{ fontWeight: 700, fontSize: '0.95rem' }}>Starting Speed / Level</label>
+              <label style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('Starting Speed / Level')}</label>
               <span style={{ color: 'var(--accent-cyan)', fontWeight: 800, fontSize: '0.95rem' }}>
-                Level {zenLevel} ({GameEngine.defaultGravityCurve(zenLevel)}ms)
+                {t('Level {level} ({ms}ms)', { level: zenLevel, ms: GameEngine.defaultGravityCurve(zenLevel) })}
               </span>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
               {[
-                { label: 'Relaxed (Lv 1)', lvl: 1 },
-                { label: 'Chill (Lv 5)', lvl: 5 },
-                { label: 'Brisk (Lv 10)', lvl: 10 },
-                { label: 'Intense (Lv 15)', lvl: 15 },
-                { label: '20G Instant (Lv 20)', lvl: 20 }
+                { label: t('Relaxed (Lv 1)'), lvl: 1 },
+                { label: t('Chill (Lv 5)'), lvl: 5 },
+                { label: t('Brisk (Lv 10)'), lvl: 10 },
+                { label: t('Intense (Lv 15)'), lvl: 15 },
+                { label: t('20G Instant (Lv 20)'), lvl: 20 }
               ].map(p => (
                 <button
                   key={p.lvl}
@@ -761,23 +851,23 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           {/* Section 1 — Speed Progression */}
           <div data-zen-section="1" style={zenSec(1)}>
             <label style={{ display: 'block', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
-              Speed Progression
+              {t('Speed Progression')}
             </label>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button type="button" onClick={() => setZenFixedGravity(true)} style={optBtn(zenFixedGravity, 'var(--accent-purple)', 'rgba(168, 85, 247, 0.1)')}>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem', color: zenFixedGravity ? 'var(--accent-purple)' : 'var(--text-primary)' }}>
-                  🧘 Fixed Speed (Constant)
+                  {t('🧘 Fixed Speed (Constant)')}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  Gravity never accelerates. Zero pressure endless meditation.
+                  {t('Gravity never accelerates. Zero pressure endless meditation.')}
                 </div>
               </button>
               <button type="button" onClick={() => setZenFixedGravity(false)} style={optBtn(!zenFixedGravity, 'var(--accent-purple)', 'rgba(168, 85, 247, 0.1)')}>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem', color: !zenFixedGravity ? 'var(--accent-purple)' : 'var(--text-primary)' }}>
-                  ⚡ Dynamic (Accelerates)
+                  {t('⚡ Dynamic (Accelerates)')}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  Gravity steadily speeds up every 10 lines as in Marathon.
+                  {t('Gravity steadily speeds up every 10 lines as in Marathon.')}
                 </div>
               </button>
             </div>
@@ -786,23 +876,23 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           {/* Section 2 — Anti-Game Over */}
           <div data-zen-section="2" style={zenSec(2)}>
             <label style={{ display: 'block', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.5rem' }}>
-              Anti-Game Over (Zen Immortality)
+              {t('Anti-Game Over (Zen Immortality)')}
             </label>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button type="button" onClick={() => setZenImmortal(true)} style={optBtn(zenImmortal, 'var(--accent-green)', 'rgba(34, 197, 94, 0.1)')}>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem', color: zenImmortal ? 'var(--accent-green)' : 'var(--text-primary)' }}>
-                  🛡️ Auto-Recovery (No Game Over)
+                  {t('🛡️ Auto-Recovery (No Game Over)')}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  Touching the ceiling clears the board and continues smoothly without ending the game.
+                  {t('Touching the ceiling clears the board and continues smoothly without ending the game.')}
                 </div>
               </button>
               <button type="button" onClick={() => setZenImmortal(false)} style={optBtn(!zenImmortal, 'var(--accent-red)', 'rgba(239, 68, 68, 0.1)')}>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem', color: !zenImmortal ? 'var(--accent-red)' : 'var(--text-primary)' }}>
-                  🛑 Standard Game Over
+                  {t('🛑 Standard Game Over')}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  Overfilling the board results in a normal game over screen.
+                  {t('Overfilling the board results in a normal game over screen.')}
                 </div>
               </button>
             </div>
@@ -811,13 +901,13 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           {/* Section 3 — Downstack Practice */}
           <div data-zen-section="3" style={zenSec(3)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-              <label style={{ fontWeight: 700, fontSize: '0.95rem' }}>Downstack Practice (Starting Lines)</label>
+              <label style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('Downstack Practice (Starting Lines)')}</label>
               <span style={{ color: 'var(--accent-yellow)', fontWeight: 800, fontSize: '0.9rem' }}>
-                {zenGarbageLines === 0 ? 'Clean Board' : `${zenGarbageLines} Lines`}
+                {zenGarbageLines === 0 ? t('Clean Board') : t('{count} Lines', { count: zenGarbageLines })}
               </span>
             </div>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.6rem' }}>
-              Pre-fill the board with garbage rows with single holes to practice digging and downstacking.
+              {t('Pre-fill the board with garbage rows with single holes to practice digging and downstacking.')}
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               {[0, 2, 4, 6, 8, 10, 14].map(count => (
@@ -836,7 +926,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
                     fontSize: '0.8rem'
                   }}
                 >
-                  {count === 0 ? 'Empty (0)' : `${count} Lines`}
+                  {count === 0 ? t('Empty (0)') : t('{count} Lines', { count })}
                 </button>
               ))}
             </div>
@@ -845,14 +935,14 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           {/* Section 4 — Lock Delay */}
           <div data-zen-section="4" style={zenSec(4)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-              <label style={{ fontWeight: 700, fontSize: '0.95rem' }}>Lock Delay</label>
+              <label style={{ fontWeight: 700, fontSize: '0.95rem' }}>{t('Lock Delay')}</label>
               <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{zenLockDelay}ms</span>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               {[
-                { label: 'Standard (500ms)', ms: 500 },
-                { label: 'Relaxed (1000ms)', ms: 1000 },
-                { label: 'Uncapped (2000ms)', ms: 2000 }
+                { label: t('Standard (500ms)'), ms: 500 },
+                { label: t('Relaxed (1000ms)'), ms: 1000 },
+                { label: t('Uncapped (2000ms)'), ms: 2000 }
               ].map(d => (
                 <button
                   key={d.ms}
@@ -890,7 +980,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
               }}
             >
               <ArrowLeft size={18} />
-              <span>Back to Modes</span>
+              <span>{t('Back to Modes')}</span>
             </button>
             <button
               data-zen-section="6"
@@ -905,7 +995,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
               }}
             >
               <Play size={20} />
-              <span>Start Zen Session</span>
+              <span>{t('Start Zen Session')}</span>
             </button>
           </div>
         </div>
@@ -928,7 +1018,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
             setIsSelectingMode(true);
           }}
         >
-          <ArrowLeft size={16} /> Mode Menu
+          <ArrowLeft size={16} /> {t('Mode Menu')}
         </button>
 
         {mode === 'zen' && (
@@ -941,7 +1031,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
               setIsConfiguringZen(true);
             }}
           >
-            <Sliders size={16} color="var(--accent-purple)" /> Zen Settings
+            <Sliders size={16} color="var(--accent-purple)" /> {t('Zen Settings')}
           </button>
         )}
 
@@ -954,7 +1044,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           textTransform: 'uppercase',
           letterSpacing: '0.05em'
         }}>
-          Mode: {mode} {mode === 'sprint' ? `(${sprintGoal}L)` : mode === 'ultra' ? '(3m)' : mode === 'zen' ? `(Lv ${zenLevel}${zenFixedGravity ? ' • Fixed' : ''}${zenImmortal ? ' • Immortal' : ''})` : ''}
+          {t('Mode: {mode}', { mode: t(mode === 'marathon' ? 'Marathon' : mode === 'sprint' ? 'Sprint (40 Lines)' : mode === 'ultra' ? 'Ultra' : 'Zen & Custom Practice') })}{mode === 'sprint' ? ` (${sprintGoal}L)` : mode === 'ultra' ? ' (3m)' : mode === 'zen' ? ` (${t('Level')} ${zenLevel}${zenFixedGravity ? ` • ${t('Fixed')}` : ''}${zenImmortal ? ` • ${t('Immortal')}` : ''})` : ''}
         </div>
       </div>
 
@@ -987,9 +1077,9 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           {gameState === 'paused' && (
             <div className="overlay-backdrop" style={{ position: 'absolute', borderRadius: 'var(--radius-md)' }}>
               <div style={{ textAlign: 'center' }}>
-                <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '1rem' }}>PAUSED</h2>
+                <h2 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: '1rem' }}>{t('PAUSED')}</h2>
                 <button className="btn-primary" onClick={() => engine.resume()}>
-                  <Play size={18} /> Resume
+                  <Play size={18} /> {t('Resume')}
                 </button>
               </div>
             </div>
@@ -998,7 +1088,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
 
         {/* Right Side: Next Queue & Actions */}
         <div className="side-panel">
-          <QueueDisplay queue={nextQueue} count={5} />
+          <QueueDisplay queue={nextQueue} count={6} />
           <div className="panel-card" style={{ gap: '0.5rem' }}>
             <button
               className="btn-secondary"
@@ -1009,7 +1099,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
               }}
             >
               {gameState === 'paused' ? <Play size={16} /> : <Pause size={16} />}
-              <span>{gameState === 'paused' ? 'Resume' : 'Pause'}</span>
+              <span>{gameState === 'paused' ? t('Resume') : t('Pause')}</span>
             </button>
             <button
               className="btn-secondary"
@@ -1017,7 +1107,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
               onClick={() => initGame()}
             >
               <RotateCcw size={16} />
-              <span>Restart</span>
+              <span>{t('Restart')}</span>
             </button>
           </div>
         </div>

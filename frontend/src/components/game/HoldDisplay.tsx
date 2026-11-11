@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { TetrominoType } from '../../game/engine/constants';
 import { CanvasRenderer } from '../../game/rendering/canvasRenderer';
+import { useI18n } from '../../i18n/useI18n';
 
 interface HoldDisplayProps {
   piece: TetrominoType | null;
@@ -8,6 +9,7 @@ interface HoldDisplayProps {
 }
 
 export const HoldDisplay: React.FC<HoldDisplayProps> = ({ piece, canHold = true }) => {
+  const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -18,7 +20,7 @@ export const HoldDisplay: React.FC<HoldDisplayProps> = ({ piece, canHold = true 
 
   return (
     <div className="panel-card" style={{ opacity: canHold ? 1 : 0.5 }}>
-      <div className="panel-title">Hold</div>
+      <div className="panel-title">{t('Hold')}</div>
       <canvas ref={canvasRef} style={{ width: '72px', height: '72px' }} />
     </div>
   );

@@ -5,6 +5,7 @@ const THEMES = new Set([
   'light-01', 'light-02', 'light-03', 'light-04', 'light-05'
 ]);
 const COLORBLIND_MODES = new Set(['none', 'protanopia', 'deuteranopia', 'tritanopia']);
+const LANGUAGES = new Set(['en', 'fr', 'de', 'es', 'it']);
 
 function clampNumber(value, fallback, min, max) {
   const num = Number(value);
@@ -51,6 +52,9 @@ export class SettingsService {
     const db = getDatabase();
     const current = this.getSettings(userId);
 
+    const requestedLanguage = newSettings.language ?? current.language;
+    const language = LANGUAGES.has(requestedLanguage) ? requestedLanguage : 'en';
+
     const requestedTheme = newSettings.theme ?? current.theme;
     const theme = THEMES.has(requestedTheme) ? requestedTheme : current.theme;
 
@@ -58,6 +62,7 @@ export class SettingsService {
     const colorblindMode = COLORBLIND_MODES.has(requestedColorblind) ? requestedColorblind : current.colorblind_mode;
 
     const merged = {
+      language,
       theme,
       das: Math.round(clampNumber(newSettings.das, current.das, 0, 500)),
       arr: Math.round(clampNumber(newSettings.arr, current.arr, 0, 200)),
@@ -83,13 +88,13 @@ export class SettingsService {
 
     db.prepare(`
       UPDATE user_settings SET
-        theme = ?, das = ?, arr = ?, soft_drop_factor = ?, lock_delay = ?,
+        language = ?, theme = ?, das = ?, arr = ?, soft_drop_factor = ?, lock_delay = ?,
         sound_volume = ?, music_volume = ?, keybindings = ?, gamepad_bindings = ?,
         touch_controls_enabled = ?, ghost_piece = ?, skin = ?,
         colorblind_mode = ?, reduced_motion = ?, updated_at = ?
       WHERE user_id = ?
     `).run(
-      merged.theme, merged.das, merged.arr, merged.soft_drop_factor, merged.lock_delay,
+      merged.language, merged.theme, merged.das, merged.arr, merged.soft_drop_factor, merged.lock_delay,
       merged.sound_volume, merged.music_volume, merged.keybindings, merged.gamepad_bindings,
       merged.touch_controls_enabled, merged.ghost_piece, merged.skin,
       merged.colorblind_mode, merged.reduced_motion, merged.updated_at,

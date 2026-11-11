@@ -8,6 +8,8 @@ export interface GarbageAttack {
 
 export class GarbageManager {
   private pendingQueue: number[] = [];
+  private holeColumn: number = Math.floor(Math.random() * BOARD_WIDTH);
+  private linesInHoleGroup: number = 0;
 
   public getPendingCount(): number {
     return this.pendingQueue.reduce((acc, count) => acc + count, 0);
@@ -37,7 +39,7 @@ export class GarbageManager {
   }
 
   // Consumes pending garbage and inserts garbage rows at the bottom of the board
-  public insertGarbage(board: (string | null)[][], maxLinesToInsert: number = 8): { insertedLines: number; toppedOut: boolean } {
+  public insertGarbage(board: (string | null)[][], maxLinesToInsert: number = BOARD_TOTAL_HEIGHT): { insertedLines: number; toppedOut: boolean } {
     let linesToInsert = 0;
     while (this.pendingQueue.length > 0 && linesToInsert < maxLinesToInsert) {
       const needed = maxLinesToInsert - linesToInsert;
@@ -69,17 +71,17 @@ export class GarbageManager {
       board[r] = [...board[r + linesToInsert]];
     }
 
-    // Insert new garbage rows at the bottom
-    // We choose a hole column, often sticking with the same hole for consecutive lines in the same chunk
-    let holeCol = Math.floor(Math.random() * BOARD_WIDTH);
+    // Insert new garbage rows at the bottom. The Guideline keeps the same
+    // gap for a group of eight lines before choosing a new random column.
     for (let r = BOARD_TOTAL_HEIGHT - linesToInsert; r < BOARD_TOTAL_HEIGHT; r++) {
-      // 20% chance to switch hole column per line
-      if (Math.random() < 0.2) {
-        holeCol = Math.floor(Math.random() * BOARD_WIDTH);
+      if (this.linesInHoleGroup >= 8) {
+        this.holeColumn = Math.floor(Math.random() * BOARD_WIDTH);
+        this.linesInHoleGroup = 0;
       }
       const newRow: (string | null)[] = new Array(BOARD_WIDTH).fill('#64748b'); // Garbage grey
-      newRow[holeCol] = null;
+      newRow[this.holeColumn] = null;
       board[r] = newRow;
+      this.linesInHoleGroup++;
     }
 
     return { insertedLines: linesToInsert, toppedOut };
@@ -87,5 +89,7 @@ export class GarbageManager {
 
   public reset() {
     this.pendingQueue = [];
+    this.holeColumn = Math.floor(Math.random() * BOARD_WIDTH);
+    this.linesInHoleGroup = 0;
   }
 }
