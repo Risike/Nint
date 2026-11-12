@@ -109,6 +109,13 @@ test('Online PvP ELO requires both reports; AI matches never change rating', asy
     .set('Authorization', `Bearer ${tokenA}`);
   assert.equal(profileA1.body.rating, 1000);
 
+  const pendingResult = await request(app)
+    .get(`/api/matches/online/${matchId}/result`)
+    .set('Authorization', `Bearer ${tokenA}`);
+  assert.equal(pendingResult.status, 200);
+  assert.equal(pendingResult.body.settled, false);
+  assert.equal(pendingResult.body.elo, null);
+
   // 2. Player B reports the complementary loss: ELO is applied to both players
   const matchB = await request(app)
     .post('/api/matches/record')
@@ -132,6 +139,21 @@ test('Online PvP ELO requires both reports; AI matches never change rating', asy
   assert.ok(matchB.body.elo);
   assert.equal(matchB.body.elo.delta, -16);
   assert.equal(matchB.body.elo.newRating, 984);
+
+  const details = await request(app)
+    .get(`/api/matches/online/${matchId}`)
+    .set('Authorization', `Bearer ${tokenA}`);
+  assert.equal(details.status, 200);
+  assert.equal(details.body.players.host.rating, 1016);
+  assert.equal(details.body.players.guest.rating, 984);
+
+  const settledResult = await request(app)
+    .get(`/api/matches/online/${matchId}/result`)
+    .set('Authorization', `Bearer ${tokenA}`);
+  assert.equal(settledResult.status, 200);
+  assert.equal(settledResult.body.settled, true);
+  assert.equal(settledResult.body.elo.delta, 16);
+  assert.equal(settledResult.body.elo.newRating, 1016);
 
   const profileA2 = await request(app)
     .get('/api/auth/me')
@@ -161,7 +183,8 @@ test('Online PvP ELO requires both reports; AI matches never change rating', asy
       piecesPlaced: 25,
       duration: 30000
     });
-  assert.equal(duplicate.status, 409);
+  assert.equal(duplicate.status, 201);
+  assert.equal(duplicate.body.elo.delta, -16);
 
   // 4. Player A plays against the AI and wins: no ELO change
   const aiMatch = await request(app)
@@ -175,6 +198,7 @@ test('Online PvP ELO requires both reports; AI matches never change rating', asy
       result: 'win',
       playerScore: 8000,
       playerLines: 30,
+      piecesPlaced: 100,
       duration: 40000
     });
 
@@ -353,7 +377,9 @@ test('Forfeit penalizes only the abandoning player and is idempotent', async () 
       result: 'win',
       duration: 30000
     });
-  assert.equal(duplicateWin.status, 409);
+  assert.equal(duplicateWin.status, 201);
+  assert.equal(duplicateWin.body.elo.delta, 0);
+  assert.equal(duplicateWin.body.elo.newRating, 1000);
 
   const loserProfileAfterRepeat = await request(app)
     .get('/api/auth/me')

@@ -125,6 +125,7 @@ export function initSchema(db = getDatabase()) {
     applyNameDecorationReplacements(db);
     applyShopPriceTiers(db);
     backfillShopLocalizedNames(db);
+    fixShopLocalizedNameTranslations(db);
     applyShopColorPaletteV2(db);
     applyNameColorPaletteV3(db);
     applyShopGoldFrameDecoration(db);
@@ -251,6 +252,28 @@ function backfillShopLocalizedNames(db) {
     markDone.run(Date.now());
   });
   backfill();
+}
+
+function fixShopLocalizedNameTranslations(db) {
+  const marker = db
+    .prepare("SELECT value FROM site_config WHERE key = 'shop_localized_names_fix_v1'")
+    .get();
+  if (marker) return;
+
+  // Existing databases had already completed the v5 backfill, so correcting
+  // the source JSON alone would leave this default label stale.
+  const names = SHOP_LOCALIZED_NAMES.decor_equals;
+  if (names) {
+    db.prepare(`
+      UPDATE shop_items
+      SET name_fr = ?, updated_at = ?
+      WHERE id = 'decor_equals' AND name_fr = 'Égales'
+    `).run(names.fr || '', Date.now());
+  }
+  db.prepare(`
+    INSERT OR REPLACE INTO site_config (key, value, updated_at)
+    VALUES ('shop_localized_names_fix_v1', '1', ?)
+  `).run(Date.now());
 }
 
 function applyShopPriceTiers(db) {

@@ -77,6 +77,14 @@ export class FirebaseRealtimeService {
   private static currentUid: string = '';
   private static isConfigured: boolean = false;
 
+  private static unavailableError(): Error {
+    return new Error(
+      import.meta.env.DEV
+        ? 'Firebase Realtime Database is unavailable. Start the full development stack with "npm run dev" so the local Firebase emulator runs.'
+        : 'Firebase is not configured. Please check your .env settings.'
+    );
+  }
+
   public static initialize(): boolean {
     if (this.app) return this.isConfigured;
 
@@ -140,20 +148,27 @@ export class FirebaseRealtimeService {
   // Create an online room. The match id and seed come from the API so a
   // client can never invent a match that will later be accepted for ELO.
   public static async createRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false, cosmetics?: PlayerCosmetics): Promise<{ matchId: string; seed: number }> {
+    if (!this.isConfigured || !this.db) {
+      throw this.unavailableError();
+    }
+
     const uid = this.getUid();
 
-    if (this.isConfigured && this.db) {
-      // Reject a duplicate room code before creating the server-side match.
-      const existingRoom = await get(ref(this.db, `rooms/${roomCode}`));
-      if (existingRoom.exists()) {
-        throw new Error(`Room code "${roomCode}" is already in use. Please try again.`);
-      }
+    // Reject a duplicate room code before creating the server-side match.
+    let existingRoom;
+    try {
+      existingRoom = await get(ref(this.db, `rooms/${roomCode}`));
+    } catch {
+      throw this.unavailableError();
+    }
+    if (existingRoom.exists()) {
+      throw new Error(`Room code "${roomCode}" is already in use. Please try again.`);
     }
 
     const serverMatch = await ApiClient.createOnlineMatch(ranked);
     const { matchId, seed } = serverMatch;
 
-    if (this.isConfigured && this.db) {
+    try {
       const roomRef = ref(this.db, `rooms/${roomCode}`);
       await set(roomRef, {
         matchId,
@@ -198,6 +213,10 @@ export class FirebaseRealtimeService {
         alive: false,
         lastSeen: Date.now()
       }).catch(() => {});
+    } catch {
+      // Do not leave a server-owned match waiting forever when Firebase is down.
+      await ApiClient.cancelOnlineMatch(matchId).catch(() => {});
+      throw this.unavailableError();
     }
 
     return { matchId, seed };
@@ -208,11 +227,16 @@ export class FirebaseRealtimeService {
     const uid = this.getUid();
 
     if (!this.isConfigured || !this.db) {
-      throw new Error('Firebase is not configured. Please check your .env settings.');
+      throw this.unavailableError();
     }
 
     const roomRef = ref(this.db, `rooms/${roomCode}`);
-    const snapshot = await get(roomRef);
+    let snapshot;
+    try {
+      snapshot = await get(roomRef);
+    } catch {
+      throw this.unavailableError();
+    }
     if (!snapshot.exists()) {
       throw new Error(`Room "${roomCode}" not found. Verify the code.`);
     }
@@ -423,7 +447,7 @@ export class FirebaseRealtimeService {
     roomCode: string
   ): Promise<{ nextMatchId: string; seed: number }> {
     if (!this.isConfigured || !this.db) {
-      throw new Error('Firebase is not configured. Please check your .env settings.');
+      throw this.unavailableError();
     }
 
     // 1. Ask the API for a server-owned rematch before touching Firebase.
@@ -521,7 +545,7 @@ export class FirebaseRealtimeService {
     const uid = this.getUid();
 
     if (!this.isConfigured || !this.db) {
-      throw new Error('Firebase is not configured. Please check your network or configuration.');
+      throw this.unavailableError();
     }
 
     let isDisposed = false;

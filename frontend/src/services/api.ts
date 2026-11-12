@@ -182,11 +182,43 @@ export class ApiClient {
     });
   }
 
+  public static getOnlineMatch(matchId: string) {
+    return this.request<{
+      matchId: string;
+      seed: number;
+      ranked: boolean;
+      status: string;
+      winnerUserId: string | null;
+      players: {
+        host: { userId: string; rating: number };
+        guest: { userId: string; rating: number } | null;
+      };
+    }>(`/matches/online/${encodeURIComponent(matchId)}`);
+  }
+
+  public static getOnlineMatchResult(matchId: string) {
+    return this.request<{
+      matchId: string;
+      ranked: boolean;
+      status: string;
+      settled: boolean;
+      result: 'win' | 'loss' | 'draw' | null;
+      elo: { oldRating: number; newRating: number; delta: number; opponentRating: number | null } | null;
+    }>(`/matches/online/${encodeURIComponent(matchId)}/result`);
+  }
+
   public static joinOnlineMatch(matchId: string) {
     return this.request<{ matchId: string; seed: number; ranked: boolean; status: string }>(
       `/matches/online/${encodeURIComponent(matchId)}/join`,
       { method: 'POST', body: JSON.stringify({}) }
     );
+  }
+
+  public static cancelOnlineMatch(matchId: string) {
+    return this.request<{ success: boolean }>('/matches/forfeit', {
+      method: 'POST',
+      body: JSON.stringify({ matchId, result: 'cancel' })
+    });
   }
 
   public static createOnlineRematch(matchId: string) {

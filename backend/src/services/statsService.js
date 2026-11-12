@@ -6,6 +6,8 @@ import { OnlineMatchService } from './onlineMatchService.js';
 const ALLOWED_RESULTS = new Set(['win', 'loss', 'draw']);
 const ALLOWED_MODES = new Set(['versus_1v1', 'versus_online']);
 const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
+const MAX_PIECES_PER_SECOND = 12;
+const MAX_LINES_PER_SECOND = 4;
 
 function httpError(status, message) {
   const err = new Error(message);
@@ -214,8 +216,41 @@ export class StatsService {
       ? null
       : requireInt(matchData.difficulty, 'difficulty', { min: 1, max: 10 });
 
+    if (playerLines > 0 && piecesPlaced === 0) {
+      throw httpError(400, 'Line count requires pieces placed');
+    }
     if (piecesPlaced > 0 && playerLines > piecesPlaced * 4) {
       throw httpError(400, 'Implausible line count for pieces placed');
+    }
+
+    const durationSeconds = duration / 1000;
+    if (durationSeconds === 0) {
+      if (piecesPlaced > 0 || playerLines > 0) {
+        throw httpError(400, 'Game statistics require a non-zero duration');
+      }
+    } else {
+      if (piecesPlaced / durationSeconds > MAX_PIECES_PER_SECOND) {
+        throw httpError(400, 'Implausible pieces-per-second rate');
+      }
+      if (playerLines / durationSeconds > MAX_LINES_PER_SECOND) {
+        throw httpError(400, 'Implausible lines-per-second rate');
+      }
+    }
+
+    if (tetrises * 4 > playerLines) {
+      throw httpError(400, 'Implausible Tetris count for lines cleared');
+    }
+    if (perfectClears > playerLines) {
+      throw httpError(400, 'Implausible perfect-clear count for lines cleared');
+    }
+    if (tSpins > piecesPlaced) {
+      throw httpError(400, 'Implausible T-spin count for pieces placed');
+    }
+    if (maxCombo > playerLines) {
+      throw httpError(400, 'Implausible combo count for lines cleared');
+    }
+    if (maxB2B > playerLines) {
+      throw httpError(400, 'Implausible back-to-back count for lines cleared');
     }
 
     const opponentName = String(matchData.opponentName || (opponentType === 'ai' ? 'AI Opponent' : 'Online Opponent'))
@@ -580,6 +615,23 @@ export class StatsService {
     return settle();
   }
 
+  static getOnlineMatchResult(userId, matchId) {
+    const db = getDatabase();
+    const match = OnlineMatchService.getParticipantMatch(userId, matchId);
+    const row = db.prepare(
+      'SELECT * FROM match_history WHERE match_id = ? AND user_id = ?'
+    ).get(match.id, userId);
+
+    return {
+      matchId: match.id,
+      ranked: match.ranked === 1,
+      status: match.status,
+      settled: row?.rating_applied === 1,
+      result: row?.result ?? null,
+      elo: this.eloFromHistory(row)
+    };
+  }
+
   static recordMatch(userId, matchData) {
     const db = getDatabase();
     const online = matchData.opponentType !== 'ai';
@@ -590,6 +642,23 @@ export class StatsService {
       // The match id, opponent and ranked flag are server-owned. Client values
       // for these fields are ignored completely.
       onlineMatch = OnlineMatchService.getParticipantMatch(userId, matchData.matchId);
+      if (onlineMatch.status === 'completed') {
+        // A disconnect or forfeit already settled this match. Returning the
+        // player's own recorded row makes this endpoint idempotent and lets the
+        // surviving player see the +0 ELO forfeit result.
+        const existing = db.prepare(
+          'SELECT * FROM match_history WHERE match_id = ? AND user_id = ?'
+        ).get(onlineMatch.id, userId);
+        if (existing) {
+          return {
+            id: existing.id,
+            success: true,
+            elo: this.eloFromHistory(existing),
+            pending: false,
+            ranked: onlineMatch.ranked === 1
+          };
+        }
+      }
       if (onlineMatch.status !== 'active') {
         throw httpError(409, onlineMatch.status === 'completed'
           ? 'This online match is already completed'

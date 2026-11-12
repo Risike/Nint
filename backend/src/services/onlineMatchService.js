@@ -39,6 +39,30 @@ export class OnlineMatchService {
     return match;
   }
 
+  static getDetails(userId, matchId) {
+    const db = getDatabase();
+    const match = this.getParticipantMatch(userId, matchId);
+    const ratingFor = (id) => {
+      if (!id) return null;
+      const stats = db.prepare('SELECT rating FROM user_statistics WHERE user_id = ?').get(id);
+      return stats?.rating ?? 1000;
+    };
+
+    return {
+      matchId: match.id,
+      seed: match.seed,
+      ranked: match.ranked === 1,
+      status: match.status,
+      winnerUserId: match.winner_user_id,
+      players: {
+        host: { userId: match.host_user_id, rating: ratingFor(match.host_user_id) },
+        guest: match.guest_user_id
+          ? { userId: match.guest_user_id, rating: ratingFor(match.guest_user_id) }
+          : null
+      }
+    };
+  }
+
   static create(userId, { ranked = false } = {}) {
     const db = getDatabase();
     const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);

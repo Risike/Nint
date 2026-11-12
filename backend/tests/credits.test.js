@@ -195,7 +195,7 @@ test('AI, casual online and ranked online matches credit cleared lines once', as
       piecesPlaced: 14,
       duration: 20000
     });
-  assert.equal(duplicateB.status, 409);
+  assert.equal(duplicateB.status, 201);
   assert.equal(await getCredits(playerB.token), 4);
 
   const { matchId: rankedMatchId } = await createOnlineMatch(app, playerA.token, playerB.token, { ranked: true });
@@ -257,7 +257,7 @@ test('AI, casual online and ranked online matches credit cleared lines once', as
       piecesPlaced: 8,
       duration: 15000
     });
-  assert.equal(duplicateRankedB.status, 409);
+  assert.equal(duplicateRankedB.status, 201);
   assert.equal(await getCredits(playerA.token), 16);
   assert.equal(await getCredits(playerB.token), 6);
 });

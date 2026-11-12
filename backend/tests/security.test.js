@@ -201,14 +201,27 @@ test('A forfeit ignores leaver-supplied opponent values and awards no credits', 
   const loser = await createPlayer('ForfeitLoser');
   const { matchId } = await createOnlineMatch(app, winner.token, loser.token, { ranked: false });
 
-  const forfeit = await request(app)
+  const forgedForfeit = await request(app)
     .post('/api/matches/forfeit')
     .set('Authorization', `Bearer ${loser.token}`)
     .send({
       matchId,
       result: 'loss',
       duration: 1000,
+      playerLines: 10_000,
+      piecesPlaced: 0
+    });
+  assert.equal(forgedForfeit.status, 400);
+
+  const forfeit = await request(app)
+    .post('/api/matches/forfeit')
+    .set('Authorization', `Bearer ${loser.token}`)
+    .send({
+      matchId,
+      result: 'loss',
+      duration: 5000,
       playerLines: 3,
+      piecesPlaced: 12,
       opponentLines: 9999,
       opponentName: 'Invented Opponent'
     });
@@ -239,7 +252,7 @@ test('A client cannot upgrade a casual server match to ranked', async () => {
       opponentType: 'human',
       ranked: true,
       result: 'win',
-      duration: 1000,
+      duration: 5000,
       playerScore: 1000,
       playerLines: 10,
       piecesPlaced: 20
@@ -247,6 +260,75 @@ test('A client cannot upgrade a casual server match to ranked', async () => {
 
   assert.equal(report.status, 201);
   assert.equal(report.body.ranked, false);
+});
+
+test('Online reports reject impossible statistics and award no credits', async () => {
+  const host = await createPlayer('StatsHost');
+  const guest = await createPlayer('StatsGuest');
+  const { matchId } = await createOnlineMatch(app, host.token, guest.token, { ranked: false });
+
+  const zeroPieces = await request(app)
+    .post('/api/matches/record')
+    .set('Authorization', `Bearer ${host.token}`)
+    .send({
+      matchId,
+      opponentType: 'human',
+      result: 'win',
+      duration: 1000,
+      playerLines: 10_000,
+      piecesPlaced: 0
+    });
+  assert.equal(zeroPieces.status, 400);
+
+  const tooFast = await request(app)
+    .post('/api/matches/record')
+    .set('Authorization', `Bearer ${host.token}`)
+    .send({
+      matchId,
+      opponentType: 'human',
+      result: 'win',
+      duration: 1000,
+      playerLines: 10_000,
+      piecesPlaced: 2500
+    });
+  assert.equal(tooFast.status, 400);
+
+  const impossibleTetrises = await request(app)
+    .post('/api/matches/record')
+    .set('Authorization', `Bearer ${host.token}`)
+    .send({
+      matchId,
+      opponentType: 'human',
+      result: 'win',
+      duration: 30000,
+      playerLines: 4,
+      piecesPlaced: 20,
+      tetrises: 2
+    });
+  assert.equal(impossibleTetrises.status, 400);
+
+  const meAfterRejections = await request(app)
+    .get('/api/auth/me')
+    .set('Authorization', `Bearer ${host.token}`);
+  assert.equal(meAfterRejections.body.credits, 0);
+
+  const valid = await request(app)
+    .post('/api/matches/record')
+    .set('Authorization', `Bearer ${host.token}`)
+    .send({
+      matchId,
+      opponentType: 'human',
+      result: 'win',
+      duration: 30000,
+      playerLines: 4,
+      piecesPlaced: 20
+    });
+  assert.equal(valid.status, 201);
+
+  const meAfterValidReport = await request(app)
+    .get('/api/auth/me')
+    .set('Authorization', `Bearer ${host.token}`);
+  assert.equal(meAfterValidReport.body.credits, 4);
 });
 
 test('Rematches are server-issued only after a completed match', async () => {

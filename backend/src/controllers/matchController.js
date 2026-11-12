@@ -10,6 +10,22 @@ export class MatchController {
     }
   }
 
+  static getOnline(req, res, next) {
+    try {
+      res.json(OnlineMatchService.getDetails(req.user.id, req.params.matchId));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static getOnlineResult(req, res, next) {
+    try {
+      res.json(StatsService.getOnlineMatchResult(req.user.id, req.params.matchId));
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static joinOnline(req, res, next) {
     try {
       res.json(OnlineMatchService.join(req.user.id, req.params.matchId));

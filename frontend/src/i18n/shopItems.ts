@@ -81,7 +81,7 @@ const NAME_DECORATION_LABELS: Record<string, ShopLabels> = {
   pipes: labels('Pipes', 'Barres', 'Senkrechte Striche', 'Barras', 'Barre'),
   slashes: labels('Slashes', 'Barres obliques', 'Schrägstriche', 'Barras inclinadas', 'Barre oblique'),
   plus_signs: labels('Plus Signs', 'Signes plus', 'Pluszeichen', 'Signos más', 'Segni più'),
-  equals: labels('Equals', 'Égales', 'Gleichheitszeichen', 'Iguales', 'Uguali'),
+  equals: labels('Equals', 'Signes égal', 'Gleichheitszeichen', 'Iguales', 'Uguali'),
   hashes: labels('Hashes', 'Dièses', 'Rauten', 'Almohadillas', 'Cancelletto'),
   at_sign: labels('At Signs', 'Arobases', 'At-Zeichen', 'Arrobas', 'Chiocciole'),
   music: labels('Music', 'Musique', 'Musik', 'Música', 'Musica'),

@@ -34,10 +34,11 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
   const [opponentName, setOpponentName] = useState<string>(() => t('Opponent'));
   const [opponentCosmetics, setOpponentCosmetics] = useState<PlayerCosmetics | null>(null);
+  const [playerRating, setPlayerRating] = useState<number>(() => user?.rating ?? 1000);
   const [opponentRating, setOpponentRating] = useState<number>(1000);
   const [isRankedMatch, setIsRankedMatch] = useState<boolean>(false);
 
-  const [eloResult, setEloResult] = useState<{ oldRating: number; newRating: number; delta: number; opponentRating: number } | null>(null);
+  const [eloResult, setEloResult] = useState<{ oldRating: number; newRating: number; delta: number; opponentRating: number | null } | null>(null);
 
   const [playerEngine, setPlayerEngine] = useState<GameEngine>(() => new GameEngine());
   const [opponentEngine, setOpponentEngine] = useState<GameEngine>(() => new GameEngine());
@@ -176,6 +177,18 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     }
   };
 
+  // Refresh the displayed rating when returning to the online menu, since an
+  // abandoned match may have changed it while this page was unmounted.
+  useEffect(() => {
+    refreshProfile().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (user?.rating !== undefined) {
+      setPlayerRating(user.rating);
+    }
+  }, [user?.rating]);
+
   // Handle window unload / closing tab / browser close while match is in progress
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -313,16 +326,14 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
           unsubscribeMatchRef.current = null;
         }
 
-        // Find opponent name & rating
+        // Find opponent name and cosmetics. Ratings are loaded from the
+        // server-owned match below, not from client-written Firebase data.
         const myUid = FirebaseRealtimeService.getUid();
         if (matchData.players) {
           for (const [uid, p] of Object.entries<any>(matchData.players)) {
             if (uid !== myUid) {
               setOpponentName(p.displayName || t('Player 2'));
               setOpponentCosmetics(p.cosmetics || null);
-              if (p.rating) {
-                setOpponentRating(p.rating);
-              }
               break;
             }
           }
@@ -368,9 +379,33 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     }
   };
 
+  // Ratings above the boards must come from the server. Firebase player
+  // entries are client-written and can be stale or tampered with.
+  const refreshMatchRatings = async (currentMatchId: string) => {
+    try {
+      const info = await ApiClient.getOnlineMatch(currentMatchId);
+      if (matchIdRef.current !== currentMatchId) return;
+      const myId = user?.id;
+      const me = info.players.host.userId === myId
+        ? info.players.host
+        : info.players.guest?.userId === myId
+          ? info.players.guest
+          : null;
+      const opponent = info.players.host.userId === myId
+        ? info.players.guest
+        : info.players.host;
+      if (me) setPlayerRating(me.rating);
+      if (opponent) setOpponentRating(opponent.rating);
+    } catch (e) {
+      console.warn('Failed to load match ratings:', e);
+    }
+  };
+
   const startLiveGame = (seed: number, currentMatchId: string) => {
     setMatchStatus('in_game');
     matchEndedRef.current = false;
+    setEloResult(null);
+    refreshMatchRatings(currentMatchId);
 
     const pEngine = new GameEngine({
       seed,
@@ -447,9 +482,6 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     unsubscribeOpponentRef.current = FirebaseRealtimeService.listenToOpponent(currentMatchId, (opponentState: RemotePlayerState) => {
       if (opponentState.displayName) {
         setOpponentName(opponentState.displayName);
-      }
-      if (opponentState.rating) {
-        setOpponentRating(opponentState.rating);
       }
       if (opponentState.cosmetics) {
         setOpponentCosmetics(opponentState.cosmetics);
@@ -680,10 +712,35 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
 
         if (res && res.elo) {
           setEloResult(res.elo);
-          await refreshProfile();
+          setPlayerRating(res.elo.newRating);
+          await Promise.all([refreshProfile(), refreshMatchRatings(matchIdForRecord)]);
+        }
+
+        // The first ranked report is pending until the opponent reports. Poll
+        // the server briefly so the loser also sees the final ELO change.
+        if (res?.pending && matchIdForRecord) {
+          pollRankedResult(matchIdForRecord);
         }
       } catch (e) {
         console.warn('Failed to record online match:', e);
+      }
+    }
+  };
+
+  const pollRankedResult = async (currentMatchId: string) => {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (matchIdRef.current !== currentMatchId) return;
+      try {
+        const res = await ApiClient.getOnlineMatchResult(currentMatchId);
+        if (res.settled && res.elo) {
+          setEloResult(res.elo);
+          setPlayerRating(res.elo.newRating);
+          await Promise.all([refreshProfile(), refreshMatchRatings(currentMatchId)]);
+          return;
+        }
+      } catch {
+        return;
       }
     }
   };
@@ -702,6 +759,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
   // Called when both players agreed and next match was created in the same room
   const handleStartRematch = (nextMatchId: string, seed: number) => {
     setIsGameOverOpen(false);
+    setEloResult(null);
     setRematchPlayerReady(false);
     setRematchOpponentReady(false);
     setRematchOpponentLeft(false);
@@ -733,7 +791,14 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       cancelQuickSearchRef.current = null;
     }
     // Forfeit and notify opponent via Firebase
+    const wasInGame = matchStatusRef.current === 'in_game';
     forfeitAndLeave();
+
+    // sendBeacon is fire-and-forget; refresh shortly after so the rating shown
+    // on this same screen reflects the loss just recorded by the server.
+    if (wasInGame) {
+      setTimeout(() => { refreshProfile().catch(() => {}); }, 1000);
+    }
 
     cleanupSubscriptions();
     gameStartedRef.current = false;
@@ -1195,7 +1260,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
               label: (
                 <>
                   <UserName displayName={user?.display_name || t('Player 1')} cosmetics={user?.cosmetics} size="0.95rem" />
-                  <span className="versus-elo-badge">{user?.rating ?? 1000} ELO</span>
+                  <span className="versus-elo-badge">{playerRating} ELO</span>
                 </>
               ),
               tone: 'cyan',
