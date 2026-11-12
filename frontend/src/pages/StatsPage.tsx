@@ -167,12 +167,6 @@ export const StatsPage: React.FC<StatsPageProps> = ({ userId, onBack }) => {
       color: 'var(--accent-yellow)'
     },
     {
-      id: 'boss_attack',
-      title: t('Boss Battle'),
-      icon: <Skull size={18} color="var(--accent-red)" />,
-      color: 'var(--accent-red)'
-    },
-    {
       id: 'elo',
       title: t('Online PvP (ELO)'),
       icon: <Swords size={18} color="var(--accent-blue)" />,
