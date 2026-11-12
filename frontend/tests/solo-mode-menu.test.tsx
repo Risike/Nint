@@ -29,21 +29,78 @@ describe('Solo mode menu', () => {
     delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT;
   });
 
-  it('offers Marathon, Sprint, Ultra and Practice, without Classic', async () => {
+  it('groups classic modes, CPU opponents and the boss battle', async () => {
     await act(async () => {
       root!.render(<SoloModeMenu onSelectMode={() => {}} onStartCpu={() => {}} />);
     });
 
-    const singlePlayerModes = Array.from(container!.querySelectorAll('section:first-of-type h3'))
-      .map((heading) => heading.textContent?.trim());
+    const sections = container!.querySelectorAll('section');
+    expect(sections).toHaveLength(3);
 
-    expect(singlePlayerModes).toEqual([
+    const classicModes = Array.from(sections[0].querySelectorAll('h3'))
+      .map((heading) => heading.textContent?.trim());
+    expect(classicModes).toEqual([
       'Marathon',
       'Sprint (40 Lines)',
       'Ultra',
       'Practice'
     ]);
-    expect(singlePlayerModes).not.toContain('Classic');
-    expect(container!.querySelectorAll('section:last-of-type [role="button"]')).toHaveLength(5);
+
+    expect(sections[0].querySelectorAll('[role="button"]')).toHaveLength(4);
+    expect(sections[1].querySelectorAll('[data-cpu-level]')).toHaveLength(10);
+    expect(sections[1].querySelectorAll('[role="button"]')).toHaveLength(1);
+    expect(sections[1].querySelector('[data-cpu-level="1"]')?.getAttribute('data-cpu-locked')).toBe('false');
+    expect(sections[1].querySelector('[data-cpu-level="2"]')?.getAttribute('data-cpu-locked')).toBe('true');
+
+    expect(sections[2].querySelectorAll('[data-boss-level]')).toHaveLength(10);
+    expect(sections[2].querySelectorAll('[role="button"]')).toHaveLength(1);
+    expect(sections[2].querySelector('[data-boss-level="1"]')?.getAttribute('data-boss-locked')).toBe('false');
+    expect(sections[2].querySelector('[data-boss-level="2"]')?.getAttribute('data-boss-locked')).toBe('true');
+  });
+
+  it('only makes unlocked CPU levels selectable', async () => {
+    const onStartCpu = vi.fn();
+
+    await act(async () => {
+      root!.render(
+        <SoloModeMenu
+          onSelectMode={() => {}}
+          onStartCpu={onStartCpu}
+          unlockedCpuLevel={2}
+        />
+      );
+    });
+
+    const cpuSection = container!.querySelectorAll('section')[1];
+    expect(cpuSection.querySelectorAll('[role="button"]')).toHaveLength(2);
+
+    (cpuSection.querySelector('[data-cpu-level="2"]') as HTMLElement).click();
+    expect(onStartCpu).toHaveBeenCalledWith(2);
+
+    (cpuSection.querySelector('[data-cpu-level="3"]') as HTMLElement).click();
+    expect(onStartCpu).toHaveBeenCalledTimes(1);
+  });
+
+  it('only makes unlocked boss levels selectable', async () => {
+    const onStartBoss = vi.fn();
+
+    await act(async () => {
+      root!.render(
+        <SoloModeMenu
+          onSelectMode={() => {}}
+          onStartBoss={onStartBoss}
+          unlockedBossLevel={2}
+        />
+      );
+    });
+
+    const bossSection = container!.querySelectorAll('section')[2];
+    expect(bossSection.querySelectorAll('[role="button"]')).toHaveLength(2);
+
+    (bossSection.querySelector('[data-boss-level="2"]') as HTMLElement).click();
+    expect(onStartBoss).toHaveBeenCalledWith(2);
+
+    (bossSection.querySelector('[data-boss-level="3"]') as HTMLElement).click();
+    expect(onStartBoss).toHaveBeenCalledTimes(1);
   });
 });

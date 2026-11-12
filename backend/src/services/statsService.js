@@ -122,7 +122,7 @@ export class StatsService {
   static getLeaderboardRankings(db, userId, stats) {
     const rankings = {};
 
-    for (const mode of ['marathon_150', 'ultra_3m']) {
+    for (const mode of ['marathon_150', 'ultra_3m', 'boss_attack']) {
       const total = db.prepare(
         'SELECT COUNT(*) AS count FROM game_results WHERE mode = ? AND verified = 1'
       ).get(mode).count;

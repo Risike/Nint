@@ -43,7 +43,9 @@ export const AppContent: React.FC = () => {
   });
   const [cpuInitialLevel, setCpuInitialLevel] = useState<number | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-  const isGameRoute = activeTab === 'solo' || activeTab === 'versus_ai' || activeTab === 'online';
+  // Solo keeps normal page scrolling so its scrollbar stays at the far right,
+  // like the leaderboards. The versus arena still uses the locked game layout.
+  const isGameRoute = activeTab === 'versus_ai' || activeTab === 'online';
 
   const handleNavigate = (tab: string) => {
     if (resetToken) {

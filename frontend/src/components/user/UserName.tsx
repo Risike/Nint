@@ -17,7 +17,6 @@ interface UserNameProps {
   displayName: string;
   cosmetics?: Partial<NameCosmetics> | null;
   size?: string;
-  iconSize?: string;
   align?: 'left' | 'center';
   showTitle?: boolean;
   showIcon?: boolean;
@@ -29,7 +28,6 @@ export const UserName: React.FC<UserNameProps> = ({
   displayName,
   cosmetics,
   size = '0.9rem',
-  iconSize,
   align = 'left',
   showTitle = true,
   showIcon = true,
@@ -42,8 +40,13 @@ export const UserName: React.FC<UserNameProps> = ({
   const color = parsedColor.color;
   const decoration = cosmetics?.name_decoration || 'none';
   const title = getTitleLabel(cosmetics?.title, language).trim();
-  const titleSize = /^([\d.]+)rem$/.test(size) ? `${parseFloat(size) * 0.7}rem` : '0.65rem';
-  const resolvedIconSize = iconSize || (/^([\d.]+)rem$/.test(size) ? `${parseFloat(size) * 0.85}rem` : '0.8rem');
+  const sizeRem = /^([\d.]+)rem$/.exec(size);
+  const titleSize = sizeRem ? `${parseFloat(sizeRem[1]) * 0.7}rem` : '0.65rem';
+  // Match the icon to the full name + title column instead of keeping it
+  // smaller than the stacked text. Without a title, only the name height counts.
+  const iconFontSize = sizeRem
+    ? `${(parseFloat(sizeRem[1]) * (showTitle ? 1.8 : 1.15)).toFixed(3)}rem`
+    : size;
   const profileIcon = getProfileIconEmoji(cosmetics?.profile_icon);
   const template = decorationHtml !== undefined ? decorationHtml : decorations[decoration]?.html;
   const renderedDecoration = template ? renderDecorationHtml(template, displayName, color) : '';
@@ -185,7 +188,7 @@ export const UserName: React.FC<UserNameProps> = ({
     <span
       style={{
         display: 'inline-flex',
-        alignItems: 'center',
+        alignItems: 'stretch',
         gap: '0.35em',
         lineHeight: 1.15,
         ...style
@@ -195,7 +198,15 @@ export const UserName: React.FC<UserNameProps> = ({
         <span
           aria-hidden="true"
           data-profile-icon={cosmetics?.profile_icon || 'user'}
-          style={{ fontSize: resolvedIconSize, lineHeight: 1, flexShrink: 0 }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            alignSelf: 'stretch',
+            fontSize: iconFontSize,
+            lineHeight: 1,
+            flexShrink: 0
+          }}
         >
           {profileIcon}
         </span>

@@ -3,7 +3,7 @@ import { soundManager } from '../game/audio/soundManager';
 import { MAIN_TABS, getMainTab } from '../navigation';
 
 const RIGHT_STICK_SCROLL_DEADZONE = 0.18;
-const RIGHT_STICK_SCROLL_SPEED = 19800; // pixels per second at full deflection (3x the previous speed)
+const RIGHT_STICK_SCROLL_SPEED = 6600; // pixels per second at full deflection
 
 // The right stick scrolls vertically on every page, including gameplay pages.
 // Do not tie this to the menu action branch: it must keep working while the
@@ -23,7 +23,14 @@ export const scrollPageWithRightStick = (gamepad: Gamepad, deltaMs: number): boo
   const delta = Math.sign(axisY) * intensity * RIGHT_STICK_SCROLL_SPEED * (frameDelta / 1000);
   if (Math.abs(delta) < 0.1) return false;
 
-  window.scrollBy({ top: delta, behavior: 'auto' });
+  // Gameplay pages can use an inner scroll container; scroll it when present
+  // so the right stick keeps working instead of silently targeting the window.
+  const innerScroller = document.querySelector<HTMLElement>('.main-content--game');
+  if (innerScroller && innerScroller.scrollHeight > innerScroller.clientHeight) {
+    innerScroller.scrollBy({ top: delta, behavior: 'instant' });
+  } else {
+    window.scrollBy({ top: delta, behavior: 'instant' });
+  }
   return true;
 };
 

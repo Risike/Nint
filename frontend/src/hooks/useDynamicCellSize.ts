@@ -13,7 +13,8 @@ const MAIN_CONTENT_HORIZONTAL_PADDING = 32;
  */
 export function useDynamicCellSize(
   isVersus: boolean = false,
-  containerRef?: RefObject<HTMLElement>
+  containerRef?: RefObject<HTMLElement>,
+  reservedVerticalSpace: number = 0
 ): number {
   const calculateSize = (): number => {
     if (typeof window === 'undefined') return isVersus ? 24 : 28;
@@ -56,13 +57,17 @@ export function useDynamicCellSize(
     } else {
       // Solo: 1 centered board flanked by Hold and Queue panels
       // Vertical space overhead: navbar (~56px) + main padding (~32px) + top header bar (~45px) + footer (~60px) ~ 190px
-      const availableHeight = Math.max(460, vh - 190);
+      // reservedVerticalSpace accounts for mode-specific UI such as the Boss HUD.
+      const availableHeight = Math.max(460, vh - 190 - reservedVerticalSpace);
       const heightCell = Math.floor(availableHeight / 20);
       const availableWidth = Math.max(300, vw - 280);
       const widthCell = Math.floor(availableWidth / 10);
 
       const size = Math.min(heightCell, widthCell);
-      return Math.max(26, Math.min(54, size));
+      // Boss mode reserves room for its HUD, so allow a slightly smaller board
+      // instead of clipping the bottom of the playfield.
+      const minimum = reservedVerticalSpace > 0 ? 18 : 26;
+      return Math.max(minimum, Math.min(54, size));
     }
   };
 
@@ -97,7 +102,7 @@ export function useDynamicCellSize(
       observer?.disconnect();
       window.removeEventListener('resize', handleResize);
     };
-  }, [isVersus, containerRef]);
+  }, [isVersus, containerRef, reservedVerticalSpace]);
 
   return cellSize;
 }

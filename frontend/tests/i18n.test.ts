@@ -16,6 +16,19 @@ describe('i18n', () => {
     expect(translate('fr', 'Multiplayer')).toBe('Multijoueur');
     expect(translate('fr', 'Single Player')).toBe('Un joueur');
     expect(translate('fr', 'Two Players')).toBe('Deux joueurs');
+    expect(translate('fr', 'Classic')).toBe('Classique');
+    expect(translate('fr', 'Versus CPU')).toBe('Affronter l’ordinateur');
+    expect(translate('de', 'Versus CPU')).toBe('Gegen den Computer');
+    expect(translate('es', 'Boss Battle')).toBe('Batalla contra el jefe');
+    expect(translate('it', 'Boss Battle')).toBe('Battaglia contro il boss');
+    expect(translate('fr', 'Level {level} unlocked!', { level: 2 })).toBe('Niveau 2 débloqué !');
+    expect(translate('de', 'Beat Level {level} to unlock.', { level: 2 })).toBe('Besiege Stufe 2, um sie freizuschalten.');
+    expect(translate('fr', 'Ghost Piece Hidden')).toBe('Pièce fantôme masquée');
+    expect(translate('de', 'Ghost Piece Hidden')).toBe('Geisterstein verborgen');
+    expect(translate('es', 'Ghost Piece Hidden')).toBe('Pieza fantasma oculta');
+    expect(translate('it', 'Ghost Piece Hidden')).toBe('Pezzo fantasma nascosto');
+    expect(translate('fr', 'Fight a boss that attacks every 30 seconds. Score points to reduce its health bar. A Tetris blocks its attack.'))
+      .toBe('Affronter un boss qui vous attaque toutes les 30 secondes. Faites des points pour réduire sa barre de vie. Un Tetris permet de bloquer son attaque');
     expect(translate('fr', 'Right Stick Scroll')).toBe('Stick droit défiler');
     expect(translate('fr', 'Back to categories')).toBe('Retour aux catégories');
     expect(translate('fr', 'Announcements')).toBe('Annonces');

@@ -52,15 +52,15 @@ describe('UserName title slot', () => {
         <UserName
           displayName="Tester"
           cosmetics={{ profile_icon: 'rocket' }}
-          iconSize="1.6rem"
         />
       );
     });
 
     const rocket = container!.querySelector('[data-profile-icon="rocket"]');
     expect(rocket?.textContent).toBe('🚀');
-    expect((rocket as HTMLElement).style.fontSize).toBe('1.6rem');
-    expect((container!.firstElementChild as HTMLElement).style.alignItems).toBe('center');
+    expect(parseFloat((rocket as HTMLElement).style.fontSize)).toBeGreaterThan(1.5);
+    expect((rocket as HTMLElement).style.alignSelf).toBe('stretch');
+    expect((container!.firstElementChild as HTMLElement).style.alignItems).toBe('stretch');
 
     await act(async () => {
       root!.render(<UserName displayName="Tester" />);

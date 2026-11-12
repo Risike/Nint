@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { LocalStorageManager } from '../services/storage';
-import { BarChart2, Trophy, Zap, Target, Swords, Flame, Timer, Bot, Users, ArrowLeft } from 'lucide-react';
+import { BarChart2, Trophy, Zap, Target, Swords, Flame, Timer, Bot, Users, ArrowLeft, Skull } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 import { UserName } from '../components/user/UserName';
 
@@ -167,6 +167,12 @@ export const StatsPage: React.FC<StatsPageProps> = ({ userId, onBack }) => {
       color: 'var(--accent-yellow)'
     },
     {
+      id: 'boss_attack',
+      title: t('Boss Battle'),
+      icon: <Skull size={18} color="var(--accent-red)" />,
+      color: 'var(--accent-red)'
+    },
+    {
       id: 'elo',
       title: t('Online PvP (ELO)'),
       icon: <Swords size={18} color="var(--accent-blue)" />,
@@ -201,6 +207,15 @@ export const StatsPage: React.FC<StatsPageProps> = ({ userId, onBack }) => {
       badgeBg: 'rgba(234, 179, 8, 0.15)',
       primaryMetric: 'score' as const,
       color: 'var(--accent-yellow)'
+    },
+    {
+      id: 'boss_attack',
+      title: t('Boss Battle'),
+      description: t('Damage the boss with line clears and survive its attacks'),
+      icon: <Skull size={20} color="var(--accent-red)" />,
+      badgeBg: 'rgba(239, 68, 68, 0.15)',
+      primaryMetric: 'score' as const,
+      color: 'var(--accent-red)'
     }
   ];
 
@@ -222,7 +237,6 @@ export const StatsPage: React.FC<StatsPageProps> = ({ userId, onBack }) => {
               displayName={data.user.display_name || t('Player')}
               cosmetics={data.cosmetics}
               size="2rem"
-              iconSize="2rem"
             />
             {data.user.username && (
               <span style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontFamily: 'monospace' }}>

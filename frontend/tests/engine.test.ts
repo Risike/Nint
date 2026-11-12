@@ -75,6 +75,23 @@ describe('Movement, SRS Rotation, and Lock Delay', () => {
     expect(engine.activeRotation).toBe(0);
   });
 
+  it('applies rotation lock and inverted horizontal controls', () => {
+    const engine = new GameEngine();
+    engine.start();
+
+    engine.rotationLocked = true;
+    expect(engine.rotateCW()).toBe(false);
+    expect(engine.activeRotation).toBe(0);
+    engine.rotationLocked = false;
+
+    const startX = engine.activeX;
+    engine.horizontalInverted = true;
+    expect(engine.moveLeft()).toBe(true);
+    expect(engine.activeX).toBe(startX + 1);
+    expect(engine.moveRight()).toBe(true);
+    expect(engine.activeX).toBe(startX);
+  });
+
   it('swaps piece with hold slot and locks repeated immediate hold', () => {
     const engine = new GameEngine();
     engine.start();
@@ -182,12 +199,26 @@ describe('Scoring & Back-to-Back Chains', () => {
     }).garbageSent;
 
     // A single sends no base garbage; only the combo bonus is measured here.
-    expect(attackAtCombo(-1)).toBe(0); // first clear, combo 0
-    expect(attackAtCombo(0)).toBe(0);  // combo 1
-    expect(attackAtCombo(1)).toBe(1);  // combo 2
-    expect(attackAtCombo(2)).toBe(1);  // combo 3
-    expect(attackAtCombo(3)).toBe(1);  // combo 4
-    expect(attackAtCombo(4)).toBe(2);  // combo 5
+    // Official Guideline Standard ladder (combo after the clear):
+    const expectedComboAttack = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5];
+    expectedComboAttack.forEach((expectedAttack, comboAfterClear) => {
+      expect(attackAtCombo(comboAfterClear - 1)).toBe(expectedAttack);
+    });
+    expect(attackAtCombo(20)).toBe(5);
+  });
+
+  it('stacks line-clear, B2B and combo garbage', () => {
+    const result = ScoringSystem.evaluateClear({
+      linesCleared: 4,
+      tSpin: 'none',
+      currentLevel: 1,
+      isB2BActive: true,
+      currentCombo: 3,
+      isPerfectClear: false
+    });
+
+    // Tetris (4) + B2B (+1) + combo 4 (+2)
+    expect(result.garbageSent).toBe(7);
   });
 });
 
@@ -271,7 +302,7 @@ describe('Combo versus integration', () => {
     engine.events.onGarbageSent = amount => attacks.push(amount);
     engine.start();
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 6; i++) {
       for (let c = 0; c < BOARD_WIDTH; c++) {
         engine.board[39][c] = '#ff0000';
       }
@@ -284,12 +315,31 @@ describe('Combo versus integration', () => {
       engine.update(20);
     }
 
-    expect(engine.comboCount).toBe(2);
-    expect(attacks).toEqual([1]);
+    expect(engine.comboCount).toBe(5);
+    expect(attacks).toEqual([1, 1, 2, 2]);
   });
 });
 
 describe('Multi-line Clear (Tetris & Double)', () => {
+  it('reports a Tetris to post-lock listeners', () => {
+    const engine = new GameEngine();
+    const locked: Array<{ linesCleared: number; scoreGained: number; tetris: boolean }> = [];
+    engine.events.onPieceLocked = (info) => locked.push(info);
+    engine.start();
+
+    for (let r = 36; r <= 39; r++) {
+      for (let c = 0; c < BOARD_WIDTH; c++) {
+        engine.board[r][c] = '#cyan';
+      }
+    }
+
+    engine.lockPiece();
+
+    expect(locked).toHaveLength(1);
+    expect(locked[0]).toMatchObject({ linesCleared: 4, tetris: true });
+    expect(locked[0].scoreGained).toBeGreaterThan(0);
+  });
+
   it('clears all 4 lines of a Tetris and shifts upper blocks down properly', () => {
     const engine = new GameEngine();
     engine.start();

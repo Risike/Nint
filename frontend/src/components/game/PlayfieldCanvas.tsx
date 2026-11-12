@@ -10,12 +10,14 @@ interface PlayfieldCanvasProps {
   engine: GameEngine;
   incomingGarbage?: number;
   cellSize: number;
+  hideGhost?: boolean;
 }
 
 export const PlayfieldCanvas: React.FC<PlayfieldCanvasProps> = ({
   engine,
   incomingGarbage = 0,
-  cellSize
+  cellSize,
+  hideGhost = false
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rendererRef = useRef<CanvasRenderer | null>(null);
@@ -26,13 +28,14 @@ export const PlayfieldCanvas: React.FC<PlayfieldCanvasProps> = ({
   useEffect(() => {
     rendererRef.current = new CanvasRenderer({
       cellSize,
-      showGhost: settings.ghostPiece,
+      // The ghost piece is always visible unless a Boss Attack temporarily hides it.
+      showGhost: !hideGhost,
       showGrid: true,
       colorblindMode: settings.colorblindMode,
       theme: settings.theme,
       pieceSkin
     });
-  }, [cellSize, settings.ghostPiece, settings.colorblindMode, settings.theme, pieceSkin]);
+  }, [cellSize, hideGhost, settings.colorblindMode, settings.theme, pieceSkin]);
 
   // Hook line clear particle effects to engine line clear events
   useEffect(() => {

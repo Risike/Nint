@@ -169,9 +169,9 @@ export const GARBAGE_ATTACK = {
   TSPIN_TRIPLE: 6,
   B2B_BONUS: 1,
   PERFECT_CLEAR: 10,
-  // Guideline combo garbage ladder:
-  // combo 0..12 -> 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5
-  COMBO_BONUS: [0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5, 5]
+  // Guideline Standard combo garbage ladder (Tetris Online Japan onwards):
+  // combo 0..13+ -> 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5
+  COMBO_BONUS: [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 5]
 };
 
 // Official Guideline timing configuration (ms) - Tetris Holding LLC Standards

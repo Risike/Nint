@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useGamepadActive, useGamepadBack, useGamepadNav } from '../context/GamepadNavContext';
 import { DEFAULT_GAMEPAD_BINDINGS, GAMEPAD_BUTTON_NAMES } from '../game/input/gamepadManager';
-import { Volume2, Keyboard, Eye, RotateCcw, Gamepad2, Check, ChevronDown, Languages } from 'lucide-react';
+import { Volume2, Keyboard, RotateCcw, Gamepad2, Check, ChevronDown, Languages } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 import { LANGUAGES, Language } from '../i18n/translations';
 
@@ -173,7 +173,7 @@ export const SettingsPage: React.FC = () => {
         <div>
           <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Settings')}</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            {t('Customize your audio, keyboard keybinds, gamepad controller buttons, and accessibility.')}
+            {t('Customize your audio, keyboard keybinds, and gamepad controller buttons.')}
           </p>
         </div>
 
@@ -417,26 +417,6 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Display & Gameplay Toggles */}
-        <div className="panel-card" style={{ alignItems: 'stretch', gap: '1.25rem', padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.1rem' }}>
-            <Eye size={20} color="var(--accent-purple)" />
-            <span>{t('Display & Accessibility')}</span>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{t('Ghost Piece')}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Shows translucent outline of piece landing location.')}</div>
-            </div>
-            <input
-              type="checkbox"
-              checked={settings.ghostPiece}
-              onChange={(e) => updateSettings({ ghostPiece: e.target.checked })}
-              style={{ width: '18px', height: '18px', accentColor: 'var(--accent-purple)' }}
-            />
-          </div>
-        </div>
       </div>
     </div>
   );

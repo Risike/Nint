@@ -12,9 +12,11 @@ import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
 import { isVersusGamepadGameplayActive } from '../game/input/gamepadNavigation';
 import { VersusArena } from '../components/game/VersusArena';
+import { CpuLevelGrid } from '../components/game/CpuLevelGrid';
 import { UserName } from '../components/user/UserName';
-import { Bot, RotateCcw, ArrowLeft, Swords, Shield, Zap, Flame, Play, Pause } from 'lucide-react';
+import { Bot, RotateCcw, ArrowLeft, Play, Pause } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
+import { getCpuLevelDefinition, getUnlockedCpuLevel, unlockCpuLevelAfterWin } from '../game/cpuLevels';
 
 interface VersusAiPageProps {
   initialDifficulty?: number | null;
@@ -34,14 +36,9 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
   const [isSelectingDifficulty, setIsSelectingDifficulty] = useState<boolean>(true);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
-  const [difficulty, setDifficulty] = useState<number>(5);
-
-  const handleCardKey = (action: () => void) => (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      action();
-    }
-  };
+  const [difficulty, setDifficulty] = useState<number>(1);
+  const [unlockedCpuLevel, setUnlockedCpuLevel] = useState<number>(() => getUnlockedCpuLevel(user?.id));
+  const [newlyUnlockedLevel, setNewlyUnlockedLevel] = useState<number | null>(null);
 
   const [playerEngine, setPlayerEngine] = useState<GameEngine>(() => new GameEngine());
   const [aiEngine, setAiEngine] = useState<GameEngine>(() => new GameEngine());
@@ -89,9 +86,13 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    setUnlockedCpuLevel(getUnlockedCpuLevel(user?.id));
+  }, [user?.id]);
+
   const playerEngineRef = useRef<GameEngine>(new GameEngine());
   const aiEngineRef = useRef<GameEngine>(new GameEngine());
-  const difficultyRef = useRef<number>(5);
+  const difficultyRef = useRef<number>(1);
   const matchStartTimeRef = useRef<number>(0);
   const matchEndedRef = useRef<boolean>(false);
   const consumedInitialDifficultyRef = useRef<boolean>(false);
@@ -118,6 +119,10 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
   };
 
   const launchWithDifficulty = (level: number) => {
+    const currentUnlocked = getUnlockedCpuLevel(user?.id);
+    setUnlockedCpuLevel(currentUnlocked);
+    if (level > currentUnlocked) return;
+
     difficultyRef.current = level;
     setDifficulty(level);
     setIsSelectingDifficulty(false);
@@ -193,6 +198,7 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
     setPlayerLinesDisplay(0);
     setAiLinesDisplay(0);
     setMatchResult(null);
+    setNewlyUnlockedLevel(null);
     setIsGameOverOpen(false);
     setIsPaused(false);
     setPlayerGarbage(0);
@@ -263,6 +269,14 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
     if (initialDifficulty == null || consumedInitialDifficultyRef.current) return;
     consumedInitialDifficultyRef.current = true;
     onClearInitialDifficulty?.();
+
+    const currentUnlocked = getUnlockedCpuLevel(user?.id);
+    setUnlockedCpuLevel(currentUnlocked);
+    if (initialDifficulty > currentUnlocked) {
+      setIsSelectingDifficulty(true);
+      return;
+    }
+
     launchWithDifficulty(initialDifficulty);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialDifficulty]);
@@ -330,6 +344,10 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
 
     if (result === 'win') {
       soundManager.playClear(4);
+      const previousUnlocked = getUnlockedCpuLevel(user?.id);
+      const nextUnlocked = unlockCpuLevelAfterWin(diff, user?.id);
+      setUnlockedCpuLevel(nextUnlocked);
+      setNewlyUnlockedLevel(nextUnlocked > previousUnlocked ? nextUnlocked : null);
     } else {
       soundManager.playGameOver();
     }
@@ -363,13 +381,7 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
     }
   };
 
-  const getDifficultyLabel = (diff: number) => {
-    if (diff <= 2) return t('Beginner');
-    if (diff <= 4) return t('Casual');
-    if (diff <= 6) return t('Intermediate');
-    if (diff <= 8) return t('Advanced');
-    return t('Master');
-  };
+  const getDifficultyLabel = (diff: number) => t(getCpuLevelDefinition(diff).tier);
 
   // Difficulty selection menu
   if (isSelectingDifficulty) {
@@ -380,94 +392,16 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
             {t('Select an AI opponent difficulty level. The game begins with a 3-second countdown.')}
           </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.35rem' }}>
+            {t('Beat a level to unlock the next one.')}
+          </p>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '1.25rem',
-          textAlign: 'left'
-        }}>
-          {/* Beginner Lv 2 */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(2)} onKeyDown={handleCardKey(() => launchWithDifficulty(2))}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ background: 'rgba(34, 197, 94, 0.2)', color: 'var(--accent-green)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                <Shield size={24} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Beginner (Lv 2)')}</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Relaxed Pace')}</span>
-              </div>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              {t('Slow placement speed (~700ms) with forgiving stacking and basic clears. Great for learning versus mechanics.')}
-            </p>
-          </div>
-
-          {/* Casual Lv 4 */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(4)} onKeyDown={handleCardKey(() => launchWithDifficulty(4))}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                <Bot size={24} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Casual (Lv 4)')}</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Balanced Battle')}</span>
-              </div>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              {t('Solid flat stacking, downstacks when garbage arrives, and sends regular counter-attacks.')}
-            </p>
-          </div>
-
-          {/* Intermediate Lv 6 */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(6)} onKeyDown={handleCardKey(() => launchWithDifficulty(6))}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ background: 'rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                <Zap size={24} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Intermediate (Lv 6)')}</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Fast Paced')}</span>
-              </div>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              {t('Maintains an open right-side well for Tetris clears, reacts quickly to attacks, and builds clean stacks.')}
-            </p>
-          </div>
-
-          {/* Advanced Lv 8 */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(8)} onKeyDown={handleCardKey(() => launchWithDifficulty(8))}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ background: 'rgba(236, 72, 153, 0.2)', color: 'var(--accent-pink)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                <Flame size={24} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Advanced (Lv 8)')}</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Aggressive AI')}</span>
-              </div>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              {t('High PPS (~200ms placements), deep heuristic evaluation, and proactive B2B Tetris attacks.')}
-            </p>
-          </div>
-
-          {/* Master Lv 10 */}
-          <div className="panel-card" role="button" tabIndex={0} style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => launchWithDifficulty(10)} onKeyDown={handleCardKey(() => launchWithDifficulty(10))}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--accent-red)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                <Swords size={24} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{t('Grandmaster (Lv 10)')}</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Peak Competitive AI')}</span>
-              </div>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              {t('Ultra-fast execution, lookahead optimization, ruthless garbage cancelling, and high APM.')}
-            </p>
-          </div>
-        </div>
+        <CpuLevelGrid
+          unlockedLevel={unlockedCpuLevel}
+          onSelect={launchWithDifficulty}
+          variant="detailed"
+        />
       </div>
     );
   }
@@ -510,7 +444,7 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
         arenaRef={arenaRef}
         cellSize={cellSize}
         player={{
-          label: <UserName displayName={user?.display_name || t('Player 1')} cosmetics={user?.cosmetics} size="1.1rem" iconSize="1.6rem" />,
+          label: <UserName displayName={user?.display_name || t('Player 1')} cosmetics={user?.cosmetics} size="1.1rem" />,
           tone: 'cyan',
           hold: playerHold,
           canHold: playerEngine.canHold,
@@ -558,7 +492,9 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
         isVictory={matchResult === 'win'}
         mode="versus_ai"
         stats={lastStats || playerEngineRef.current.getStats()}
-        customMessage={matchResult === 'win' ? t('Victory against AI Level {level}!', { level: difficulty }) : t('Defeat against AI Level {level}', { level: difficulty })}
+        customMessage={matchResult === 'win'
+          ? `${t('Victory against AI Level {level}!', { level: difficulty })}${newlyUnlockedLevel ? ` ${t('Level {level} unlocked!', { level: newlyUnlockedLevel })}` : ''}`
+          : t('Defeat against AI Level {level}', { level: difficulty })}
         onRestart={() => startMatch()}
         onExit={() => setIsSelectingDifficulty(true)}
       />

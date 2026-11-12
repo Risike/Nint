@@ -106,6 +106,7 @@ describe('Versus keyboard lifecycle', () => {
 
   beforeEach(() => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    localStorage.clear();
     keyboardMock.reset();
     vi.clearAllMocks();
     vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1));
@@ -132,7 +133,7 @@ describe('Versus keyboard lifecycle', () => {
       root!.render(
         <StrictMode>
           <GamepadNavProvider activeTab="versus_ai" setActiveTab={() => {}}>
-            <VersusAiPage initialDifficulty={2} onClearInitialDifficulty={() => {}} />
+            <VersusAiPage initialDifficulty={1} onClearInitialDifficulty={() => {}} />
           </GamepadNavProvider>
         </StrictMode>
       );

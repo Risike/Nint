@@ -133,7 +133,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         </div>
 
         <h2 className="modal-title" style={{ color: isVictory ? 'var(--accent-green)' : 'var(--text-primary)' }}>
-          {isVictory ? t('VICTORY!') : t('GAME OVER')}
+          {isVictory ? (mode === 'boss' ? t('BOSS DEFEATED!') : t('VICTORY!')) : t('GAME OVER')}
         </h2>
 
         {eloChange && (

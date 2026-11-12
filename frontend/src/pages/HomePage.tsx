@@ -52,7 +52,7 @@ const HOME_LINKS = [
   {
     tab: 'settings',
     label: 'Settings',
-    description: 'Customize your audio, keyboard keybinds, gamepad controller buttons, and accessibility.',
+    description: 'Customize your audio, keyboard keybinds, and gamepad controller buttons.',
     icon: Settings,
     color: 'var(--accent-pink)',
     background: 'rgba(236, 72, 153, 0.2)'

@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { getDatabase } from '../config/database.js';
 import { awardLineCredits } from '../utils/credits.js';
 
-const ALLOWED_MODES = new Set(['marathon_150', 'sprint_40', 'ultra_3m', 'zen']);
+const ALLOWED_MODES = new Set(['marathon_150', 'sprint_40', 'ultra_3m', 'boss_attack', 'zen']);
 const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
 const MAX_SESSION_MS = 6 * 60 * 60 * 1000;
 
@@ -95,6 +95,13 @@ export class ResultService {
       }
       if (score > 350000) {
         return { valid: false, reason: 'Score exceeds the ultra maximum' };
+      }
+      return { valid: true };
+    }
+
+    if (mode === 'boss_attack') {
+      if (lines > 1_000) {
+        return { valid: false, reason: 'Implausible line count for Boss Attack' };
       }
       return { valid: true };
     }

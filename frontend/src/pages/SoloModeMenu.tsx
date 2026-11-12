@@ -1,12 +1,17 @@
 import React from 'react';
-import { Bot, Flame, Shield, Smile, Swords, Timer, Users, Zap } from 'lucide-react';
+import { Bot, Flame, Skull, Smile, Timer, Zap } from 'lucide-react';
+import { BossLevelGrid } from '../components/game/BossLevelGrid';
+import { CpuLevelGrid } from '../components/game/CpuLevelGrid';
 import { useI18n } from '../i18n/useI18n';
 
-export type SoloMenuMode = 'marathon' | 'sprint' | 'ultra' | 'zen';
+export type SoloMenuMode = 'marathon' | 'sprint' | 'ultra' | 'zen' | 'boss';
 
 interface SoloModeMenuProps {
   onSelectMode: (mode: SoloMenuMode) => void;
   onStartCpu?: (level: number) => void;
+  onStartBoss?: (level: number) => void;
+  unlockedCpuLevel?: number;
+  unlockedBossLevel?: number;
 }
 
 const sectionStyle: React.CSSProperties = {
@@ -34,15 +39,13 @@ const cardStyle: React.CSSProperties = {
   transition: 'transform 0.2s'
 };
 
-const cpuLevels = [
-  { level: 2, name: 'Beginner', tagline: 'Relaxed Pace', color: 'var(--accent-green)', background: 'rgba(34, 197, 94, 0.2)', icon: Shield },
-  { level: 4, name: 'Casual', tagline: 'Balanced Battle', color: 'var(--accent-cyan)', background: 'rgba(6, 182, 212, 0.2)', icon: Bot },
-  { level: 6, name: 'Intermediate', tagline: 'Fast Paced', color: 'var(--accent-blue)', background: 'rgba(59, 130, 246, 0.2)', icon: Zap },
-  { level: 8, name: 'Advanced', tagline: 'Aggressive AI', color: 'var(--accent-pink)', background: 'rgba(236, 72, 153, 0.2)', icon: Flame },
-  { level: 10, name: 'Master', tagline: 'Peak Competitive AI', color: 'var(--accent-red)', background: 'rgba(239, 68, 68, 0.2)', icon: Swords }
-] as const;
-
-export const SoloModeMenu: React.FC<SoloModeMenuProps> = ({ onSelectMode, onStartCpu }) => {
+export const SoloModeMenu: React.FC<SoloModeMenuProps> = ({
+  onSelectMode,
+  onStartCpu,
+  onStartBoss,
+  unlockedCpuLevel = 1,
+  unlockedBossLevel = 1
+}) => {
   const { t } = useI18n();
 
   const handleCardKey = (action: () => void) => (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -62,11 +65,11 @@ export const SoloModeMenu: React.FC<SoloModeMenuProps> = ({ onSelectMode, onStar
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <section style={sectionStyle} aria-labelledby="single-player-heading">
+        <section style={sectionStyle} aria-labelledby="classic-heading">
           <div>
-            <h2 id="single-player-heading" style={sectionTitleStyle}>
+            <h2 id="classic-heading" style={sectionTitleStyle}>
               <Smile size={20} color="var(--accent-cyan)" />
-              {t('Single Player')}
+              {t('Classic')}
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '0.25rem' }}>
               {t('Choose a single-player mode to begin.')}
@@ -164,39 +167,39 @@ export const SoloModeMenu: React.FC<SoloModeMenuProps> = ({ onSelectMode, onStar
           </div>
         </section>
 
-        <section style={sectionStyle} aria-labelledby="two-players-heading">
+        <section style={sectionStyle} aria-labelledby="versus-cpu-heading">
           <div>
-            <h2 id="two-players-heading" style={sectionTitleStyle}>
-              <Users size={20} color="var(--accent-blue)" />
-              {t('Two Players')}
+            <h2 id="versus-cpu-heading" style={sectionTitleStyle}>
+              <Bot size={20} color="var(--accent-blue)" />
+              {t('Versus CPU')}
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '0.25rem' }}>
-              {t('Face the CPU at five difficulty levels.')}
+              {t('Face the CPU at ten difficulty levels. Beat a level to unlock the next.')}
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.75rem' }}>
-            {cpuLevels.map(({ level, name, tagline, color, background, icon: Icon }) => (
-              <div
-                key={level}
-                className="panel-card"
-                role="button"
-                tabIndex={0}
-                style={{ padding: '0.9rem', cursor: 'pointer', gap: '0.35rem', borderColor: color }}
-                onClick={() => onStartCpu?.(level)}
-                onKeyDown={handleCardKey(() => onStartCpu?.(level))}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <span style={{ background, color, borderRadius: '999px', padding: '0.12rem 0.45rem', fontSize: '0.68rem', fontWeight: 900 }}>
-                    Lv {level}
-                  </span>
-                  <Icon size={17} color={color} />
-                </div>
-                <div style={{ fontWeight: 800, fontSize: '0.92rem', width: '100%' }}>{t(name)}</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', width: '100%' }}>{t(tagline)}</div>
-              </div>
-            ))}
+          <CpuLevelGrid
+            unlockedLevel={unlockedCpuLevel}
+            onSelect={(level) => onStartCpu?.(level)}
+          />
+        </section>
+
+        <section style={sectionStyle} aria-labelledby="boss-battle-heading">
+          <div>
+            <h2 id="boss-battle-heading" style={sectionTitleStyle}>
+              <Skull size={20} color="var(--accent-red)" />
+              {t('Boss Battle')}
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '0.25rem' }}>
+              {t('Fight a boss that attacks every 30 seconds. Score points to reduce its health bar. A Tetris blocks its attack.')}{' '}
+              {t('Beat a level to unlock the next one.')}
+            </p>
           </div>
+
+          <BossLevelGrid
+            unlockedLevel={unlockedBossLevel}
+            onSelect={(level) => onStartBoss ? onStartBoss(level) : onSelectMode('boss')}
+          />
         </section>
       </div>
     </div>

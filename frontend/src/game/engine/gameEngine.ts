@@ -25,6 +25,7 @@ export interface GameEngineOptions {
   startingLevel?: number;
   gravityCurve?: (level: number) => number; // ms per drop step
   fixedGravity?: boolean; // If true, dropInterval does not increase on level-up
+  lineLevelProgression?: boolean; // If false, line clears do not advance the level
   immortal?: boolean; // Zen mode: soft reset board on top-out instead of stopping
   startingGarbageLines?: number; // Pre-fill with downstack practice lines
   enableGarbage?: boolean;
@@ -39,6 +40,7 @@ export interface GameEvents {
   onPieceMove?: () => void;
   onPieceRotate?: () => void;
   onPieceLock?: () => void;
+  onPieceLocked?: (info: { linesCleared: number; scoreGained: number; tSpin: TSpinType; tetris: boolean }) => void;
   onLineClear?: (result: ClearResult) => void;
   onLineClearFinish?: (clearedRows: number[]) => void;
   onPerfectClear?: () => void;
@@ -83,7 +85,11 @@ export class GameEngine {
   public maxLockResets: number;
   public softDropFactor: number;
   public fixedGravity: boolean = false;
+  public lineLevelProgression: boolean = true;
   public immortal: boolean = false;
+  public rotationLocked: boolean = false;
+  public horizontalInverted: boolean = false;
+  public gravityLevelOffset: number = 0;
   public lineClearDelay: number = 240;
   public clearingRows: number[] = [];
   public lineClearTimer: number = 0;
@@ -118,6 +124,7 @@ export class GameEngine {
     this.startingLevel = Math.max(1, options.startingLevel ?? 1);
     this.level = this.startingLevel;
     this.fixedGravity = Boolean(options.fixedGravity);
+    this.lineLevelProgression = options.lineLevelProgression !== false;
     this.immortal = Boolean(options.immortal);
     this.lineClearDelay = options.lineClearDelay ?? DEFAULT_TIMING.LINE_CLEAR_DELAY;
 
@@ -266,20 +273,17 @@ export class GameEngine {
   }
 
   public moveLeft(): boolean {
-    if (this.state !== 'playing' || !this.activePiece) return false;
-    if (this.isValidPosition(this.activePiece, this.activeRotation, this.activeX - 1, this.activeY)) {
-      this.activeX--;
-      this.lastActionWasRotation = false;
-      this.onPieceMoved();
-      return true;
-    }
-    return false;
+    return this.moveHorizontal(this.horizontalInverted ? 1 : -1);
   }
 
   public moveRight(): boolean {
+    return this.moveHorizontal(this.horizontalInverted ? -1 : 1);
+  }
+
+  private moveHorizontal(dx: number): boolean {
     if (this.state !== 'playing' || !this.activePiece) return false;
-    if (this.isValidPosition(this.activePiece, this.activeRotation, this.activeX + 1, this.activeY)) {
-      this.activeX++;
+    if (this.isValidPosition(this.activePiece, this.activeRotation, this.activeX + dx, this.activeY)) {
+      this.activeX += dx;
       this.lastActionWasRotation = false;
       this.onPieceMoved();
       return true;
@@ -322,7 +326,7 @@ export class GameEngine {
   }
 
   private attemptRotate(newRotation: RotationState): boolean {
-    if (this.state !== 'playing' || !this.activePiece) return false;
+    if (this.state !== 'playing' || !this.activePiece || this.rotationLocked) return false;
 
     const fromState = this.activeRotation;
     const kickOffsets = SRS.getKickOffsets(this.activePiece, fromState, newRotation);
@@ -344,6 +348,18 @@ export class GameEngine {
       }
     }
     return false;
+  }
+
+  public setGravityLevelOffset(offset: number) {
+    this.gravityLevelOffset = Math.max(0, Math.floor(offset));
+    if (!this.fixedGravity) {
+      this.dropInterval = this.gravityCurve(this.level + this.gravityLevelOffset);
+    }
+  }
+
+  // Explicit override for modes that drive speed independently from line clears.
+  public setGravityLevel(level: number) {
+    this.dropInterval = this.gravityCurve(Math.max(1, Math.floor(level)));
   }
 
   public hold(): boolean {
@@ -472,12 +488,14 @@ export class GameEngine {
       this.maxB2B = this.b2bChain;
     }
 
-    // Level progression (every 10 lines)
-    const newLevel = this.startingLevel + Math.floor(this.lines / 10);
-    if (newLevel !== this.level) {
-      this.level = newLevel;
-      if (!this.fixedGravity) {
-        this.dropInterval = this.gravityCurve(this.level);
+    // Level progression (every 10 lines), unless the mode drives it itself.
+    if (this.lineLevelProgression) {
+      const newLevel = this.startingLevel + Math.floor(this.lines / 10);
+      if (newLevel !== this.level) {
+        this.level = newLevel;
+        if (!this.fixedGravity) {
+          this.dropInterval = this.gravityCurve(this.level + this.gravityLevelOffset);
+        }
       }
     }
 
@@ -486,6 +504,13 @@ export class GameEngine {
     if (linesCleared > 0 || tSpinType !== 'none') {
       this.events.onLineClear?.(result);
     }
+
+    this.events.onPieceLocked?.({
+      linesCleared,
+      scoreGained: result.scoreGained,
+      tSpin: tSpinType,
+      tetris: linesCleared === 4
+    });
 
     // Garbage interaction in versus mode:
     // 1. Cancel own pending garbage first

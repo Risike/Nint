@@ -75,6 +75,26 @@ test('Verified lines in scored solo modes credit the account, Zen does not', asy
   assert.equal(ultra.body.creditsAwarded, 12);
   assert.equal(await getCredits(token), 57);
 
+  const boss = await request(app)
+    .post('/api/results')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      mode: 'boss_attack',
+      score: 7000,
+      lines: 7,
+      level: 1,
+      duration: 12000,
+      piecesPlaced: 20
+    });
+  assert.equal(boss.status, 201);
+  assert.equal(boss.body.verified, true);
+  assert.equal(boss.body.creditsAwarded, 7);
+  assert.equal(await getCredits(token), 64);
+
+  const bossLeaderboard = await request(app).get('/api/leaderboards/boss_attack');
+  assert.equal(bossLeaderboard.status, 200);
+  assert.equal(bossLeaderboard.body.entries[0].score, 7000);
+
   const zen = await request(app)
     .post('/api/results')
     .set('Authorization', `Bearer ${token}`)
@@ -89,13 +109,13 @@ test('Verified lines in scored solo modes credit the account, Zen does not', asy
   assert.equal(zen.status, 201);
   assert.equal(zen.body.verified, true);
   assert.equal(zen.body.creditsAwarded, 0);
-  assert.equal(await getCredits(token), 57);
+  assert.equal(await getCredits(token), 64);
 
   const stats = await request(app)
     .get('/api/stats/me')
     .set('Authorization', `Bearer ${token}`);
   assert.equal(stats.status, 200);
-  assert.equal(stats.body.credits, 57);
+  assert.equal(stats.body.credits, 64);
 });
 
 test('A lost Ultra run credits cleared lines with a fractional duration', async () => {
