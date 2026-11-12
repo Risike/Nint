@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BarChart3, Gamepad2, Megaphone, Settings, ShoppingBag, Trophy, Users } from 'lucide-react';
+import { Gamepad2, Megaphone, Settings, ShoppingBag, Trophy, UserRound, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ApiClient } from '../services/api';
 import { useI18n } from '../i18n/useI18n';
@@ -34,10 +34,10 @@ const HOME_LINKS = [
     background: 'rgba(234, 179, 8, 0.2)'
   },
   {
-    tab: 'stats',
-    label: 'Stats',
-    description: 'Personal bests, lifetime performance overview and match records.',
-    icon: BarChart3,
+    tab: 'player',
+    label: 'Player',
+    description: 'Statistics, personal bests, and player customization.',
+    icon: UserRound,
     color: 'var(--accent-green)',
     background: 'rgba(34, 197, 94, 0.2)'
   },

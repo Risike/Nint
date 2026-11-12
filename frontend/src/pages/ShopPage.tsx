@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowLeft, CheckCircle2, ChevronRight, Coins, Eye, Palette, ShoppingBag, Smile, Sparkles, Sun, Tag, Type } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, ChevronRight, Coins, Eye, Palette, ShoppingBag, Smile, Sparkles, Sun, Tag, Type, UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n/useI18n';
 import { ApiClient } from '../services/api';
@@ -14,6 +14,7 @@ import { useSettings } from '../context/SettingsContext';
 
 interface ShopPageProps {
   onNavigate: (tab: string) => void;
+  mode?: 'shop' | 'player';
 }
 
 type ShopKind = 'piece_skin' | 'name_color' | 'name_decoration' | 'profile_icon' | 'title' | 'theme';
@@ -226,7 +227,7 @@ const ItemPreview: React.FC<{
   );
 };
 
-export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
+export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate, mode = 'shop' }) => {
   const { user, isAuthenticated, refreshProfile } = useAuth();
   const { updateSettings, setPreviewTheme } = useSettings();
   const { t, language } = useI18n();
@@ -237,6 +238,11 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
   const [message, setMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [previewPiece, setPreviewPiece] = useState<TetrominoType>('T');
+  const [playerName, setPlayerName] = useState(user?.username || user?.display_name || '');
+  const [nameBusy, setNameBusy] = useState(false);
+  const [nameMessage, setNameMessage] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const isPlayerMode = mode === 'player';
 
   const loadShop = async () => {
     setLoading(true);
@@ -258,6 +264,10 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
       setLoading(false);
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    setPlayerName(user?.username || user?.display_name || '');
+  }, [user?.username, user?.display_name]);
 
   // A preview belongs to the shop. Leaving the shop immediately restores the
   // equipped theme, including when navigation happens outside this component.
@@ -310,6 +320,34 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
     }
   };
 
+  const savePlayerName = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setNameMessage(null);
+    setNameError(null);
+    const nextName = playerName.trim();
+    if (!/^[A-Za-z0-9]{3,32}$/.test(nextName)) {
+      setNameError(t('Username must be 3-32 characters using only letters and numbers'));
+      return;
+    }
+    setNameBusy(true);
+    try {
+      await ApiClient.updateMe({ username: nextName });
+      await refreshProfile();
+      setNameMessage(t('Player name updated!'));
+    } catch (e: any) {
+      const message = e?.message || t('Update failed');
+      setNameError(
+        message === 'Username is already taken'
+          ? t('Username is already taken')
+          : message === 'Username must be 3-32 characters using only letters and numbers'
+            ? t('Username must be 3-32 characters using only letters and numbers')
+            : message
+      );
+    } finally {
+      setNameBusy(false);
+    }
+  };
+
   const selectCategory = (kind: ShopKind) => {
     setActiveCategory(kind);
     setMessage(null);
@@ -344,17 +382,74 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
   const activeItems = activeCategory
     ? (data?.items.filter((item) => item.kind === activeCategory) || [])
     : [];
+  const visibleItems = isPlayerMode ? activeItems.filter((item) => item.owned) : activeItems;
 
   return (
     <div style={{ width: '100%', maxWidth: '1040px', padding: '0 1rem' }}>
       <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-        <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Shop')}</h1>
+        <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+          {isPlayerMode ? t('Customize Player') : t('Shop')}
+        </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          {activeCategory
-            ? t('Customize your profile with credits earned from cleared lines.')
-            : t('Choose a category to browse and equip your cosmetics.')}
+          {isPlayerMode
+            ? t('Change your player name and equip the cosmetics you own.')
+            : activeCategory
+              ? t('Customize your profile with credits earned from cleared lines.')
+              : t('Choose a category to browse and equip your cosmetics.')}
         </p>
       </div>
+
+      {isPlayerMode && (
+        <form className="panel-card" onSubmit={savePlayerName} style={{ padding: '1.25rem', gap: '0.75rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '1.05rem' }}>
+            <UserRound size={20} color="var(--accent-cyan)" />
+            <span>{t('Change Player Name')}</span>
+          </div>
+          <div>
+            <label htmlFor="player-name" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
+              {t('Player Name')}
+            </label>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'stretch' }}>
+              <input
+                id="player-name"
+                type="text"
+                required
+                minLength={3}
+                maxLength={32}
+                pattern="[A-Za-z0-9]{3,32}"
+                autoComplete="username"
+                value={playerName}
+                onChange={(event) => setPlayerName(event.target.value)}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  padding: '0.7rem 0.75rem',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-primary)'
+                }}
+              />
+              <button type="submit" className="btn-primary" disabled={nameBusy} style={{ whiteSpace: 'nowrap' }}>
+                {nameBusy ? t('Saving...') : t('Save')}
+              </button>
+            </div>
+            <p style={{ margin: '0.35rem 0 0', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+              {t('3-32 characters, letters and numbers only. This name is unique and used to sign in.')}
+            </p>
+          </div>
+          {nameMessage && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(34, 197, 94, 0.15)', color: 'var(--accent-green)', padding: '0.6rem', borderRadius: 'var(--radius-sm)', fontSize: '0.82rem' }}>
+              <CheckCircle2 size={16} /> {nameMessage}
+            </div>
+          )}
+          {nameError && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-red)', padding: '0.6rem', borderRadius: 'var(--radius-sm)', fontSize: '0.82rem' }}>
+              <AlertCircle size={16} /> {nameError}
+            </div>
+          )}
+        </form>
+      )}
 
       <div className="panel-card" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -401,7 +496,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
                 {t(activeMeta.label)}
               </h2>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                {t('{count} items', { count: activeItems.length })}
+                {t('{count} items', { count: visibleItems.length })}
               </span>
             </div>
             {activeCategory === 'piece_skin' && (
@@ -419,13 +514,15 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
             )}
           </div>
 
-          {activeItems.length === 0 ? (
+          {visibleItems.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.75rem 0' }}>
-              {t('No items available in this category yet.')}
+              {isPlayerMode
+                ? t('You do not own any items in this category yet.')
+                : t('No items available in this category yet.')}
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))', gap: '0.9rem' }}>
-              {activeItems.map((item) => {
+              {visibleItems.map((item) => {
                 const canAfford = (data?.credits ?? 0) >= item.price;
                 const isBusy = busyId === item.id;
                 return (
@@ -483,10 +580,10 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
           )}
         </section>
       ) : (
-        <section aria-label={t('Shop')}>
+        <section aria-label={isPlayerMode ? t('Customize Player') : t('Shop')}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))', gap: '0.9rem' }}>
             {KIND_META.map(({ kind, label, icon, color, background }) => {
-              const count = data?.items.filter((item) => item.kind === kind).length || 0;
+              const count = data?.items.filter((item) => item.kind === kind && (!isPlayerMode || item.owned)).length || 0;
               return (
                 <div
                   key={kind}

@@ -602,5 +602,19 @@ export const es: Record<string, string> = {
   'Name (German)': 'Nombre (alemán)',
   'Name (Spanish)': 'Nombre (español)',
   'Name (Italian)': 'Nombre (italiano)',
-  'Leave a translation empty to use the English name.': 'Deja una traducción vacía para usar el nombre en inglés.'
+  'Leave a translation empty to use the English name.': 'Deja una traducción vacía para usar el nombre en inglés.',
+  'Username': 'Nombre de usuario',
+  '3-32 characters, letters and numbers only. This is your player name and sign-in name.': '3-32 caracteres, solo letras y números. Es tu nombre de jugador y tu nombre de inicio de sesión.',
+  'Statistics, personal bests, and player customization.': 'Estadísticas, mejores marcas y personalización del jugador.',
+  'Your statistics and player customization.': 'Tus estadísticas y la personalización de tu jugador.',
+  'Change your player name and equip the cosmetics you own.': 'Cambia tu nombre de jugador y equipa los cosméticos que posees.',
+  'Back to player menu': 'Volver al menú de jugador',
+  'Customize Player': 'Personalizar jugador',
+  'Change Player Name': 'Cambiar nombre de jugador',
+  'Player Name': 'Nombre de jugador',
+  'Save': 'Guardar',
+  '3-32 characters, letters and numbers only. This name is unique and used to sign in.': '3-32 caracteres, solo letras y números. Este nombre es único y se usa para iniciar sesión.',
+  'Player name updated!': '¡Nombre de jugador actualizado!',
+  'Username is already taken': 'Ese nombre de usuario ya está en uso',
+  'You do not own any items in this category yet.': 'Todavía no posees ningún artículo en esta categoría.'
 };

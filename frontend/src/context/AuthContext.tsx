@@ -27,7 +27,7 @@ interface AuthContextType {
   isGuest: boolean;
   isLoading: boolean;
   login: (identifier: string, pass: string) => Promise<void>;
-  register: (email: string, pass: string, name: string, username: string | undefined, captchaToken: string) => Promise<{ requiresVerification: boolean; email: string }>;
+  register: (email: string, pass: string, username: string, captchaToken: string) => Promise<{ requiresVerification: boolean; email: string }>;
   verifyEmail: (email: string, code: string) => Promise<void>;
   logout: () => void;
   playAsGuest: () => void;
@@ -71,8 +71,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsGuest(false);
   };
 
-  const register = async (email: string, pass: string, name: string, username: string | undefined, captchaToken: string) => {
-    return ApiClient.register({ email, password: pass, displayName: name, username, captchaToken });
+  const register = async (email: string, pass: string, username: string, captchaToken: string) => {
+    return ApiClient.register({ email, password: pass, username, captchaToken });
   };
 
   const verifyEmail = async (email: string, code: string) => {

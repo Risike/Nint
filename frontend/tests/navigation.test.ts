@@ -8,17 +8,18 @@ describe('main navigation', () => {
       'Solo',
       'Multiplayer',
       'Leaderboards',
-      'Stats',
+      'Player',
       'Shop',
       'Settings'
     ]);
-    expect(MAIN_TABS).toEqual(['home', 'solo', 'online', 'leaderboards', 'stats', 'shop', 'settings']);
+    expect(MAIN_TABS).toEqual(['home', 'solo', 'online', 'leaderboards', 'player', 'shop', 'settings']);
   });
 
   it('treats CPU matches as part of the Solo section', () => {
     expect(getMainTab('versus_ai')).toBe('solo');
     expect(getMainTab('online')).toBe('online');
     expect(getMainTab('shop')).toBe('shop');
+    expect(getMainTab('player-public')).toBe('leaderboards');
     expect(getMainTab('unknown')).toBe('home');
   });
 });

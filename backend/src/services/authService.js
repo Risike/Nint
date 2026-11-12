@@ -5,7 +5,7 @@ import { getDatabase } from '../config/database.js';
 import { config } from '../config/env.js';
 import { sendPasswordResetEmail, sendVerificationEmail } from './mailService.js';
 import { verifyCaptcha } from './captchaService.js';
-import { USERNAME_PATTERN, normalizeUsername, deriveUsername, ensureUniqueUsername } from '../utils/username.js';
+import { USERNAME_PATTERN, normalizeUsername } from '../utils/username.js';
 import { ensureUserShop, getUserCosmetics } from './shopService.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -124,16 +124,18 @@ export class AuthService {
     const normalizedEmail = normalizeEmail(email);
     validateEmail(normalizedEmail);
     validatePassword(password);
-    const name = validateDisplayName(displayName);
-
-    const providedUsername = username !== undefined && username !== null && String(username).trim() !== '';
-    const requestedUsername = providedUsername
-      ? normalizeUsername(username)
-      : deriveUsername({ displayName: name, email: normalizedEmail });
-
+    const rawUsername = String(username ?? '').trim();
+    const requestedUsername = normalizeUsername(rawUsername);
     if (!USERNAME_PATTERN.test(requestedUsername)) {
       throw httpError(400, 'Username must be 3-32 characters using only letters and numbers');
     }
+
+    // The username is now the player's public name. Keep accepting an explicit
+    // display name for API clients created before the registration form was
+    // simplified, but new accounts default to the username they chose.
+    const name = displayName !== undefined && displayName !== null && String(displayName).trim() !== ''
+      ? validateDisplayName(displayName)
+      : rawUsername;
 
     const db = getDatabase();
     const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
@@ -141,16 +143,12 @@ export class AuthService {
       throw httpError(409, 'Email is already registered');
     }
 
-    if (providedUsername) {
-      const taken = db.prepare('SELECT id FROM users WHERE username = ?').get(requestedUsername);
-      if (taken) {
-        throw httpError(409, 'Username is already taken');
-      }
+    const taken = db.prepare('SELECT id FROM users WHERE username = ?').get(requestedUsername);
+    if (taken) {
+      throw httpError(409, 'Username is already taken');
     }
 
-    const finalUsername = providedUsername
-      ? requestedUsername
-      : ensureUniqueUsername(db, requestedUsername);
+    const finalUsername = requestedUsername;
 
     const salt = bcrypt.genSaltSync(10);
     const passwordHash = bcrypt.hashSync(password, salt);
@@ -306,7 +304,7 @@ export class AuthService {
     };
   }
 
-  static updateProfile(userId, { displayName, avatarUrl, newPassword, currentPassword }) {
+  static updateProfile(userId, { displayName, username, avatarUrl, newPassword, currentPassword }) {
     const db = getDatabase();
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
     if (!user) {
@@ -327,8 +325,26 @@ export class AuthService {
       tokenVersion += 1;
     }
 
-    if (displayName !== undefined || avatarUrl !== undefined) {
-      const name = displayName !== undefined ? validateDisplayName(displayName) : user.display_name;
+    let nextUsername = user.username;
+    let nextDisplayName = user.display_name;
+
+    if (username !== undefined) {
+      const rawUsername = String(username ?? '').trim();
+      const normalizedUsername = normalizeUsername(rawUsername);
+      if (!USERNAME_PATTERN.test(normalizedUsername)) {
+        throw httpError(400, 'Username must be 3-32 characters using only letters and numbers');
+      }
+      const taken = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(normalizedUsername, userId);
+      if (taken) {
+        throw httpError(409, 'Username is already taken');
+      }
+      nextUsername = normalizedUsername;
+      nextDisplayName = rawUsername;
+    } else if (displayName !== undefined) {
+      nextDisplayName = validateDisplayName(displayName);
+    }
+
+    if (username !== undefined || displayName !== undefined || avatarUrl !== undefined) {
       let avatar = user.avatar_url;
       if (avatarUrl !== undefined) {
         if (avatarUrl === null) {
@@ -344,8 +360,15 @@ export class AuthService {
           avatar = candidate || null;
         }
       }
-      db.prepare('UPDATE users SET display_name = ?, avatar_url = ?, updated_at = ? WHERE id = ?')
-        .run(name, avatar, Date.now(), userId);
+      try {
+        db.prepare('UPDATE users SET username = ?, display_name = ?, avatar_url = ?, updated_at = ? WHERE id = ?')
+          .run(nextUsername, nextDisplayName, avatar, Date.now(), userId);
+      } catch (err) {
+        if (String(err.code || '').startsWith('SQLITE_CONSTRAINT')) {
+          throw httpError(409, 'Username is already taken');
+        }
+        throw err;
+      }
     }
 
     const profile = this.getProfile(userId);

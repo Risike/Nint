@@ -69,6 +69,7 @@ test('An unverified account cannot sign in', async () => {
     email,
     password: TEST_PASSWORD,
     displayName: 'Unverified',
+    username: 'unverified',
     captchaToken: TEST_CAPTCHA
   });
   assert.equal(registration.status, 201);
@@ -87,6 +88,7 @@ test('Verification codes lock after too many incorrect attempts', async () => {
     email,
     password: TEST_PASSWORD,
     displayName: 'CodeBrute',
+    username: 'codebrute',
     captchaToken: TEST_CAPTCHA
   });
 

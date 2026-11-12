@@ -18,7 +18,7 @@ test('Auth flow: register, me, settings, and result submission', async () => {
   // 1. Register and verify the email code before signing in.
   const regRes = await request(app)
     .post('/api/auth/register')
-    .send({ email, password, displayName, captchaToken: TEST_CAPTCHA });
+    .send({ email, password, displayName, username: 'nintmaster', captchaToken: TEST_CAPTCHA });
 
   assert.equal(regRes.status, 201);
   assert.equal(regRes.body.requiresVerification, true);
@@ -129,6 +129,7 @@ test('Registration enforces pseudo, password, captcha and email verification rul
     email,
     password: TEST_PASSWORD,
     displayName: 'Bad Name',
+    username: 'validname',
     captchaToken: TEST_CAPTCHA
   });
   assert.equal(invalidDisplayName.status, 400);
@@ -146,6 +147,7 @@ test('Registration enforces pseudo, password, captcha and email verification rul
     email,
     password: 'password',
     displayName: 'ValidName',
+    username: 'validname',
     captchaToken: TEST_CAPTCHA
   });
   assert.equal(weakPassword.status, 400);
@@ -154,7 +156,8 @@ test('Registration enforces pseudo, password, captcha and email verification rul
   const missingCaptcha = await request(app).post('/api/auth/register').send({
     email,
     password: TEST_PASSWORD,
-    displayName: 'ValidName'
+    displayName: 'ValidName',
+    username: 'validname'
   });
   assert.equal(missingCaptcha.status, 400);
   assert.equal(missingCaptcha.body.code, 'CAPTCHA_REQUIRED');
@@ -163,6 +166,7 @@ test('Registration enforces pseudo, password, captcha and email verification rul
     email,
     password: TEST_PASSWORD,
     displayName: 'ValidName',
+    username: 'validname',
     captchaToken: 'not-a-real-token'
   });
   assert.equal(invalidCaptcha.status, 400);
@@ -172,6 +176,7 @@ test('Registration enforces pseudo, password, captcha and email verification rul
     email,
     password: TEST_PASSWORD,
     displayName: 'ValidName',
+    username: 'validname',
     captchaToken: TEST_CAPTCHA
   });
   assert.equal(registration.status, 201);
@@ -254,6 +259,46 @@ test('Login accepts email or username and usernames stay unique', async () => {
     captchaToken: TEST_CAPTCHA
   });
   assert.equal(duplicate.status, 409);
+});
+
+test('Players can change their username with validation and uniqueness', async () => {
+  const stamp = Date.now();
+  const first = await registerAndVerify(app, {
+    email: `rename_a_${stamp}@example.com`,
+    displayName: 'RenameOne',
+    username: `renameone${stamp}`
+  });
+  const second = await registerAndVerify(app, {
+    email: `rename_b_${stamp}@example.com`,
+    displayName: 'RenameTwo',
+    username: `renametwo${stamp}`
+  });
+
+  const invalid = await request(app)
+    .patch('/api/auth/me')
+    .set('Authorization', `Bearer ${first.token}`)
+    .send({ username: 'bad-name' });
+  assert.equal(invalid.status, 400);
+
+  const taken = await request(app)
+    .patch('/api/auth/me')
+    .set('Authorization', `Bearer ${first.token}`)
+    .send({ username: second.user.username });
+  assert.equal(taken.status, 409);
+
+  const renamed = await request(app)
+    .patch('/api/auth/me')
+    .set('Authorization', `Bearer ${first.token}`)
+    .send({ username: `Renamed${stamp}` });
+  assert.equal(renamed.status, 200);
+  assert.equal(renamed.body.username, `renamed${stamp}`);
+  assert.equal(renamed.body.display_name, `Renamed${stamp}`);
+
+  const me = await request(app)
+    .get('/api/auth/me')
+    .set('Authorization', `Bearer ${first.token}`);
+  assert.equal(me.body.username, `renamed${stamp}`);
+  assert.equal(me.body.display_name, `Renamed${stamp}`);
 });
 
 test('Anti-cheat rejects physically impossible scores or pps', async () => {

@@ -11,13 +11,17 @@ export async function registerAndVerify(app, {
   displayName,
   username
 }) {
+  const resolvedUsername = username
+    || String(displayName || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 32)
+    || 'player';
+
   const registration = await request(app)
     .post('/api/auth/register')
     .send({
       email,
       password,
       displayName,
-      username,
+      username: resolvedUsername,
       captchaToken: TEST_CAPTCHA
     });
 

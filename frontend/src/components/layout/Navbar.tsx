@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Volume2, VolumeX, Shield, Maximize2, Minimize2, ShoppingBag, Home, Gamepad2, Users, Trophy, BarChart3, Settings as SettingsIcon } from 'lucide-react';
+import { Volume2, VolumeX, Shield, Maximize2, Minimize2, ShoppingBag, Home, Gamepad2, Users, Trophy, UserRound, Settings as SettingsIcon } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -19,7 +19,7 @@ const NAV_ICONS: Record<MainTab, LucideIcon> = {
   solo: Gamepad2,
   online: Users,
   leaderboards: Trophy,
-  stats: BarChart3,
+  player: UserRound,
   shop: ShoppingBag,
   settings: SettingsIcon
 };
@@ -41,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
   const isItemActive = (tab: string) =>
     activeTab === tab
     || (tab === 'solo' && activeTab === 'versus_ai')
-    || (tab === 'leaderboards' && activeTab === 'player');
+    || (tab === 'leaderboards' && activeTab === 'player-public');
 
   return (
     <nav className="navbar">

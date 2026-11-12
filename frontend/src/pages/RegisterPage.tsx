@@ -53,7 +53,6 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
       return '';
     }
   });
-  const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -96,11 +95,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
     setError(null);
     setInfo(null);
 
-    if (!/^[A-Za-z0-9]{3,32}$/.test(displayName.trim())) {
-      setError(t('Display name must be 3-32 characters using only letters and numbers'));
-      return;
-    }
-    if (username.trim() && !/^[A-Za-z0-9]{3,32}$/.test(username.trim())) {
+    if (!/^[A-Za-z0-9]{3,32}$/.test(username.trim())) {
       setError(t('Username must be 3-32 characters using only letters and numbers'));
       return;
     }
@@ -120,7 +115,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
 
     setLoading(true);
     try {
-      const result = await register(email, password, displayName.trim(), username.trim() || undefined, captchaToken);
+      const result = await register(email, password, username.trim(), captchaToken);
       savePendingEmail(result.email || email);
       setStep('verify');
       setCode('');
@@ -198,26 +193,10 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
         {step === 'form' ? (
           <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
             <div>
-              <label style={labelStyle}>{t('Player Display Name')}</label>
+              <label style={labelStyle}>{t('Username')}</label>
               <input
                 type="text"
                 required
-                minLength={3}
-                maxLength={32}
-                pattern={PSEUDO_PATTERN}
-                autoComplete="nickname"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder={t('e.g. BlockNinja')}
-                style={inputStyle}
-              />
-              <p style={hintStyle}>{t('3-32 characters, letters and numbers only.')}</p>
-            </div>
-
-            <div>
-              <label style={labelStyle}>{t('Username (optional)')}</label>
-              <input
-                type="text"
                 minLength={3}
                 maxLength={32}
                 pattern={PSEUDO_PATTERN}
@@ -227,7 +206,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
                 placeholder={t('e.g. blockninja')}
                 style={inputStyle}
               />
-              <p style={hintStyle}>{t('Used to sign in. Generated from your display name if left empty. 3-32 letters and numbers only.')}</p>
+              <p style={hintStyle}>{t('3-32 characters, letters and numbers only. This is your player name and sign-in name.')}</p>
             </div>
 
             <div>

@@ -12,6 +12,7 @@ import { VersusAiPage } from './pages/VersusAiPage';
 import { OnlineVersusPage } from './pages/OnlineVersusPage';
 import { LeaderboardsPage } from './pages/LeaderboardsPage';
 import { StatsPage } from './pages/StatsPage';
+import { PlayerPage } from './pages/PlayerPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -79,18 +80,20 @@ export const AppContent: React.FC = () => {
           <LeaderboardsPage
             onSelectPlayer={(userId) => {
               setSelectedPlayerId(userId);
-              setActiveTab('player');
+              setActiveTab('player-public');
             }}
           />
         );
       case 'player':
+        return <PlayerPage onNavigate={handleNavigate} />;
+      case 'player-public':
         return selectedPlayerId ? (
           <StatsPage userId={selectedPlayerId} onBack={() => setActiveTab('leaderboards')} />
         ) : (
           <LeaderboardsPage />
         );
       case 'stats':
-        return <StatsPage />;
+        return <PlayerPage onNavigate={handleNavigate} />;
       case 'shop':
         return <ShopPage onNavigate={handleNavigate} />;
       case 'settings':

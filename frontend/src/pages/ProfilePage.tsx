@@ -12,7 +12,7 @@ interface ProfilePageProps {
 export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
   const { user, logout, refreshProfile } = useAuth();
   const { t } = useI18n();
-  const [displayName, setDisplayName] = useState(user?.display_name || '');
+  const [username, setUsername] = useState(user?.username || user?.display_name || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [deletePassword, setDeletePassword] = useState('');
@@ -25,13 +25,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
     refreshProfile().catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (user?.username) setUsername(user.username);
+  }, [user?.username]);
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
     setError(null);
     try {
       const updated = await ApiClient.updateMe({
-        displayName,
+        username,
         ...(newPassword ? { newPassword, currentPassword } : {})
       });
       // Changing the password rotates the session token server-side.
@@ -140,12 +144,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
-                {t('Display Name')}
+                {t('Username')}
               </label>
               <input
                 type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+                required
+                minLength={3}
+                maxLength={32}
+                pattern="[A-Za-z0-9]{3,32}"
+                autoComplete="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 style={{
                   width: '100%',
                   padding: '0.75rem',

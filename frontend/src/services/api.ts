@@ -48,8 +48,7 @@ export class ApiClient {
   public static register(payload: {
     email: string;
     password: string;
-    displayName: string;
-    username?: string;
+    username: string;
     captchaToken: string;
   }) {
     return this.request<{ requiresVerification: boolean; email: string; message: string }>('/auth/register', {
@@ -87,7 +86,7 @@ export class ApiClient {
     return this.request<any>('/auth/me');
   }
 
-  public static updateMe(payload: { displayName?: string; avatarUrl?: string; newPassword?: string; currentPassword?: string }) {
+  public static updateMe(payload: { displayName?: string; username?: string; avatarUrl?: string; newPassword?: string; currentPassword?: string }) {
     return this.request<any>('/auth/me', {
       method: 'PATCH',
       body: JSON.stringify(payload)

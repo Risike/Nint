@@ -9,8 +9,8 @@ export class AuthController {
   static async register(req, res, next) {
     try {
       const { email, password, displayName, username, captchaToken } = req.body || {};
-      if (!email || !password || !displayName) {
-        return res.status(400).json({ error: 'Email, password, and display name are required' });
+      if (!email || !password || !username) {
+        return res.status(400).json({ error: 'Email, password, and username are required' });
       }
       const result = await AuthService.register({
         email,
@@ -84,8 +84,8 @@ export class AuthController {
 
   static updateMe(req, res, next) {
     try {
-      const { displayName, avatarUrl, newPassword, currentPassword } = req.body || {};
-      const updated = AuthService.updateProfile(req.user.id, { displayName, avatarUrl, newPassword, currentPassword });
+      const { displayName, username, avatarUrl, newPassword, currentPassword } = req.body || {};
+      const updated = AuthService.updateProfile(req.user.id, { displayName, username, avatarUrl, newPassword, currentPassword });
       res.json(updated);
     } catch (err) {
       next(err);
