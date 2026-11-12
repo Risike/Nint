@@ -12,12 +12,13 @@ function httpError(status, message) {
   return err;
 }
 
-function requireInt(value, name, { min = 0, max = Number.MAX_SAFE_INTEGER, fallback } = {}) {
+function requireInt(value, name, { min = 0, max = Number.MAX_SAFE_INTEGER, fallback, round = false } = {}) {
   if (value === undefined || value === null) {
     if (fallback !== undefined) return fallback;
     throw httpError(400, `${name} is required`);
   }
-  const num = Number(value);
+  const raw = Number(value);
+  const num = round && Number.isFinite(raw) ? Math.round(raw) : raw;
   if (!Number.isFinite(num) || !Number.isInteger(num) || num < min || num > max) {
     throw httpError(400, `${name} must be an integer between ${min} and ${max}`);
   }
@@ -107,7 +108,7 @@ export class ResultService {
       throw httpError(400, 'Unsupported game mode');
     }
 
-    const duration = requireInt(data.duration, 'duration', { min: 1, max: MAX_DURATION_MS });
+    const duration = requireInt(data.duration, 'duration', { min: 1, max: MAX_DURATION_MS, round: true });
     const score = requireInt(data.score, 'score', { fallback: 0 });
     const lines = requireInt(data.lines, 'lines', { fallback: 0 });
     const level = requireInt(data.level, 'level', { fallback: 1, min: 1 });

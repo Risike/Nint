@@ -98,6 +98,29 @@ test('Verified lines in scored solo modes credit the account, Zen does not', asy
   assert.equal(stats.body.credits, 57);
 });
 
+test('A lost Ultra run credits cleared lines with a fractional duration', async () => {
+  const { token, user } = await register('credits_ultra_loss');
+  assert.equal(user.credits, 0);
+
+  const result = await request(app)
+    .post('/api/results')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      mode: 'ultra_3m',
+      result: 'loss',
+      score: 100,
+      lines: 1,
+      level: 1,
+      duration: 12345.6,
+      piecesPlaced: 20
+    });
+
+  assert.equal(result.status, 201);
+  assert.equal(result.body.verified, true);
+  assert.equal(result.body.creditsAwarded, 1);
+  assert.equal(await getCredits(token), 1);
+});
+
 test('Rejected results award no credits', async () => {
   const { token, user } = await register('credits_invalid');
   assert.equal(user.credits, 0);

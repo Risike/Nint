@@ -28,7 +28,7 @@ interface SoloPageProps {
 }
 
 export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialMode, onStartCpu }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, refreshProfile } = useAuth();
   const { settings } = useSettings();
   const { t } = useI18n();
   const cellSize = useDynamicCellSize(false);
@@ -595,7 +595,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       score: stats.score,
       lines: stats.lines,
       level: stats.level,
-      duration: stats.duration,
+      duration: Math.round(stats.duration),
       piecesPlaced: stats.piecesPlaced,
       pps: stats.pps,
       apm: stats.apm,
@@ -610,6 +610,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       try {
         await ApiClient.submitResult(resultPayload);
         setIsSaved(true);
+        // Credits can change even when the run ends in a loss.
+        refreshProfile().catch(() => {});
       } catch (err) {
         console.warn('Failed to save result:', err);
       }
