@@ -3,19 +3,30 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { getDatabase } from '../config/database.js';
 import { config } from '../config/env.js';
-import { sendPasswordResetEmail } from './mailService.js';
+import { sendPasswordResetEmail, sendVerificationEmail } from './mailService.js';
+import { verifyCaptcha } from './captchaService.js';
 import { USERNAME_PATTERN, normalizeUsername, deriveUsername, ensureUniqueUsername } from '../utils/username.js';
 import { ensureUserShop, getUserCosmetics } from './shopService.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD_LENGTH = 6;
+const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
+const PASSWORD_LOWERCASE_PATTERN = /[a-z]/;
+const PASSWORD_UPPERCASE_PATTERN = /[A-Z]/;
+const PASSWORD_DIGIT_PATTERN = /\d/;
+const PASSWORD_SPECIAL_PATTERN = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/;
+const DISPLAY_NAME_PATTERN = /^[A-Za-z0-9]{3,32}$/;
 const MAX_DISPLAY_NAME_LENGTH = 32;
 const MAX_AVATAR_URL_LENGTH = 2048;
+const VERIFICATION_CODE_TTL_MS = 15 * 60 * 1000;
+const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
+const VERIFICATION_MAX_ATTEMPTS = 5;
+const TEST_VERIFICATION_CODE = '123456';
 
-function httpError(status, message) {
+function httpError(status, message, code) {
   const err = new Error(message);
   err.status = status;
+  if (code) err.code = code;
   return err;
 }
 
@@ -36,14 +47,68 @@ function validatePassword(password) {
   if (password.length > MAX_PASSWORD_LENGTH) {
     throw httpError(400, `Password must be at most ${MAX_PASSWORD_LENGTH} characters`);
   }
+  if (!PASSWORD_LOWERCASE_PATTERN.test(password)) {
+    throw httpError(400, 'Password must contain at least one lowercase letter');
+  }
+  if (!PASSWORD_UPPERCASE_PATTERN.test(password)) {
+    throw httpError(400, 'Password must contain at least one uppercase letter');
+  }
+  if (!PASSWORD_DIGIT_PATTERN.test(password)) {
+    throw httpError(400, 'Password must contain at least one number');
+  }
+  if (!PASSWORD_SPECIAL_PATTERN.test(password)) {
+    throw httpError(400, 'Password must contain at least one special character');
+  }
 }
 
 function validateDisplayName(displayName) {
   const name = String(displayName || '').trim();
-  if (name.length < 2 || name.length > MAX_DISPLAY_NAME_LENGTH) {
-    throw httpError(400, `Display name must be between 2 and ${MAX_DISPLAY_NAME_LENGTH} characters`);
+  if (!DISPLAY_NAME_PATTERN.test(name)) {
+    throw httpError(400, `Display name must be 3-${MAX_DISPLAY_NAME_LENGTH} characters using only letters and numbers`);
   }
   return name;
+}
+
+function hashCode(userId, code) {
+  return crypto.createHmac('sha256', config.jwtSecret).update(`${userId}:${code}`).digest('hex');
+}
+
+function generateVerificationCode() {
+  if (config.isTest) return TEST_VERIFICATION_CODE;
+  return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+}
+
+function authResponse(db, user) {
+  const stats = db.prepare('SELECT rating FROM user_statistics WHERE user_id = ?').get(user.id);
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      display_name: user.display_name,
+      avatar_url: user.avatar_url,
+      rating: stats?.rating ?? 1000,
+      credits: user.credits ?? 0,
+      cosmetics: getUserCosmetics(db, user.id),
+      is_admin: user.is_admin === 1
+    },
+    token: signToken(user)
+  };
+}
+
+function storeVerificationCode(db, userId) {
+  const code = generateVerificationCode();
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO email_verification_codes (user_id, code_hash, expires_at, attempts, last_sent_at)
+    VALUES (?, ?, ?, 0, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      code_hash = excluded.code_hash,
+      expires_at = excluded.expires_at,
+      attempts = 0,
+      last_sent_at = excluded.last_sent_at
+  `).run(userId, hashCode(userId, code), now + VERIFICATION_CODE_TTL_MS, now);
+  return code;
 }
 
 function signToken(user) {
@@ -53,7 +118,9 @@ function signToken(user) {
 }
 
 export class AuthService {
-  static register({ email, password, displayName, username }) {
+  static async register({ email, password, displayName, username, captchaToken, captchaIp }) {
+    await verifyCaptcha(captchaToken, captchaIp);
+
     const normalizedEmail = normalizeEmail(email);
     validateEmail(normalizedEmail);
     validatePassword(password);
@@ -65,7 +132,7 @@ export class AuthService {
       : deriveUsername({ displayName: name, email: normalizedEmail });
 
     if (!USERNAME_PATTERN.test(requestedUsername)) {
-      throw httpError(400, 'Username must be 3-32 characters using letters, numbers, dots, dashes or underscores');
+      throw httpError(400, 'Username must be 3-32 characters using only letters and numbers');
     }
 
     const db = getDatabase();
@@ -92,8 +159,8 @@ export class AuthService {
 
     const insertUser = db.transaction(() => {
       db.prepare(`
-        INSERT INTO users (id, email, username, password_hash, display_name, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (id, email, username, password_hash, display_name, email_verified, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 0, ?, ?)
       `).run(id, normalizedEmail, finalUsername, passwordHash, name, now, now);
 
       db.prepare('INSERT INTO user_settings (user_id, updated_at) VALUES (?, ?)').run(id, now);
@@ -110,23 +177,83 @@ export class AuthService {
     }
 
     ensureUserShop(db, id);
-    const user = db.prepare('SELECT id, email, username, display_name, avatar_url, is_admin, token_version, credits FROM users WHERE id = ?').get(id);
-    const token = signToken(user);
+    const code = storeVerificationCode(db, id);
+
+    try {
+      await sendVerificationEmail(normalizedEmail, code, name);
+    } catch (err) {
+      // Do not leave an unusable account behind when the verification email
+      // could not be delivered. The user can safely retry registration.
+      db.prepare('DELETE FROM users WHERE id = ?').run(id);
+      console.error('[MAIL] Failed to send verification email:', err.message);
+      throw httpError(502, 'Unable to send verification email', 'VERIFICATION_EMAIL_FAILED');
+    }
 
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        display_name: user.display_name,
-        avatar_url: user.avatar_url,
-        rating: 1000,
-        credits: user.credits ?? 0,
-        cosmetics: getUserCosmetics(db, id),
-        is_admin: false
-      },
-      token
+      requiresVerification: true,
+      email: normalizedEmail,
+      message: 'Verification code sent'
     };
+  }
+
+  static async resendVerification({ email }) {
+    const normalizedEmail = normalizeEmail(email);
+    validateEmail(normalizedEmail);
+    const db = getDatabase();
+    const user = db.prepare('SELECT id, email, display_name, email_verified FROM users WHERE email = ?').get(normalizedEmail);
+
+    // Do not reveal whether an account exists.
+    if (!user || user.email_verified) {
+      return { message: 'If this account needs verification, a new code has been sent.' };
+    }
+
+    const existingCode = db.prepare('SELECT last_sent_at FROM email_verification_codes WHERE user_id = ?').get(user.id);
+    if (existingCode && Date.now() - existingCode.last_sent_at < VERIFICATION_RESEND_COOLDOWN_MS) {
+      throw httpError(429, 'Please wait before requesting another verification code', 'VERIFICATION_RATE_LIMITED');
+    }
+
+    const code = storeVerificationCode(db, user.id);
+    await sendVerificationEmail(user.email, code, user.display_name);
+    return { message: 'If this account needs verification, a new code has been sent.' };
+  }
+
+  static verifyEmail({ email, code }) {
+    const normalizedEmail = normalizeEmail(email);
+    validateEmail(normalizedEmail);
+    if (typeof code !== 'string' || !/^\d{6}$/.test(code.trim())) {
+      throw httpError(400, 'Enter the 6-digit verification code');
+    }
+
+    const db = getDatabase();
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
+    const row = user
+      ? db.prepare('SELECT * FROM email_verification_codes WHERE user_id = ?').get(user.id)
+      : null;
+
+    if (!user || !row || row.expires_at <= Date.now()) {
+      if (row) db.prepare('DELETE FROM email_verification_codes WHERE user_id = ?').run(user.id);
+      throw httpError(400, 'Invalid or expired verification code');
+    }
+
+    if (row.attempts >= VERIFICATION_MAX_ATTEMPTS) {
+      db.prepare('DELETE FROM email_verification_codes WHERE user_id = ?').run(user.id);
+      throw httpError(400, 'Too many incorrect attempts. Request a new verification code.');
+    }
+
+    const expected = Buffer.from(row.code_hash, 'hex');
+    const actual = Buffer.from(hashCode(user.id, code.trim()), 'hex');
+    if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
+      db.prepare('UPDATE email_verification_codes SET attempts = attempts + 1 WHERE user_id = ?').run(user.id);
+      throw httpError(400, 'Invalid or expired verification code');
+    }
+
+    db.transaction(() => {
+      db.prepare('UPDATE users SET email_verified = 1, updated_at = ? WHERE id = ?').run(Date.now(), user.id);
+      db.prepare('DELETE FROM email_verification_codes WHERE user_id = ?').run(user.id);
+    })();
+
+    const verifiedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+    return authResponse(db, verifiedUser);
   }
 
   static login({ email, identifier, password }) {
@@ -147,23 +274,11 @@ export class AuthService {
       throw httpError(401, 'Invalid email/username or password');
     }
 
-    const token = signToken(user);
-    const stats = db.prepare('SELECT rating FROM user_statistics WHERE user_id = ?').get(user.id);
+    if (user.email_verified === 0) {
+      throw httpError(403, 'Email address is not verified', 'EMAIL_NOT_VERIFIED');
+    }
 
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        display_name: user.display_name,
-        avatar_url: user.avatar_url,
-        rating: stats?.rating ?? 1000,
-        credits: user.credits ?? 0,
-        cosmetics: getUserCosmetics(db, user.id),
-        is_admin: user.is_admin === 1
-      },
-      token
-    };
+    return authResponse(db, user);
   }
 
   static logout(userId) {
@@ -175,7 +290,7 @@ export class AuthService {
   static getProfile(userId) {
     const db = getDatabase();
     const user = db.prepare(`
-      SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, u.created_at, u.is_admin,
+      SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, u.created_at, u.is_admin, u.email_verified,
              COALESCE(u.credits, 0) as credits, COALESCE(s.rating, 1000) as rating
       FROM users u
       LEFT JOIN user_statistics s ON s.user_id = u.id

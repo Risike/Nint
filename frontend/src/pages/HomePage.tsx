@@ -80,17 +80,43 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   return (
     <div style={{ width: '100%', maxWidth: '960px', textAlign: 'center', marginTop: '1rem' }}>
       <div style={{ marginBottom: '2.5rem' }}>
-        <h1 style={{
-          fontSize: '3rem',
-          fontWeight: 900,
-          letterSpacing: '-0.03em',
-          background: 'linear-gradient(135deg, #06b6d4, #8b5cf6, #ec4899)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          marginBottom: '0.5rem'
-        }}>
-          Nint
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '0.5rem' }}>
+          <svg width="54" height="54" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect width="100" height="100" rx="22" fill="#0b0f19"/>
+            <rect x="1" y="1" width="98" height="98" rx="21" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5"/>
+            <rect x="15" y="15" width="16" height="16" rx="3" fill="#06b6d4" stroke="#22d3ee" strokeWidth="0.8"/>
+            <rect x="16.5" y="16.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+            <rect x="15" y="33" width="16" height="16" rx="3" fill="#06b6d4" stroke="#22d3ee" strokeWidth="0.8"/>
+            <rect x="16.5" y="34.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+            <rect x="15" y="51" width="16" height="16" rx="3" fill="#3b82f6" stroke="#60a5fa" strokeWidth="0.8"/>
+            <rect x="16.5" y="52.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+            <rect x="15" y="69" width="16" height="16" rx="3" fill="#3b82f6" stroke="#60a5fa" strokeWidth="0.8"/>
+            <rect x="16.5" y="70.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+            <rect x="33" y="33" width="16" height="16" rx="3" fill="#f97316" stroke="#fb923c" strokeWidth="0.8"/>
+            <rect x="34.5" y="34.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+            <rect x="51" y="51" width="16" height="16" rx="3" fill="#a855f7" stroke="#c084fc" strokeWidth="0.8"/>
+            <rect x="52.5" y="52.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+            <rect x="69" y="15" width="16" height="16" rx="3" fill="#eab308" stroke="#fde047" strokeWidth="0.8"/>
+            <rect x="70.5" y="16.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+            <rect x="69" y="33" width="16" height="16" rx="3" fill="#eab308" stroke="#fde047" strokeWidth="0.8"/>
+            <rect x="70.5" y="34.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+            <rect x="69" y="51" width="16" height="16" rx="3" fill="#ef4444" stroke="#f87171" strokeWidth="0.8"/>
+            <rect x="70.5" y="52.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+            <rect x="69" y="69" width="16" height="16" rx="3" fill="#ef4444" stroke="#f87171" strokeWidth="0.8"/>
+            <rect x="70.5" y="70.5" width="13" height="4" rx="1.5" fill="#ffffff" opacity="0.35"/>
+          </svg>
+          <h1 style={{
+            fontSize: '3rem',
+            fontWeight: 900,
+            letterSpacing: '-0.03em',
+            background: 'linear-gradient(135deg, #06b6d4, #8b5cf6, #ec4899)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            marginBottom: 0
+          }}>
+            Nint
+          </h1>
+        </div>
         <p style={{ fontSize: '1.25rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
           “Nint is not Tetris.”
         </p>

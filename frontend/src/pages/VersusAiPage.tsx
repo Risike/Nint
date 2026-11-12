@@ -13,7 +13,7 @@ import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
 import { isVersusGamepadGameplayActive } from '../game/input/gamepadNavigation';
 import { VersusArena } from '../components/game/VersusArena';
 import { UserName } from '../components/user/UserName';
-import { Bot, User as UserIcon, RotateCcw, ArrowLeft, Swords, Shield, Zap, Flame, Play, Pause } from 'lucide-react';
+import { Bot, RotateCcw, ArrowLeft, Swords, Shield, Zap, Flame, Play, Pause } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 
 interface VersusAiPageProps {
@@ -85,7 +85,6 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
 
   useEffect(() => {
     return () => {
-      keyboardRef.current?.detach();
       soundManager.stopBgm();
     };
   }, []);
@@ -202,15 +201,6 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
     // AI Controller
     aiControllerRef.current = new AIController(aEngine, activeDiff);
 
-    // Keyboard Manager
-    if (keyboardRef.current) keyboardRef.current.detach();
-    const km = new KeyboardManager(pEngine, settings.keybindings, {
-      onRestart: () => startMatch(),
-      onPause: togglePause
-    });
-    km.attach();
-    keyboardRef.current = km;
-
     // Gamepad Manager
     gamepadRef.current = new GamepadManager(pEngine, settings.gamepadBindings || DEFAULT_GAMEPAD_BINDINGS, {
       onRestart: () => startMatch(),
@@ -226,6 +216,27 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
     // Start 3-second countdown
     setIsCountingDown(true);
   };
+
+  // Own the keyboard listener with the active game engine. This also makes the
+  // listener recover correctly after React StrictMode's development remount,
+  // which is important when a CPU match starts directly from the Solo menu.
+  useEffect(() => {
+    if (isSelectingDifficulty) return;
+    const pEngine = playerEngineRef.current;
+    if (!pEngine) return;
+
+    const km = new KeyboardManager(pEngine, settings.keybindings, {
+      onRestart: () => startMatch(),
+      onPause: togglePause
+    });
+    km.attach();
+    keyboardRef.current = km;
+
+    return () => {
+      km.detach();
+      if (keyboardRef.current === km) keyboardRef.current = null;
+    };
+  }, [playerEngine, isSelectingDifficulty, settings.keybindings]);
 
   const handleCountdownComplete = () => {
     setIsCountingDown(false);
@@ -499,7 +510,7 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
         arenaRef={arenaRef}
         cellSize={cellSize}
         player={{
-          label: <><UserIcon size={18} color="var(--accent-cyan)" /><UserName displayName={user?.display_name || t('Player 1')} cosmetics={user?.cosmetics} size="0.95rem" /></>,
+          label: <UserName displayName={user?.display_name || t('Player 1')} cosmetics={user?.cosmetics} size="1.1rem" iconSize="1.6rem" />,
           tone: 'cyan',
           hold: playerHold,
           canHold: playerEngine.canHold,

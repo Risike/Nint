@@ -2,17 +2,40 @@ import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { LocalStorageManager } from '../services/storage';
-import { BarChart2, Trophy, Clock, Zap, Target, Swords, Flame, Timer, Bot, Users } from 'lucide-react';
+import { BarChart2, Trophy, Clock, Zap, Target, Swords, Flame, Timer, Bot, Users, ArrowLeft } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
+import { UserName } from '../components/user/UserName';
 
-export const StatsPage: React.FC = () => {
+interface StatsPageProps {
+  userId?: string;
+  onBack?: () => void;
+}
+
+export const StatsPage: React.FC<StatsPageProps> = ({ userId, onBack }) => {
   const { isAuthenticated, isGuest } = useAuth();
   const { t, formatDate } = useI18n();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [historyTab, setHistoryTab] = useState<'cpu' | 'pvp'>('cpu');
+  const isPublicProfile = Boolean(userId);
 
   useEffect(() => {
+    setData(null);
+    setError(null);
+    setLoading(true);
+
+    if (userId) {
+      ApiClient.getPlayerStats(userId)
+        .then(setData)
+        .catch((e) => {
+          console.warn(e);
+          setError(t('Failed to load player statistics'));
+        })
+        .finally(() => setLoading(false));
+      return;
+    }
+
     if (isAuthenticated) {
       ApiClient.getMyStats()
         .then(setData)
@@ -21,9 +44,9 @@ export const StatsPage: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userId]);
 
-  const guestResults = !isAuthenticated ? LocalStorageManager.getItem<any[]>('guest_results', []) : [];
+  const guestResults = !isAuthenticated && !isPublicProfile ? LocalStorageManager.getItem<any[]>('guest_results', []) : [];
 
   const formatPlaytime = (ms: number) => {
     if (!ms || ms <= 0) return '0s';
@@ -49,7 +72,7 @@ export const StatsPage: React.FC = () => {
 
   // Helper to extract personal bests (authenticated from server or computed from guest_results)
   const getSoloPersonalBests = () => {
-    if (isAuthenticated && data?.personalBests) {
+    if (data?.personalBests) {
       const serverBests: Record<string, { score?: number; time?: number; date?: number }> = {};
       data.personalBests.forEach((pb: any) => {
         if (!serverBests[pb.mode]) serverBests[pb.mode] = {};
@@ -85,7 +108,28 @@ export const StatsPage: React.FC = () => {
     return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>{t('Loading stats...')}</div>;
   }
 
+  if (error) {
+    return (
+      <div style={{ width: '100%', maxWidth: '960px' }}>
+        {isPublicProfile && onBack && (
+          <button
+            className="btn-secondary"
+            onClick={onBack}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.9rem', marginBottom: '1rem' }}
+          >
+            <ArrowLeft size={16} /> {t('Back to leaderboards')}
+          </button>
+        )}
+        <div className="panel-card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--accent-red)' }}>
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   const stats = data?.stats || {};
+  const hasStats = Boolean(data);
+  const rankings = data?.rankings || {};
   const recentMatches = data?.recentMatches || [];
   const soloBests = getSoloPersonalBests();
 
@@ -102,6 +146,33 @@ export const StatsPage: React.FC = () => {
     }
     return acc;
   }, {}) : {};
+
+  const rankingModes = [
+    {
+      id: 'marathon_150',
+      title: t('Marathon'),
+      icon: <Flame size={18} color="var(--accent-cyan)" />,
+      color: 'var(--accent-cyan)'
+    },
+    {
+      id: 'sprint_40',
+      title: t('Sprint (40L)'),
+      icon: <Timer size={18} color="var(--accent-orange)" />,
+      color: 'var(--accent-orange)'
+    },
+    {
+      id: 'ultra_3m',
+      title: t('Ultra (3m)'),
+      icon: <Zap size={18} color="var(--accent-yellow)" />,
+      color: 'var(--accent-yellow)'
+    },
+    {
+      id: 'elo',
+      title: t('Online PvP (ELO)'),
+      icon: <Swords size={18} color="var(--accent-blue)" />,
+      color: 'var(--accent-blue)'
+    }
+  ];
 
   const soloModes = [
     {
@@ -136,13 +207,41 @@ export const StatsPage: React.FC = () => {
   return (
     <div style={{ width: '100%', maxWidth: '960px' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Your Statistics')}</h1>
+        {isPublicProfile && onBack && (
+          <button
+            className="btn-secondary"
+            onClick={onBack}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.9rem', marginBottom: '1.25rem' }}
+          >
+            <ArrowLeft size={16} /> {t('Back to leaderboards')}
+          </button>
+        )}
+        {data?.user && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+            <UserName
+              displayName={data.user.display_name || t('Player')}
+              cosmetics={data.cosmetics}
+              size="2rem"
+              iconSize="2rem"
+            />
+            {data.user.username && (
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.95rem', fontFamily: 'monospace' }}>
+                @{data.user.username}
+              </span>
+            )}
+          </div>
+        )}
+        <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+          {isPublicProfile ? t('Player Statistics') : t('Your Statistics')}
+        </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          {t('Personal bests, lifetime performance overview and match records.')}
+          {isPublicProfile
+            ? t('Lifetime statistics, personal bests and match history.')
+            : t('Personal bests, lifetime performance overview and match records.')}
         </p>
       </div>
 
-      {isGuest && (
+      {!isPublicProfile && isGuest && (
         <div className="panel-card" style={{ padding: '1rem 1.25rem', marginBottom: '2rem', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderColor: 'rgba(59, 130, 246, 0.3)' }}>
           <BarChart2 size={28} color="var(--accent-blue)" style={{ flexShrink: 0 }} />
           <div>
@@ -150,6 +249,56 @@ export const StatsPage: React.FC = () => {
             <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
               {t('Your best scores are temporarily tracked in this browser. Log in or create an account to save them to the global leaderboards permanently!')}
             </div>
+          </div>
+        </div>
+      )}
+
+      {data?.rankings && (
+        <div style={{ marginBottom: '2.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <Trophy size={20} color="var(--accent-cyan)" />
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 700 }}>{t('Leaderboard Rankings')}</h2>
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+            gap: '1rem'
+          }}>
+            {rankingModes.map((rankingMode) => {
+              const ranking = rankings[rankingMode.id];
+              return (
+                <div
+                  key={rankingMode.id}
+                  className="panel-card"
+                  style={{ padding: '1.1rem', borderTop: `3px solid ${rankingMode.color}` }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{
+                      display: 'flex',
+                      padding: '0.4rem',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'var(--bg-tertiary)'
+                    }}>
+                      {rankingMode.icon}
+                    </div>
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{rankingMode.title}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem', marginTop: '0.75rem' }}>
+                    <span style={{ fontSize: '1.7rem', fontWeight: 900, color: rankingMode.color }}>
+                      {ranking?.rank ? `#${ranking.rank}` : '—'}
+                    </span>
+                    {ranking?.total > 0 && (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        / {ranking.total}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    {ranking?.rank ? t('Global rank') : t('Not ranked yet')}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -239,7 +388,7 @@ export const StatsPage: React.FC = () => {
         <div className="panel-card" style={{ borderTop: '2px solid var(--accent-cyan)' }}>
           <div className="stat-label">{t('Online PvP Rating')}</div>
           <div className="stat-value" style={{ color: 'var(--accent-cyan)' }}>
-            {isAuthenticated ? (stats.rating ?? 1000) : '—'} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>ELO</span>
+            {hasStats ? (stats.rating ?? 1000) : '—'} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>ELO</span>
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             {t('Chess ELO system')}
@@ -266,15 +415,17 @@ export const StatsPage: React.FC = () => {
           <div className="stat-value">{(stats.total_lines ?? guestStats.lines ?? 0).toLocaleString()}</div>
         </div>
 
-        <div className="panel-card">
-          <div className="stat-label">{t('Credits')}</div>
-          <div className="stat-value" style={{ color: 'var(--accent-yellow)' }}>
-            {isAuthenticated ? (data?.credits ?? 0).toLocaleString() : '—'}
+        {!isPublicProfile && (
+          <div className="panel-card">
+            <div className="stat-label">{t('Credits')}</div>
+            <div className="stat-value" style={{ color: 'var(--accent-yellow)' }}>
+              {isAuthenticated ? (data?.credits ?? 0).toLocaleString() : '—'}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              {t('1 credit per cleared line')}
+            </div>
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            {t('1 credit per cleared line')}
-          </div>
-        </div>
+        )}
 
         <div className="panel-card">
           <div className="stat-label">{t('Total Playtime')}</div>

@@ -1,0 +1,1718 @@
+{
+  "decor_none": {
+    "fr": "Aucune",
+    "de": "Keine",
+    "es": "Ninguna",
+    "it": "Nessuna"
+  },
+  "decor_glow": {
+    "fr": "Lueur",
+    "de": "Leuchten",
+    "es": "Brillo",
+    "it": "Bagliore"
+  },
+  "decor_underline": {
+    "fr": "Soulignement",
+    "de": "Unterstreichen",
+    "es": "Subrayado",
+    "it": "Sottolineato"
+  },
+  "decor_brackets": {
+    "fr": "Chevrons",
+    "de": "Klammern",
+    "es": "Corchetes angulares",
+    "it": "Parentesi angolari"
+  },
+  "decor_sparkle": {
+    "fr": "Étincelle",
+    "de": "Funkeln",
+    "es": "Destello",
+    "it": "Scintilla"
+  },
+  "decor_double_underline": {
+    "fr": "Double soulignement",
+    "de": "Doppelunterstreichung",
+    "es": "Doble subrayado",
+    "it": "Doppia sottolineatura"
+  },
+  "decor_overline": {
+    "fr": "Ligne supérieure",
+    "de": "Überstreichen",
+    "es": "Línea superior",
+    "it": "Linea superiore"
+  },
+  "decor_shadow": {
+    "fr": "Ombre",
+    "de": "Schatten",
+    "es": "Sombra",
+    "it": "Ombra"
+  },
+  "decor_outline": {
+    "fr": "Contour",
+    "de": "Kontur",
+    "es": "Contorno",
+    "it": "Contorno"
+  },
+  "decor_pill": {
+    "fr": "Badge arrondi",
+    "de": "Pille",
+    "es": "Insignia",
+    "it": "Badge arrotondato"
+  },
+  "decor_box": {
+    "fr": "Cadre",
+    "de": "Rahmen",
+    "es": "Caja",
+    "it": "Riquadro"
+  },
+  "decor_dots": {
+    "fr": "Pointillé",
+    "de": "Gepunktet",
+    "es": "Punteado",
+    "it": "Punteggiato"
+  },
+  "decor_wave": {
+    "fr": "Vague",
+    "de": "Welle",
+    "es": "Onda",
+    "it": "Onda"
+  },
+  "decor_angles": {
+    "fr": "Angles",
+    "de": "Winkel",
+    "es": "Ángulos",
+    "it": "Angoli"
+  },
+  "decor_stars": {
+    "fr": "Étoiles",
+    "de": "Sterne",
+    "es": "Estrellas",
+    "it": "Stelle"
+  },
+  "decor_diamonds": {
+    "fr": "Diamants",
+    "de": "Diamanten",
+    "es": "Diamantes",
+    "it": "Diamanti"
+  },
+  "decor_arrows": {
+    "fr": "Flèches",
+    "de": "Pfeile",
+    "es": "Flechas",
+    "it": "Frecce"
+  },
+  "decor_square_brackets": {
+    "fr": "Crochets",
+    "de": "Eckige Klammern",
+    "es": "Corchetes",
+    "it": "Parentesi quadre"
+  },
+  "decor_parentheses": {
+    "fr": "Parenthèses",
+    "de": "Klammern",
+    "es": "Paréntesis",
+    "it": "Parentesi"
+  },
+  "decor_highlight": {
+    "fr": "Surlignage",
+    "de": "Hervorhebung",
+    "es": "Resaltado",
+    "it": "Evidenziazione"
+  },
+  "piece_classic": {
+    "fr": "Classique",
+    "de": "Klassisch",
+    "es": "Clásico",
+    "it": "Classico"
+  },
+  "piece_neon": {
+    "fr": "Néon",
+    "de": "Neon",
+    "es": "Neón",
+    "it": "Neon"
+  },
+  "piece_glass": {
+    "fr": "Verre",
+    "de": "Glas",
+    "es": "Cristal",
+    "it": "Vetro"
+  },
+  "piece_pixel": {
+    "fr": "Pixel",
+    "de": "Pixel",
+    "es": "Píxel",
+    "it": "Pixel"
+  },
+  "piece_candy": {
+    "fr": "Bonbon",
+    "de": "Bonbon",
+    "es": "Caramelo",
+    "it": "Caramella"
+  },
+  "piece_retro": {
+    "fr": "Rétro",
+    "de": "Retro",
+    "es": "Retro",
+    "it": "Retrò"
+  },
+  "piece_metallic": {
+    "fr": "Métallique",
+    "de": "Metallisch",
+    "es": "Metálico",
+    "it": "Metallico"
+  },
+  "piece_holographic": {
+    "fr": "Holographique",
+    "de": "Holografisch",
+    "es": "Holográfico",
+    "it": "Olografico"
+  },
+  "piece_mosaic": {
+    "fr": "Mosaïque",
+    "de": "Mosaik",
+    "es": "Mosaico",
+    "it": "Mosaico"
+  },
+  "piece_circuit": {
+    "fr": "Circuit",
+    "de": "Schaltkreis",
+    "es": "Circuito",
+    "it": "Circuito"
+  },
+  "piece_gradient": {
+    "fr": "Dégradé",
+    "de": "Verlauf",
+    "es": "Degradado",
+    "it": "Sfumato"
+  },
+  "piece_checker": {
+    "fr": "Damier",
+    "de": "Schachbrett",
+    "es": "Damero",
+    "it": "Scacchiera"
+  },
+  "piece_striped": {
+    "fr": "Rayé",
+    "de": "Gestreift",
+    "es": "Rayado",
+    "it": "A righe"
+  },
+  "piece_glossy": {
+    "fr": "Lustré",
+    "de": "Glänzend",
+    "es": "Brillante",
+    "it": "Lucido"
+  },
+  "piece_matte": {
+    "fr": "Mat",
+    "de": "Matt",
+    "es": "Mate",
+    "it": "Opaco"
+  },
+  "piece_gem": {
+    "fr": "Gemme",
+    "de": "Edelstein",
+    "es": "Gema",
+    "it": "Gemma"
+  },
+  "piece_wood": {
+    "fr": "Bois",
+    "de": "Holz",
+    "es": "Madera",
+    "it": "Legno"
+  },
+  "piece_marble": {
+    "fr": "Marbre",
+    "de": "Marmor",
+    "es": "Mármol",
+    "it": "Marmo"
+  },
+  "piece_carbon": {
+    "fr": "Carbone",
+    "de": "Kohlenstoff",
+    "es": "Carbono",
+    "it": "Carbonio"
+  },
+  "piece_ice": {
+    "fr": "Glace",
+    "de": "Eis",
+    "es": "Hielo",
+    "it": "Ghiaccio"
+  },
+  "title_none": {
+    "fr": "Sans titre",
+    "de": "Kein Titel",
+    "es": "Sin título",
+    "it": "Nessun titolo"
+  },
+  "title_line_lord": {
+    "fr": "Seigneur des lignes",
+    "de": "Linienfürst",
+    "es": "Señor de las líneas",
+    "it": "Signore delle linee"
+  },
+  "title_zen_master": {
+    "fr": "Maître Zen",
+    "de": "Zen-Meister",
+    "es": "Maestro Zen",
+    "it": "Maestro Zen"
+  },
+  "title_combo_king": {
+    "fr": "Roi du combo",
+    "de": "Combo-König",
+    "es": "Rey del combo",
+    "it": "Re del combo"
+  },
+  "title_tetris_titan": {
+    "fr": "Titan de Tetris",
+    "de": "Tetris-Titan",
+    "es": "Titán del Tetris",
+    "it": "Titano di Tetris"
+  },
+  "title_nint_legend": {
+    "fr": "Légende Nint",
+    "de": "Nint-Legende",
+    "es": "Leyenda Nint",
+    "it": "Leggenda Nint"
+  },
+  "title_block_baron": {
+    "fr": "Baron des blocs",
+    "de": "Block-Baron",
+    "es": "Barón de bloques",
+    "it": "Barone dei blocchi"
+  },
+  "title_grid_guardian": {
+    "fr": "Gardien de la grille",
+    "de": "Gitterwächter",
+    "es": "Guardián de la cuadrícula",
+    "it": "Guardiano della griglia"
+  },
+  "title_drop_sage": {
+    "fr": "Sage de la chute",
+    "de": "Drop-Weiser",
+    "es": "Sabio de la caída",
+    "it": "Saggio della caduta"
+  },
+  "title_neon_knight": {
+    "fr": "Chevalier néon",
+    "de": "Neon-Ritter",
+    "es": "Caballero neón",
+    "it": "Cavaliere neon"
+  },
+  "title_pixel_prince": {
+    "fr": "Prince pixel",
+    "de": "Pixel-Prinz",
+    "es": "Príncipe píxel",
+    "it": "Principe pixel"
+  },
+  "title_clear_captain": {
+    "fr": "Capitaine des lignes",
+    "de": "Clear-Kapitän",
+    "es": "Capitán de líneas",
+    "it": "Capitano delle linee"
+  },
+  "title_spin_specialist": {
+    "fr": "Spécialiste des rotations",
+    "de": "Spin-Spezialist",
+    "es": "Especialista en giros",
+    "it": "Specialista delle rotazioni"
+  },
+  "title_perfect_clearer": {
+    "fr": "Maître du sans-faute",
+    "de": "Perfekt-Räumer",
+    "es": "Maestro del perfecto",
+    "it": "Maestro del perfect clear"
+  },
+  "title_b2b_boss": {
+    "fr": "Boss des enchaînements",
+    "de": "Back-to-Back-Boss",
+    "es": "Jefe del back-to-back",
+    "it": "Boss del back-to-back"
+  },
+  "title_tspin_tactician": {
+    "fr": "Tacticien du T-Spin",
+    "de": "T-Spin-Taktiker",
+    "es": "Táctico del T-Spin",
+    "it": "Tattico del T-Spin"
+  },
+  "title_quad_crusher": {
+    "fr": "Briseur de quad",
+    "de": "Quad-Brecher",
+    "es": "Rompecuádruples",
+    "it": "Distruttore di quad"
+  },
+  "title_combo_maestro": {
+    "fr": "Maestro du combo",
+    "de": "Combo-Maestro",
+    "es": "Maestro del combo",
+    "it": "Maestro del combo"
+  },
+  "title_speed_demon": {
+    "fr": "Démon de la vitesse",
+    "de": "Geschwindigkeitsdämon",
+    "es": "Demonio de la velocidad",
+    "it": "Demone della velocità"
+  },
+  "title_endless_wanderer": {
+    "fr": "Vagabond de l’infini",
+    "de": "Endlos-Wanderer",
+    "es": "Vagabundo del infinito",
+    "it": "Viandante infinito"
+  },
+  "title_marathoner": {
+    "fr": "Marathonien",
+    "de": "Marathonläufer",
+    "es": "Maratoniano",
+    "it": "Maratoneta"
+  },
+  "title_sprint_striker": {
+    "fr": "Sprinteur éclair",
+    "de": "Sprint-Stürmer",
+    "es": "Velocista del sprint",
+    "it": "Velocista dello sprint"
+  },
+  "title_ultra_survivor": {
+    "fr": "Survivant ultra",
+    "de": "Ultra-Überlebender",
+    "es": "Superviviente ultra",
+    "it": "Sopravvissuto ultra"
+  },
+  "title_casual_champion": {
+    "fr": "Champion décontracté",
+    "de": "Freizeit-Champion",
+    "es": "Campeón casual",
+    "it": "Campione casual"
+  },
+  "title_ranked_rebel": {
+    "fr": "Rebelle classé",
+    "de": "Ranglisten-Rebell",
+    "es": "Rebelde clasificado",
+    "it": "Ribelle classificato"
+  },
+  "title_arena_ace": {
+    "fr": "As de l’arène",
+    "de": "Arena-Ass",
+    "es": "As de la arena",
+    "it": "Asso dell’arena"
+  },
+  "title_lobby_legend": {
+    "fr": "Légende du lobby",
+    "de": "Lobby-Legende",
+    "es": "Leyenda del lobby",
+    "it": "Leggenda della lobby"
+  },
+  "title_rookie_rocket": {
+    "fr": "Fusée débutante",
+    "de": "Rookie-Rakete",
+    "es": "Cohete novato",
+    "it": "Razzo esordiente"
+  },
+  "title_veteran_vector": {
+    "fr": "Vétéran vectoriel",
+    "de": "Veteran-Vektor",
+    "es": "Vector veterano",
+    "it": "Vettore veterano"
+  },
+  "title_elite_element": {
+    "fr": "Élément d’élite",
+    "de": "Elite-Element",
+    "es": "Elemento de élite",
+    "it": "Elemento d’élite"
+  },
+  "title_master_mind": {
+    "fr": "Esprit maître",
+    "de": "Mastermind",
+    "es": "Mente maestra",
+    "it": "Mente suprema"
+  },
+  "title_grandmaster": {
+    "fr": "Grand maître",
+    "de": "Großmeister",
+    "es": "Gran maestro",
+    "it": "Gran maestro"
+  },
+  "title_apex_player": {
+    "fr": "Joueur au sommet",
+    "de": "Apex-Spieler",
+    "es": "Jugador cumbre",
+    "it": "Giocatore apex"
+  },
+  "title_top_talent": {
+    "fr": "Talent d’élite",
+    "de": "Top-Talent",
+    "es": "Talento superior",
+    "it": "Talento top"
+  },
+  "title_star_seeker": {
+    "fr": "Chasseur d’étoiles",
+    "de": "Sternensucher",
+    "es": "Cazador de estrellas",
+    "it": "Cacciatore di stelle"
+  },
+  "title_moon_melter": {
+    "fr": "Fondeur de lune",
+    "de": "Mondschmelzer",
+    "es": "Fundidor de lunas",
+    "it": "Fondiluna"
+  },
+  "title_solar_flare": {
+    "fr": "Éruption solaire",
+    "de": "Sonneneruption",
+    "es": "Fulgor solar",
+    "it": "Brillamento solare"
+  },
+  "title_cosmic_cubist": {
+    "fr": "Cubiste cosmique",
+    "de": "Kosmischer Kubist",
+    "es": "Cubista cósmico",
+    "it": "Cubista cosmico"
+  },
+  "title_gravity_guru": {
+    "fr": "Gourou de la gravité",
+    "de": "Schwerkraft-Guru",
+    "es": "Gurú de la gravedad",
+    "it": "Guru della gravità"
+  },
+  "title_stack_strategist": {
+    "fr": "Stratège de la pile",
+    "de": "Stapel-Stratege",
+    "es": "Estratega de pila",
+    "it": "Stratega della pila"
+  },
+  "title_well_warden": {
+    "fr": "Gardien du puits",
+    "de": "Brunnenwächter",
+    "es": "Guardián del pozo",
+    "it": "Guardiano del pozzo"
+  },
+  "title_line_launcher": {
+    "fr": "Lanceur de lignes",
+    "de": "Linienwerfer",
+    "es": "Lanzador de líneas",
+    "it": "Lanciatore di linee"
+  },
+  "title_block_artist": {
+    "fr": "Artiste des blocs",
+    "de": "Block-Künstler",
+    "es": "Artista de bloques",
+    "it": "Artista dei blocchi"
+  },
+  "title_piece_perfectionist": {
+    "fr": "Perfectionniste des pièces",
+    "de": "Teil-Perfektionist",
+    "es": "Perfeccionista de piezas",
+    "it": "Perfezionista dei pezzi"
+  },
+  "title_hold_hero": {
+    "fr": "Héros de la réserve",
+    "de": "Hold-Held",
+    "es": "Héroe del hold",
+    "it": "Eroe della riserva"
+  },
+  "title_next_navigator": {
+    "fr": "Navigateur du suivant",
+    "de": "Next-Navigator",
+    "es": "Navegante del siguiente",
+    "it": "Navigatore del prossimo"
+  },
+  "title_ghost_whisperer": {
+    "fr": "Chuchoteur de fantômes",
+    "de": "Geisterflüsterer",
+    "es": "Susurrador de fantasmas",
+    "it": "Sussurratore di fantasmi"
+  },
+  "title_hard_drop_hero": {
+    "fr": "Héros du hard drop",
+    "de": "Hard-Drop-Held",
+    "es": "Héroe del hard drop",
+    "it": "Eroe dell’hard drop"
+  },
+  "title_soft_drop_scholar": {
+    "fr": "Érudit du soft drop",
+    "de": "Soft-Drop-Gelehrter",
+    "es": "Erudito del soft drop",
+    "it": "Studioso del soft drop"
+  },
+  "title_level_leader": {
+    "fr": "Chef de niveau",
+    "de": "Level-Leader",
+    "es": "Líder de nivel",
+    "it": "Capo del livello"
+  },
+  "piece_round_classic": {
+    "fr": "Classique rond",
+    "de": "Rund klassisch",
+    "es": "Clásico redondo",
+    "it": "Classico rotondo"
+  },
+  "piece_round_neon": {
+    "fr": "Orbe néon",
+    "de": "Neon-Kugel",
+    "es": "Orbe neón",
+    "it": "Sfera neon"
+  },
+  "piece_round_glass": {
+    "fr": "Bulle de verre",
+    "de": "Glaskugel",
+    "es": "Burbuja de cristal",
+    "it": "Bolla di vetro"
+  },
+  "piece_round_candy": {
+    "fr": "Bonbon rond",
+    "de": "Bonbon-Tropfen",
+    "es": "Gota de caramelo",
+    "it": "Goccia di caramella"
+  },
+  "piece_round_metallic": {
+    "fr": "Sphère métallique",
+    "de": "Metallkugel",
+    "es": "Esfera metálica",
+    "it": "Sfera metallica"
+  },
+  "piece_round_gem": {
+    "fr": "Gemme ronde",
+    "de": "Edelstein-Kugel",
+    "es": "Gema redonda",
+    "it": "Gemma rotonda"
+  },
+  "piece_round_glow": {
+    "fr": "Boule lumineuse",
+    "de": "Leuchtkugel",
+    "es": "Bola brillante",
+    "it": "Sfera luminosa"
+  },
+  "piece_round_marble": {
+    "fr": "Orbe de marbre",
+    "de": "Marmorkugel",
+    "es": "Orbe de mármol",
+    "it": "Sfera di marmo"
+  },
+  "piece_round_ice": {
+    "fr": "Sphère de glace",
+    "de": "Eiskugel",
+    "es": "Esfera de hielo",
+    "it": "Sfera di ghiaccio"
+  },
+  "piece_round_wood": {
+    "fr": "Boule en bois",
+    "de": "Holzkugel",
+    "es": "Bola de madera",
+    "it": "Sfera di legno"
+  },
+  "piece_round_holographic": {
+    "fr": "Orbe holographique",
+    "de": "Holo-Kugel",
+    "es": "Orbe holográfico",
+    "it": "Sfera olografica"
+  },
+  "piece_round_striped": {
+    "fr": "Sphère rayée",
+    "de": "Gestreifte Kugel",
+    "es": "Esfera rayada",
+    "it": "Sfera a righe"
+  },
+  "piece_round_checker": {
+    "fr": "Boule damier",
+    "de": "Schachbrettkugel",
+    "es": "Bola de damero",
+    "it": "Sfera a scacchiera"
+  },
+  "piece_round_mosaic": {
+    "fr": "Orbe mosaïque",
+    "de": "Mosaikkugel",
+    "es": "Orbe de mosaico",
+    "it": "Sfera a mosaico"
+  },
+  "piece_round_carbon": {
+    "fr": "Sphère carbone",
+    "de": "Kohlenstoffkugel",
+    "es": "Esfera de carbono",
+    "it": "Sfera di carbonio"
+  },
+  "piece_round_gradient": {
+    "fr": "Orbe dégradé",
+    "de": "Verlaufskugel",
+    "es": "Orbe degradado",
+    "it": "Sfera sfumata"
+  },
+  "piece_round_glossy": {
+    "fr": "Boule lustrée",
+    "de": "Glanzkugel",
+    "es": "Bola brillante",
+    "it": "Sfera lucida"
+  },
+  "piece_round_matte": {
+    "fr": "Sphère mate",
+    "de": "Matte Kugel",
+    "es": "Esfera mate",
+    "it": "Sfera opaca"
+  },
+  "piece_round_pearl": {
+    "fr": "Perle",
+    "de": "Perle",
+    "es": "Perla",
+    "it": "Perla"
+  },
+  "piece_round_planet": {
+    "fr": "Planète",
+    "de": "Planet",
+    "es": "Planeta",
+    "it": "Pianeta"
+  },
+  "icon_user": {
+    "fr": "Joueur",
+    "de": "Spieler",
+    "es": "Jugador",
+    "it": "Giocatore"
+  },
+  "icon_smile": {
+    "fr": "Sourire",
+    "de": "Lächeln",
+    "es": "Sonrisa",
+    "it": "Sorriso"
+  },
+  "icon_cool": {
+    "fr": "Cool",
+    "de": "Cool",
+    "es": "Guay",
+    "it": "Fico"
+  },
+  "icon_wink": {
+    "fr": "Clin d’œil",
+    "de": "Zwinkern",
+    "es": "Guiño",
+    "it": "Occhiolino"
+  },
+  "icon_star": {
+    "fr": "Étoile",
+    "de": "Stern",
+    "es": "Estrella",
+    "it": "Stella"
+  },
+  "icon_heart": {
+    "fr": "Cœur",
+    "de": "Herz",
+    "es": "Corazón",
+    "it": "Cuore"
+  },
+  "icon_fire": {
+    "fr": "Flamme",
+    "de": "Feuer",
+    "es": "Fuego",
+    "it": "Fuoco"
+  },
+  "icon_bolt": {
+    "fr": "Éclair",
+    "de": "Blitz",
+    "es": "Rayo",
+    "it": "Fulmine"
+  },
+  "icon_crown": {
+    "fr": "Couronne",
+    "de": "Krone",
+    "es": "Corona",
+    "it": "Corona"
+  },
+  "icon_rocket": {
+    "fr": "Fusée",
+    "de": "Rakete",
+    "es": "Cohete",
+    "it": "Razzo"
+  },
+  "icon_alien": {
+    "fr": "Alien",
+    "de": "Alien",
+    "es": "Alienígena",
+    "it": "Alieno"
+  },
+  "icon_robot": {
+    "fr": "Robot",
+    "de": "Roboter",
+    "es": "Robot",
+    "it": "Robot"
+  },
+  "icon_ghost": {
+    "fr": "Fantôme",
+    "de": "Geist",
+    "es": "Fantasma",
+    "it": "Fantasma"
+  },
+  "icon_skull": {
+    "fr": "Crâne",
+    "de": "Schädel",
+    "es": "Calavera",
+    "it": "Teschio"
+  },
+  "icon_cat": {
+    "fr": "Chat",
+    "de": "Katze",
+    "es": "Gato",
+    "it": "Gatto"
+  },
+  "icon_dog": {
+    "fr": "Chien",
+    "de": "Hund",
+    "es": "Perro",
+    "it": "Cane"
+  },
+  "icon_fox": {
+    "fr": "Renard",
+    "de": "Fuchs",
+    "es": "Zorro",
+    "it": "Volpe"
+  },
+  "icon_panda": {
+    "fr": "Panda",
+    "de": "Panda",
+    "es": "Panda",
+    "it": "Panda"
+  },
+  "icon_penguin": {
+    "fr": "Pingouin",
+    "de": "Pinguin",
+    "es": "Pingüino",
+    "it": "Pinguino"
+  },
+  "icon_frog": {
+    "fr": "Grenouille",
+    "de": "Frosch",
+    "es": "Rana",
+    "it": "Rana"
+  },
+  "icon_unicorn": {
+    "fr": "Licorne",
+    "de": "Einhorn",
+    "es": "Unicornio",
+    "it": "Unicorno"
+  },
+  "icon_dragon": {
+    "fr": "Dragon",
+    "de": "Drache",
+    "es": "Dragón",
+    "it": "Drago"
+  },
+  "icon_lion": {
+    "fr": "Lion",
+    "de": "Löwe",
+    "es": "León",
+    "it": "Leone"
+  },
+  "icon_tiger": {
+    "fr": "Tigre",
+    "de": "Tiger",
+    "es": "Tigre",
+    "it": "Tigre"
+  },
+  "icon_bear": {
+    "fr": "Ours",
+    "de": "Bär",
+    "es": "Oso",
+    "it": "Orso"
+  },
+  "icon_koala": {
+    "fr": "Koala",
+    "de": "Koala",
+    "es": "Koala",
+    "it": "Koala"
+  },
+  "icon_owl": {
+    "fr": "Hibou",
+    "de": "Eule",
+    "es": "Búho",
+    "it": "Gufo"
+  },
+  "icon_wolf": {
+    "fr": "Loup",
+    "de": "Wolf",
+    "es": "Lobo",
+    "it": "Lupo"
+  },
+  "icon_shark": {
+    "fr": "Requin",
+    "de": "Hai",
+    "es": "Tiburón",
+    "it": "Squalo"
+  },
+  "icon_octopus": {
+    "fr": "Pieuvre",
+    "de": "Oktopus",
+    "es": "Pulpo",
+    "it": "Polpo"
+  },
+  "icon_crab": {
+    "fr": "Crabe",
+    "de": "Krabbe",
+    "es": "Cangrejo",
+    "it": "Granchio"
+  },
+  "icon_butterfly": {
+    "fr": "Papillon",
+    "de": "Schmetterling",
+    "es": "Mariposa",
+    "it": "Farfalla"
+  },
+  "icon_flower": {
+    "fr": "Fleur",
+    "de": "Blume",
+    "es": "Flor",
+    "it": "Fiore"
+  },
+  "icon_sun": {
+    "fr": "Soleil",
+    "de": "Sonne",
+    "es": "Sol",
+    "it": "Sole"
+  },
+  "icon_moon": {
+    "fr": "Lune",
+    "de": "Mond",
+    "es": "Luna",
+    "it": "Luna"
+  },
+  "icon_rainbow": {
+    "fr": "Arc-en-ciel",
+    "de": "Regenbogen",
+    "es": "Arcoíris",
+    "it": "Arcobaleno"
+  },
+  "icon_snowflake": {
+    "fr": "Flocon",
+    "de": "Schneeflocke",
+    "es": "Copo de nieve",
+    "it": "Fiocco di neve"
+  },
+  "icon_wave": {
+    "fr": "Vague",
+    "de": "Welle",
+    "es": "Ola",
+    "it": "Onda"
+  },
+  "icon_mountain": {
+    "fr": "Montagne",
+    "de": "Berg",
+    "es": "Montaña",
+    "it": "Montagna"
+  },
+  "icon_planet": {
+    "fr": "Planète",
+    "de": "Planet",
+    "es": "Planeta",
+    "it": "Pianeta"
+  },
+  "icon_ufo": {
+    "fr": "OVNI",
+    "de": "UFO",
+    "es": "OVNI",
+    "it": "UFO"
+  },
+  "icon_guitar": {
+    "fr": "Guitare",
+    "de": "Gitarre",
+    "es": "Guitarra",
+    "it": "Chitarra"
+  },
+  "icon_headphones": {
+    "fr": "Casque",
+    "de": "Kopfhörer",
+    "es": "Auriculares",
+    "it": "Cuffie"
+  },
+  "icon_gamepad": {
+    "fr": "Manette",
+    "de": "Gamepad",
+    "es": "Mando",
+    "it": "Controller"
+  },
+  "icon_dice": {
+    "fr": "Dé",
+    "de": "Würfel",
+    "es": "Dado",
+    "it": "Dado"
+  },
+  "icon_trophy": {
+    "fr": "Trophée",
+    "de": "Trophäe",
+    "es": "Trofeo",
+    "it": "Trofeo"
+  },
+  "icon_medal": {
+    "fr": "Médaille",
+    "de": "Medaille",
+    "es": "Medalla",
+    "it": "Medaglia"
+  },
+  "icon_target": {
+    "fr": "Cible",
+    "de": "Zielscheibe",
+    "es": "Diana",
+    "it": "Bersaglio"
+  },
+  "icon_pizza": {
+    "fr": "Pizza",
+    "de": "Pizza",
+    "es": "Pizza",
+    "it": "Pizza"
+  },
+  "icon_coffee": {
+    "fr": "Café",
+    "de": "Kaffee",
+    "es": "Café",
+    "it": "Caffè"
+  },
+  "icon_flag_black": {
+    "fr": "Drapeau noir",
+    "de": "Schwarze Flagge",
+    "es": "Bandera negra",
+    "it": "Bandiera nera"
+  },
+  "icon_flag_red": {
+    "fr": "Drapeau rouge",
+    "de": "Rote Flagge",
+    "es": "Bandera roja",
+    "it": "Bandiera rossa"
+  },
+  "icon_flag_rainbow": {
+    "fr": "Drapeau arc-en-ciel",
+    "de": "Regenbogenflagge",
+    "es": "Bandera arcoíris",
+    "it": "Bandiera arcobaleno"
+  },
+  "icon_flag_peace": {
+    "fr": "Drapeau de la paix",
+    "de": "Friedensflagge",
+    "es": "Bandera de la paz",
+    "it": "Bandiera della pace"
+  },
+  "icon_peace_sign": {
+    "fr": "Signe de paix",
+    "de": "Friedenszeichen",
+    "es": "Signo de la paz",
+    "it": "Segno della pace"
+  },
+  "icon_flag_pirate": {
+    "fr": "Drapeau pirate",
+    "de": "Piratenflagge",
+    "es": "Bandera pirata",
+    "it": "Bandiera pirata"
+  },
+  "decor_quotes": {
+    "fr": "Guillemets anglais",
+    "de": "Anführungszeichen",
+    "es": "Comillas",
+    "it": "Virgolette"
+  },
+  "decor_guillemets": {
+    "fr": "Guillemets français",
+    "de": "Spitzklammern",
+    "es": "Comillas francesas",
+    "it": "Virgolette francesi"
+  },
+  "decor_corner": {
+    "fr": "Coins",
+    "de": "Ecken",
+    "es": "Esquinas",
+    "it": "Angoli"
+  },
+  "decor_corner_double": {
+    "fr": "Doubles coins",
+    "de": "Doppelte Ecken",
+    "es": "Dobles esquinas",
+    "it": "Doppi angoli"
+  },
+  "decor_braces": {
+    "fr": "Accolades",
+    "de": "Geschweifte Klammern",
+    "es": "Llaves",
+    "it": "Graffe"
+  },
+  "decor_chevrons_double": {
+    "fr": "Doubles chevrons",
+    "de": "Doppelspitzen",
+    "es": "Dobles chevrones",
+    "it": "Doppi chevron"
+  },
+  "decor_tildes": {
+    "fr": "Tildes",
+    "de": "Tilden",
+    "es": "Tildes",
+    "it": "Tilde"
+  },
+  "decor_pipes": {
+    "fr": "Barres",
+    "de": "Senkrechte Striche",
+    "es": "Barras",
+    "it": "Barre"
+  },
+  "decor_slashes": {
+    "fr": "Barres obliques",
+    "de": "Schrägstriche",
+    "es": "Barras inclinadas",
+    "it": "Barre oblique"
+  },
+  "decor_plus_signs": {
+    "fr": "Signes plus",
+    "de": "Pluszeichen",
+    "es": "Signos más",
+    "it": "Segni più"
+  },
+  "decor_equals": {
+    "fr": "Égales",
+    "de": "Gleichheitszeichen",
+    "es": "Iguales",
+    "it": "Uguali"
+  },
+  "decor_hashes": {
+    "fr": "Dièses",
+    "de": "Rauten",
+    "es": "Almohadillas",
+    "it": "Cancelletto"
+  },
+  "decor_at_sign": {
+    "fr": "Arobases",
+    "de": "At-Zeichen",
+    "es": "Arrobas",
+    "it": "Chiocciole"
+  },
+  "decor_music": {
+    "fr": "Musique",
+    "de": "Musik",
+    "es": "Música",
+    "it": "Musica"
+  },
+  "decor_hearts": {
+    "fr": "Cœurs",
+    "de": "Herzen",
+    "es": "Corazones",
+    "it": "Cuori"
+  },
+  "decor_lightning": {
+    "fr": "Éclairs",
+    "de": "Blitze",
+    "es": "Rayos",
+    "it": "Fulmini"
+  },
+  "decor_flames": {
+    "fr": "Flammes",
+    "de": "Flammen",
+    "es": "Llamas",
+    "it": "Fiamme"
+  },
+  "decor_flowers": {
+    "fr": "Fleurs",
+    "de": "Blumen",
+    "es": "Flores",
+    "it": "Fiori"
+  },
+  "decor_moons": {
+    "fr": "Lunes",
+    "de": "Monde",
+    "es": "Lunas",
+    "it": "Lune"
+  },
+  "decor_crystals": {
+    "fr": "Cristaux",
+    "de": "Kristalle",
+    "es": "Cristales",
+    "it": "Cristalli"
+  },
+  "decor_target": {
+    "fr": "Cibles",
+    "de": "Ziele",
+    "es": "Dianas",
+    "it": "Bersagli"
+  },
+  "decor_crowns": {
+    "fr": "Couronnes",
+    "de": "Kronen",
+    "es": "Coronas",
+    "it": "Corone"
+  },
+  "decor_wings": {
+    "fr": "Ailes",
+    "de": "Flügel",
+    "es": "Alas",
+    "it": "Ali"
+  },
+  "decor_ribbon": {
+    "fr": "Ruban",
+    "de": "Schleife",
+    "es": "Cinta",
+    "it": "Nastro"
+  },
+  "decor_gradient_fill": {
+    "fr": "Cadre doré",
+    "de": "Goldrahmen",
+    "es": "Marco dorado",
+    "it": "Cornice dorata"
+  },
+  "decor_emboss": {
+    "fr": "Relief",
+    "de": "Geprägt",
+    "es": "Relieve",
+    "it": "Rilievo"
+  },
+  "decor_glitch": {
+    "fr": "Glitch",
+    "de": "Glitch",
+    "es": "Glitch",
+    "it": "Glitch"
+  },
+  "decor_dashed_line": {
+    "fr": "Ligne pointillée",
+    "de": "Gestrichelte Linie",
+    "es": "Línea discontinua",
+    "it": "Linea tratteggiata"
+  },
+  "decor_orbit": {
+    "fr": "Orbite",
+    "de": "Orbit",
+    "es": "Órbita",
+    "it": "Orbita"
+  },
+  "decor_terminal": {
+    "fr": "Terminal",
+    "de": "Terminal",
+    "es": "Terminal",
+    "it": "Terminal"
+  },
+  "color_default": {
+    "fr": "Blanc",
+    "de": "Weiß",
+    "es": "Blanco",
+    "it": "Bianco"
+  },
+  "color_cyan": {
+    "fr": "Cyan",
+    "de": "Cyan",
+    "es": "Cian",
+    "it": "Ciano"
+  },
+  "color_pink": {
+    "fr": "Rose",
+    "de": "Rosa",
+    "es": "Rosa",
+    "it": "Rosa"
+  },
+  "color_gold": {
+    "fr": "Or",
+    "de": "Gold",
+    "es": "Dorado",
+    "it": "Oro"
+  },
+  "color_green": {
+    "fr": "Vert",
+    "de": "Grün",
+    "es": "Verde",
+    "it": "Verde"
+  },
+  "color_red": {
+    "fr": "Rouge",
+    "de": "Rot",
+    "es": "Rojo",
+    "it": "Rosso"
+  },
+  "color_orange": {
+    "fr": "Orange",
+    "de": "Orange",
+    "es": "Naranja",
+    "it": "Arancione"
+  },
+  "color_sky": {
+    "fr": "Bleu ciel",
+    "de": "Himmelblau",
+    "es": "Azul cielo",
+    "it": "Azzurro cielo"
+  },
+  "color_violet": {
+    "fr": "Violet",
+    "de": "Violett",
+    "es": "Violeta",
+    "it": "Viola"
+  },
+  "color_lime": {
+    "fr": "Citron vert",
+    "de": "Limette",
+    "es": "Lima",
+    "it": "Lime"
+  },
+  "color_coral": {
+    "fr": "Corail",
+    "de": "Koralle",
+    "es": "Coral",
+    "it": "Corallo"
+  },
+  "color_mint": {
+    "fr": "Menthe",
+    "de": "Minze",
+    "es": "Menta",
+    "it": "Menta"
+  },
+  "color_teal": {
+    "fr": "Bleu canard",
+    "de": "Petrol",
+    "es": "Verde azulado",
+    "it": "Verde acqua"
+  },
+  "color_indigo": {
+    "fr": "Indigo",
+    "de": "Indigo",
+    "es": "Índigo",
+    "it": "Indaco"
+  },
+  "color_rose": {
+    "fr": "Rose poudré",
+    "de": "Zartrosa",
+    "es": "Rosa palo",
+    "it": "Rosa cipria"
+  },
+  "color_amber": {
+    "fr": "Ambre",
+    "de": "Bernstein",
+    "es": "Ámbar",
+    "it": "Ambra"
+  },
+  "color_emerald": {
+    "fr": "Émeraude",
+    "de": "Smaragd",
+    "es": "Esmeralda",
+    "it": "Smeraldo"
+  },
+  "color_blue": {
+    "fr": "Bleu",
+    "de": "Blau",
+    "es": "Azul",
+    "it": "Blu"
+  },
+  "color_magenta": {
+    "fr": "Magenta",
+    "de": "Magenta",
+    "es": "Magenta",
+    "it": "Magenta"
+  },
+  "color_silver": {
+    "fr": "Argent",
+    "de": "Silber",
+    "es": "Plateado",
+    "it": "Argento"
+  },
+  "color_grad_rainbow": {
+    "fr": "Arc-en-ciel",
+    "de": "Regenbogen",
+    "es": "Arcoíris",
+    "it": "Arcobaleno"
+  },
+  "color_grad_sunset": {
+    "fr": "Coucher de soleil",
+    "de": "Sonnenuntergang",
+    "es": "Atardecer",
+    "it": "Tramonto"
+  },
+  "color_grad_sunrise": {
+    "fr": "Lever de soleil",
+    "de": "Sonnenaufgang",
+    "es": "Amanecer",
+    "it": "Alba"
+  },
+  "color_grad_ocean": {
+    "fr": "Dégradé océan",
+    "de": "Ozeanverlauf",
+    "es": "Degradado océano",
+    "it": "Sfumatura oceano"
+  },
+  "color_grad_aurora": {
+    "fr": "Aurore",
+    "de": "Polarlicht",
+    "es": "Aurora",
+    "it": "Aurora"
+  },
+  "color_grad_firestorm": {
+    "fr": "Tempête de feu",
+    "de": "Feuersturm",
+    "es": "Tormenta de fuego",
+    "it": "Tempesta di fuoco"
+  },
+  "color_grad_ice": {
+    "fr": "Dégradé glacé",
+    "de": "Eisverlauf",
+    "es": "Degradado gélido",
+    "it": "Sfumatura ghiaccio"
+  },
+  "color_grad_candy": {
+    "fr": "Bonbon pop",
+    "de": "Bonbon-Pop",
+    "es": "Caramelo pop",
+    "it": "Caramella pop"
+  },
+  "color_grad_neon": {
+    "fr": "Ruée néon",
+    "de": "Neonrausch",
+    "es": "Fiebre neón",
+    "it": "Corsa neon"
+  },
+  "color_grad_galaxy": {
+    "fr": "Poussière galactique",
+    "de": "Galaxienstaub",
+    "es": "Polvo galáctico",
+    "it": "Polvere galattica"
+  },
+  "color_grad_cyber": {
+    "fr": "Vague cyber",
+    "de": "Cyberwelle",
+    "es": "Onda ciber",
+    "it": "Onda cyber"
+  },
+  "color_grad_lava": {
+    "fr": "Coulée de lave",
+    "de": "Lavastrom",
+    "es": "Río de lava",
+    "it": "Fiume di lava"
+  },
+  "color_grad_forest": {
+    "fr": "Brume forestière",
+    "de": "Waldnebel",
+    "es": "Niebla forestal",
+    "it": "Nebbia forestale"
+  },
+  "color_grad_desert": {
+    "fr": "Chaleur du désert",
+    "de": "Wüstenhitze",
+    "es": "Calor del desierto",
+    "it": "Calore del deserto"
+  },
+  "color_grad_candyfloss": {
+    "fr": "Barbe à papa",
+    "de": "Zuckerwatte",
+    "es": "Algodón de azúcar",
+    "it": "Zucchero filato"
+  },
+  "color_grad_midnight": {
+    "fr": "Bleu de minuit",
+    "de": "Mitternachtsblau",
+    "es": "Azul medianoche",
+    "it": "Blu mezzanotte"
+  },
+  "color_grad_peach": {
+    "fr": "Lueur pêche",
+    "de": "Pfirsichglühen",
+    "es": "Brillo melocotón",
+    "it": "Bagliore pesca"
+  },
+  "color_grad_lavender": {
+    "fr": "Brume lavande",
+    "de": "Lavendelnebel",
+    "es": "Bruma lavanda",
+    "it": "Foschia lavanda"
+  },
+  "color_grad_mint": {
+    "fr": "Menthe fraîche",
+    "de": "Frische Minze",
+    "es": "Menta fresca",
+    "it": "Menta fresca"
+  },
+  "color_grad_coral": {
+    "fr": "Récif corallien",
+    "de": "Korallenriff",
+    "es": "Arrecife de coral",
+    "it": "Barriera corallina"
+  },
+  "color_grad_golden": {
+    "fr": "Heure dorée",
+    "de": "Goldene Stunde",
+    "es": "Hora dorada",
+    "it": "Ora d'oro"
+  },
+  "color_grad_chrome": {
+    "fr": "Chrome",
+    "de": "Chrom",
+    "es": "Cromo",
+    "it": "Cromo"
+  },
+  "color_grad_copper": {
+    "fr": "Éclat cuivré",
+    "de": "Kupferglanz",
+    "es": "Brillo cobrizo",
+    "it": "Splendore rame"
+  },
+  "color_grad_rose_gold": {
+    "fr": "Or rose",
+    "de": "Roségold",
+    "es": "Oro rosa",
+    "it": "Oro rosa"
+  },
+  "color_grad_emerald": {
+    "fr": "Dégradé émeraude",
+    "de": "Smaragdverlauf",
+    "es": "Degradado esmeralda",
+    "it": "Sfumatura smeraldo"
+  },
+  "color_grad_sapphire": {
+    "fr": "Saphir",
+    "de": "Saphir",
+    "es": "Zafiro",
+    "it": "Zaffiro"
+  },
+  "color_grad_amethyst": {
+    "fr": "Dégradé améthyste",
+    "de": "Amethystverlauf",
+    "es": "Degradado amatista",
+    "it": "Sfumatura ametista"
+  },
+  "color_grad_topaz": {
+    "fr": "Topaze",
+    "de": "Topas",
+    "es": "Topacio",
+    "it": "Topazio"
+  },
+  "color_grad_ruby": {
+    "fr": "Rouge rubis",
+    "de": "Rubinrot",
+    "es": "Rojo rubí",
+    "it": "Rosso rubino"
+  },
+  "color_grad_onyx": {
+    "fr": "Onyx",
+    "de": "Onyx",
+    "es": "Ónix",
+    "it": "Onice"
+  },
+  "theme_dark_01": {
+    "fr": "Sombre — Minuit",
+    "de": "Dunkel — Mitternacht",
+    "es": "Oscuro — Medianoche",
+    "it": "Scuro — Mezzanotte"
+  },
+  "theme_dark_02": {
+    "fr": "Sombre — Océan",
+    "de": "Dunkel — Ozean",
+    "es": "Oscuro — Océano",
+    "it": "Scuro — Oceano"
+  },
+  "theme_dark_03": {
+    "fr": "Sombre — Forêt",
+    "de": "Dunkel — Wald",
+    "es": "Oscuro — Bosque",
+    "it": "Scuro — Foresta"
+  },
+  "theme_dark_04": {
+    "fr": "Sombre — Braise",
+    "de": "Dunkel — Glut",
+    "es": "Oscuro — Brasa",
+    "it": "Scuro — Brace"
+  },
+  "theme_dark_05": {
+    "fr": "Sombre — Améthyste",
+    "de": "Dunkel — Amethyst",
+    "es": "Oscuro — Amatista",
+    "it": "Scuro — Ametista"
+  },
+  "theme_dark_06": {
+    "fr": "Sombre — Bois de rose",
+    "de": "Dunkel — Rosenholz",
+    "es": "Oscuro — Palo de rosa",
+    "it": "Scuro — Legno di rosa"
+  },
+  "theme_dark_07": {
+    "fr": "Sombre — Cobalt",
+    "de": "Dunkel — Kobalt",
+    "es": "Oscuro — Cobalto",
+    "it": "Scuro — Cobalto"
+  },
+  "theme_dark_08": {
+    "fr": "Sombre — Bleu canard",
+    "de": "Dunkel — Petrol",
+    "es": "Oscuro — Verde azulado",
+    "it": "Scuro — Verde acqua"
+  },
+  "theme_dark_09": {
+    "fr": "Sombre — Olive",
+    "de": "Dunkel — Olive",
+    "es": "Oscuro — Oliva",
+    "it": "Scuro — Oliva"
+  },
+  "theme_dark_10": {
+    "fr": "Sombre — Sable",
+    "de": "Dunkel — Sand",
+    "es": "Oscuro — Arena",
+    "it": "Scuro — Sabbia"
+  },
+  "theme_dark_11": {
+    "fr": "Sombre — Prune",
+    "de": "Dunkel — Pflaume",
+    "es": "Oscuro — Ciruela",
+    "it": "Scuro — Prugna"
+  },
+  "theme_dark_12": {
+    "fr": "Sombre — Acier",
+    "de": "Dunkel — Stahl",
+    "es": "Oscuro — Acero",
+    "it": "Scuro — Acciaio"
+  },
+  "theme_dark_13": {
+    "fr": "Sombre — Cuivre",
+    "de": "Dunkel — Kupfer",
+    "es": "Oscuro — Cobre",
+    "it": "Scuro — Rame"
+  },
+  "theme_dark_14": {
+    "fr": "Sombre — Jade",
+    "de": "Dunkel — Jade",
+    "es": "Oscuro — Jade",
+    "it": "Scuro — Giada"
+  },
+  "theme_dark_15": {
+    "fr": "Sombre — Galaxie",
+    "de": "Dunkel — Galaxie",
+    "es": "Oscuro — Galaxia",
+    "it": "Scuro — Galassia"
+  },
+  "theme_dark_16": {
+    "fr": "Sombre — Cerise",
+    "de": "Dunkel — Kirsche",
+    "es": "Oscuro — Cereza",
+    "it": "Scuro — Ciliegia"
+  },
+  "theme_dark_17": {
+    "fr": "Sombre — Abysse",
+    "de": "Dunkel — Abgrund",
+    "es": "Oscuro — Abismo",
+    "it": "Scuro — Abisso"
+  },
+  "theme_dark_18": {
+    "fr": "Sombre — Mousse",
+    "de": "Dunkel — Moos",
+    "es": "Oscuro — Musgo",
+    "it": "Scuro — Muschio"
+  },
+  "theme_dark_19": {
+    "fr": "Sombre — Crépuscule",
+    "de": "Dunkel — Dämmerung",
+    "es": "Oscuro — Crepúsculo",
+    "it": "Scuro — Crepuscolo"
+  },
+  "theme_dark_20": {
+    "fr": "Sombre — Graphite",
+    "de": "Dunkel — Graphit",
+    "es": "Oscuro — Grafito",
+    "it": "Scuro — Grafite"
+  },
+  "theme_light_01": {
+    "fr": "Clair — Pur",
+    "de": "Hell — Klar",
+    "es": "Claro — Limpio",
+    "it": "Chiaro — Pulito"
+  },
+  "theme_light_02": {
+    "fr": "Clair — Ciel",
+    "de": "Hell — Himmel",
+    "es": "Claro — Cielo",
+    "it": "Chiaro — Cielo"
+  },
+  "theme_light_03": {
+    "fr": "Clair — Menthe",
+    "de": "Hell — Minze",
+    "es": "Claro — Menta",
+    "it": "Chiaro — Menta"
+  },
+  "theme_light_04": {
+    "fr": "Clair — Pêche",
+    "de": "Hell — Pfirsich",
+    "es": "Claro — Melocotón",
+    "it": "Chiaro — Pesca"
+  },
+  "theme_light_05": {
+    "fr": "Clair — Lavande",
+    "de": "Hell — Lavendel",
+    "es": "Claro — Lavanda",
+    "it": "Chiaro — Lavanda"
+  },
+  "theme_light_06": {
+    "fr": "Clair — Citron",
+    "de": "Hell — Zitrone",
+    "es": "Claro — Limón",
+    "it": "Chiaro — Limone"
+  },
+  "theme_light_07": {
+    "fr": "Clair — Rose",
+    "de": "Hell — Rose",
+    "es": "Claro — Rosa",
+    "it": "Chiaro — Rosa"
+  },
+  "theme_light_08": {
+    "fr": "Clair — Aqua",
+    "de": "Hell — Aqua",
+    "es": "Claro — Aqua",
+    "it": "Chiaro — Acqua"
+  },
+  "theme_light_09": {
+    "fr": "Clair — Sauge",
+    "de": "Hell — Salbei",
+    "es": "Claro — Salvia",
+    "it": "Chiaro — Salvia"
+  },
+  "theme_light_10": {
+    "fr": "Clair — Lilas",
+    "de": "Hell — Flieder",
+    "es": "Claro — Lila",
+    "it": "Chiaro — Lillà"
+  },
+  "theme_light_11": {
+    "fr": "Clair — Crème",
+    "de": "Hell — Creme",
+    "es": "Claro — Crema",
+    "it": "Chiaro — Crema"
+  },
+  "theme_light_12": {
+    "fr": "Clair — Glace",
+    "de": "Hell — Eis",
+    "es": "Claro — Hielo",
+    "it": "Chiaro — Ghiaccio"
+  },
+  "theme_light_13": {
+    "fr": "Clair — Fleur",
+    "de": "Hell — Blüte",
+    "es": "Claro — Flor",
+    "it": "Chiaro — Fiore"
+  },
+  "theme_light_14": {
+    "fr": "Clair — Écume",
+    "de": "Hell — Meerschaum",
+    "es": "Claro — Espuma de mar",
+    "it": "Chiaro — Schiuma di mare"
+  },
+  "theme_light_15": {
+    "fr": "Clair — Abricot",
+    "de": "Hell — Aprikose",
+    "es": "Claro — Albaricoque",
+    "it": "Chiaro — Albicocca"
+  },
+  "theme_light_16": {
+    "fr": "Clair — Pervenche",
+    "de": "Hell — Immergrün",
+    "es": "Claro — Bígaro",
+    "it": "Chiaro — Pervinca"
+  },
+  "theme_light_17": {
+    "fr": "Clair — Grès",
+    "de": "Hell — Sandstein",
+    "es": "Claro — Arenisca",
+    "it": "Chiaro — Arenaria"
+  },
+  "theme_light_18": {
+    "fr": "Clair — Orchidée",
+    "de": "Hell — Orchidee",
+    "es": "Claro — Orquídea",
+    "it": "Chiaro — Orchidea"
+  },
+  "theme_light_19": {
+    "fr": "Clair — Nuage",
+    "de": "Hell — Wolke",
+    "es": "Claro — Nube",
+    "it": "Chiaro — Nuvola"
+  },
+  "theme_light_20": {
+    "fr": "Clair — Porcelaine",
+    "de": "Hell — Porzellan",
+    "es": "Claro — Porcelana",
+    "it": "Chiaro — Porcellana"
+  }
+}

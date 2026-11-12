@@ -18,6 +18,14 @@ describe('i18n', () => {
     expect(translate('fr', 'Two Players')).toBe('Deux joueurs');
     expect(translate('fr', 'Right Stick Scroll')).toBe('Stick droit défiler');
     expect(translate('fr', 'Back to categories')).toBe('Retour aux catégories');
+    expect(translate('fr', 'Announcements')).toBe('Annonces');
+    expect(translate('fr', 'Back to admin menu')).toBe('Retour au menu d’administration');
+    expect(translate('de', 'Shop categories')).toBe('Shop-Kategorien');
+    expect(translate('es', 'Top 10')).toBe('Top 10');
+    expect(translate('it', 'Users')).toBe('Utenti');
+    expect(translate('fr', 'Name (French)')).toBe('Nom (français)');
+    expect(translate('de', 'Leave a translation empty to use the English name.'))
+      .toBe('Lass eine Übersetzung leer, um den englischen Namen zu verwenden.');
     expect(translate('fr', 'Spend credits on skins, colors, decorations, and titles.'))
       .toBe('Dépensez vos crédits en skins, couleurs, décorations et titres.');
     expect(translate('es', '{count} items', { count: 4 })).toBe('4 artículos');

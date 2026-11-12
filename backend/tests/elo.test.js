@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import request from 'supertest';
 import app from '../src/server.js';
 import { StatsService } from '../src/services/statsService.js';
+import { registerAndVerify } from './helpers/auth.js';
+import { createOnlineMatch } from './helpers/online.js';
 
 test('Chess ELO algorithm calculations', () => {
   // Equal rating, win: expected 0.5, delta = round(32 * (1 - 0.5)) = +16
@@ -62,23 +64,22 @@ test('Online PvP ELO requires both reports; AI matches never change rating', asy
   const stamp = Date.now();
   const emailA = `playerA_${stamp}@test.com`;
   const emailB = `playerB_${stamp}@test.com`;
-  const matchId = `match_elo_${stamp}`;
 
   // Register Player A
-  const regA = await request(app)
-    .post('/api/auth/register')
-    .send({ email: emailA, password: 'password123', displayName: 'PlayerA' });
-  const tokenA = regA.body.token;
-  const userA = regA.body.user;
+  const { token: tokenA, user: userA } = await registerAndVerify(app, {
+    email: emailA,
+    displayName: 'PlayerA'
+  });
   assert.equal(userA.rating, 1000);
 
   // Register Player B
-  const regB = await request(app)
-    .post('/api/auth/register')
-    .send({ email: emailB, password: 'password123', displayName: 'PlayerB' });
-  const tokenB = regB.body.token;
-  const userB = regB.body.user;
+  const { token: tokenB, user: userB } = await registerAndVerify(app, {
+    email: emailB,
+    displayName: 'PlayerB'
+  });
   assert.equal(userB.rating, 1000);
+
+  const { matchId } = await createOnlineMatch(app, tokenA, tokenB, { ranked: true });
 
   // 1. Player A reports a win: it must stay pending, with no rating change yet
   const matchA = await request(app)
@@ -185,7 +186,7 @@ test('Online PvP ELO requires both reports; AI matches never change rating', asy
     .set('Authorization', `Bearer ${tokenA}`);
   assert.equal(profileA3.body.rating, 1016);
 
-  // 5. Online matches without a matchId are rejected
+  // 5. Online matches without a server-issued match are rejected
   const missingId = await request(app)
     .post('/api/matches/record')
     .set('Authorization', `Bearer ${tokenA}`)
@@ -199,8 +200,20 @@ test('Online PvP ELO requires both reports; AI matches never change rating', asy
     });
   assert.equal(missingId.status, 400);
 
+  const unknownMatch = await request(app)
+    .post('/api/matches/record')
+    .set('Authorization', `Bearer ${tokenA}`)
+    .send({
+      matchId: `invented_${stamp}`,
+      opponentType: 'human',
+      ranked: true,
+      result: 'win',
+      duration: 10000
+    });
+  assert.equal(unknownMatch.status, 404);
+
   // 6. Conflicting reports are rejected instead of inflating ratings
-  const conflictMatchId = `match_conflict_${stamp}`;
+  const { matchId: conflictMatchId } = await createOnlineMatch(app, tokenA, tokenB, { ranked: true });
   await request(app)
     .post('/api/matches/record')
     .set('Authorization', `Bearer ${tokenA}`)
@@ -240,19 +253,18 @@ test('Online PvP ELO requires both reports; AI matches never change rating', asy
 
 test('Forfeit penalizes only the abandoning player and is idempotent', async () => {
   const stamp = Date.now();
-  const matchId = `match_forfeit_${stamp}`;
 
-  const regWinner = await request(app)
-    .post('/api/auth/register')
-    .send({ email: `forfeit_winner_${stamp}@test.com`, password: 'password123', displayName: 'ForfeitWinner' });
-  const winnerToken = regWinner.body.token;
-  const winner = regWinner.body.user;
+  const { token: winnerToken, user: winner } = await registerAndVerify(app, {
+    email: `forfeit_winner_${stamp}@test.com`,
+    displayName: 'ForfeitWinner'
+  });
 
-  const regLoser = await request(app)
-    .post('/api/auth/register')
-    .send({ email: `forfeit_loser_${stamp}@test.com`, password: 'password123', displayName: 'ForfeitLoser' });
-  const loserToken = regLoser.body.token;
-  const loser = regLoser.body.user;
+  const { token: loserToken, user: loser } = await registerAndVerify(app, {
+    email: `forfeit_loser_${stamp}@test.com`,
+    displayName: 'ForfeitLoser'
+  });
+
+  const { matchId } = await createOnlineMatch(app, winnerToken, loserToken, { ranked: true });
 
   // Simulate the leaver's unload request arriving first.
   const loserForfeit = await request(app)
@@ -351,19 +363,18 @@ test('Forfeit penalizes only the abandoning player and is idempotent', async () 
 
 test('A pending winner report still awards no ELO after a forfeit', async () => {
   const stamp = Date.now();
-  const matchId = `match_forfeit_pending_${stamp}`;
 
-  const regWinner = await request(app)
-    .post('/api/auth/register')
-    .send({ email: `pending_winner_${stamp}@test.com`, password: 'password123', displayName: 'PendingWinner' });
-  const winnerToken = regWinner.body.token;
-  const winner = regWinner.body.user;
+  const { token: winnerToken, user: winner } = await registerAndVerify(app, {
+    email: `pending_winner_${stamp}@test.com`,
+    displayName: 'PendingWinner'
+  });
 
-  const regLoser = await request(app)
-    .post('/api/auth/register')
-    .send({ email: `pending_loser_${stamp}@test.com`, password: 'password123', displayName: 'PendingLoser' });
-  const loserToken = regLoser.body.token;
-  const loser = regLoser.body.user;
+  const { token: loserToken, user: loser } = await registerAndVerify(app, {
+    email: `pending_loser_${stamp}@test.com`,
+    displayName: 'PendingLoser'
+  });
+
+  const { matchId } = await createOnlineMatch(app, winnerToken, loserToken, { ranked: true });
 
   const pendingWin = await request(app)
     .post('/api/matches/record')
@@ -408,19 +419,18 @@ test('A pending winner report still awards no ELO after a forfeit', async () => 
 
 test('Casual forfeit records a result but changes no rating', async () => {
   const stamp = Date.now();
-  const matchId = `match_forfeit_casual_${stamp}`;
 
-  const regWinner = await request(app)
-    .post('/api/auth/register')
-    .send({ email: `casual_forfeit_winner_${stamp}@test.com`, password: 'password123', displayName: 'CasualForfeitWinner' });
-  const winnerToken = regWinner.body.token;
-  const winner = regWinner.body.user;
+  const { token: winnerToken, user: winner } = await registerAndVerify(app, {
+    email: `casual_forfeit_winner_${stamp}@test.com`,
+    displayName: 'CasualForfeitWinner'
+  });
 
-  const regLoser = await request(app)
-    .post('/api/auth/register')
-    .send({ email: `casual_forfeit_loser_${stamp}@test.com`, password: 'password123', displayName: 'CasualForfeitLoser' });
-  const loserToken = regLoser.body.token;
-  const loser = regLoser.body.user;
+  const { token: loserToken, user: loser } = await registerAndVerify(app, {
+    email: `casual_forfeit_loser_${stamp}@test.com`,
+    displayName: 'CasualForfeitLoser'
+  });
+
+  const { matchId } = await createOnlineMatch(app, winnerToken, loserToken, { ranked: false });
 
   const forfeit = await request(app)
     .post('/api/matches/forfeit')
@@ -453,16 +463,15 @@ test('Casual forfeit records a result but changes no rating', async () => {
 test('Forfeit endpoint rejects forged, unauthenticated and invalid claims', async () => {
   const stamp = Date.now();
 
-  const regAttacker = await request(app)
-    .post('/api/auth/register')
-    .send({ email: `forfeit_attacker_${stamp}@test.com`, password: 'password123', displayName: 'ForfeitAttacker' });
-  const attackerToken = regAttacker.body.token;
-  const attacker = regAttacker.body.user;
+  const { token: attackerToken, user: attacker } = await registerAndVerify(app, {
+    email: `forfeit_attacker_${stamp}@test.com`,
+    displayName: 'ForfeitAttacker'
+  });
 
-  const regVictim = await request(app)
-    .post('/api/auth/register')
-    .send({ email: `forfeit_victim_${stamp}@test.com`, password: 'password123', displayName: 'ForfeitVictim' });
-  const victim = regVictim.body.user;
+  const { token: victimToken, user: victim } = await registerAndVerify(app, {
+    email: `forfeit_victim_${stamp}@test.com`,
+    displayName: 'ForfeitVictim'
+  });
 
   const base = {
     matchId: `match_forged_${stamp}`,
@@ -488,19 +497,13 @@ test('Forfeit endpoint rejects forged, unauthenticated and invalid claims', asyn
     .post('/api/matches/forfeit')
     .set('Authorization', `Bearer ${attackerToken}`)
     .send({ ...base, opponentId: attacker.id, result: 'loss' });
-  assert.equal(selfForfeit.status, 400);
-
-  const unknownOpponent = await request(app)
-    .post('/api/matches/forfeit')
-    .set('Authorization', `Bearer ${attackerToken}`)
-    .send({ ...base, opponentId: 'missing-user', result: 'loss' });
-  assert.equal(unknownOpponent.status, 400);
+  assert.equal(selfForfeit.status, 404);
 
   const invalidMatch = await request(app)
     .post('/api/matches/forfeit')
     .set('Authorization', `Bearer ${attackerToken}`)
     .send({ ...base, matchId: 'x', result: 'loss' });
-  assert.equal(invalidMatch.status, 400);
+  assert.equal(invalidMatch.status, 404);
 
   const invalidResult = await request(app)
     .post('/api/matches/forfeit')
@@ -510,14 +513,15 @@ test('Forfeit endpoint rejects forged, unauthenticated and invalid claims', asyn
 
   const victimProfile = await request(app)
     .get('/api/auth/me')
-    .set('Authorization', `Bearer ${regVictim.body.token}`);
+    .set('Authorization', `Bearer ${victimToken}`);
   assert.equal(victimProfile.body.rating, 1000);
 
   // A player may self-report a loss, but this must never change the opponent's rating.
   // Exercise the unload fallback: no Authorization header, JWT in the body.
+  const { matchId: selfLossMatchId } = await createOnlineMatch(app, attackerToken, victimToken, { ranked: true });
   const selfLoss = await request(app)
     .post('/api/matches/forfeit')
-    .send({ ...base, result: 'loss', token: attackerToken });
+    .send({ ...base, matchId: selfLossMatchId, result: 'loss', token: attackerToken });
   assert.equal(selfLoss.status, 201);
   assert.equal(selfLoss.body.elo.delta, -16);
 
@@ -528,7 +532,7 @@ test('Forfeit endpoint rejects forged, unauthenticated and invalid claims', asyn
 
   const victimAfterSelfLoss = await request(app)
     .get('/api/auth/me')
-    .set('Authorization', `Bearer ${regVictim.body.token}`);
+    .set('Authorization', `Bearer ${victimToken}`);
   assert.equal(victimAfterSelfLoss.body.rating, 1000);
 });
 
@@ -537,19 +541,17 @@ test('Casual online matches are recorded immediately and never change ELO', asyn
   const emailC = `playerC_${stamp}@test.com`;
   const emailD = `playerD_${stamp}@test.com`;
 
-  const regC = await request(app)
-    .post('/api/auth/register')
-    .send({ email: emailC, password: 'password123', displayName: 'PlayerC' });
-  const tokenC = regC.body.token;
-  const userC = regC.body.user;
+  const { token: tokenC, user: userC } = await registerAndVerify(app, {
+    email: emailC,
+    displayName: 'PlayerC'
+  });
 
-  const regD = await request(app)
-    .post('/api/auth/register')
-    .send({ email: emailD, password: 'password123', displayName: 'PlayerD' });
-  const tokenD = regD.body.token;
-  const userD = regD.body.user;
+  const { token: tokenD, user: userD } = await registerAndVerify(app, {
+    email: emailD,
+    displayName: 'PlayerD'
+  });
 
-  const matchId = `match_casual_${stamp}`;
+  const { matchId } = await createOnlineMatch(app, tokenC, tokenD, { ranked: false });
 
   const casualWin = await request(app)
     .post('/api/matches/record')
@@ -598,8 +600,8 @@ test('Casual online matches are recorded immediately and never change ELO', asyn
     entry.display_name === 'PlayerC' || entry.display_name === 'PlayerD'
   ));
 
-  // Both players must agree on ranked mode for the same match.
-  const mismatchId = `match_mismatch_${stamp}`;
+  // The client cannot upgrade a casual match to ranked: the server owns the flag.
+  const { matchId: mismatchId } = await createOnlineMatch(app, tokenC, tokenD, { ranked: false });
   const rankedReport = await request(app)
     .post('/api/matches/record')
     .set('Authorization', `Bearer ${tokenC}`)
@@ -613,7 +615,8 @@ test('Casual online matches are recorded immediately and never change ELO', asyn
       duration: 20000
     });
   assert.equal(rankedReport.status, 201);
-  assert.equal(rankedReport.body.pending, true);
+  assert.equal(rankedReport.body.ranked, false);
+  assert.equal(rankedReport.body.pending, false);
 
   const casualMismatch = await request(app)
     .post('/api/matches/record')
@@ -626,5 +629,6 @@ test('Casual online matches are recorded immediately and never change ELO', asyn
       result: 'loss',
       duration: 20000
     });
-  assert.equal(casualMismatch.status, 409);
+  assert.equal(casualMismatch.status, 201);
+  assert.equal(casualMismatch.body.ranked, false);
 });

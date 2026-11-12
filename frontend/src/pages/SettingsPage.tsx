@@ -18,19 +18,6 @@ const ACTION_LABELS: Record<string, string> = {
   restart: 'Restart'
 };
 
-const THEME_OPTIONS: { value: string; label: string; group: 'Dark Themes' | 'Light Themes' }[] = [
-  { value: 'dark-01', label: 'Dark — Midnight', group: 'Dark Themes' },
-  { value: 'dark-02', label: 'Dark — Ocean', group: 'Dark Themes' },
-  { value: 'dark-03', label: 'Dark — Forest', group: 'Dark Themes' },
-  { value: 'dark-04', label: 'Dark — Ember', group: 'Dark Themes' },
-  { value: 'dark-05', label: 'Dark — Amethyst', group: 'Dark Themes' },
-  { value: 'light-01', label: 'Light — Clean', group: 'Light Themes' },
-  { value: 'light-02', label: 'Light — Sky', group: 'Light Themes' },
-  { value: 'light-03', label: 'Light — Mint', group: 'Light Themes' },
-  { value: 'light-04', label: 'Light — Peach', group: 'Light Themes' },
-  { value: 'light-05', label: 'Light — Lavender', group: 'Light Themes' }
-];
-
 export const SettingsPage: React.FC = () => {
   const { settings, updateSettings, resetDefaults } = useSettings();
   const { t } = useI18n();
@@ -41,10 +28,6 @@ export const SettingsPage: React.FC = () => {
   const languageMenuRef = useRef<HTMLDivElement | null>(null);
   const languageButtonRef = useRef<HTMLButtonElement | null>(null);
   const languageOptionRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
-  const themeMenuRef = useRef<HTMLDivElement | null>(null);
-  const themeButtonRef = useRef<HTMLButtonElement | null>(null);
-  const themeOptionRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const { setFocusedElement } = useGamepadNav();
 
   useGamepadActive(rebindingGamepadAction !== null);
@@ -140,27 +123,17 @@ export const SettingsPage: React.FC = () => {
 
   const currentGamepadBindings = settings.gamepadBindings || DEFAULT_GAMEPAD_BINDINGS;
   const selectedLanguage = LANGUAGES.find((option) => option.code === settings.language) || LANGUAGES[0];
-  const selectedTheme = THEME_OPTIONS.find((option) => option.value === settings.theme) || THEME_OPTIONS[0];
 
   const closeLanguageMenu = () => {
     setLanguageMenuOpen(false);
     requestAnimationFrame(() => setFocusedElement(languageButtonRef.current));
   };
 
-  const closeThemeMenu = () => {
-    setThemeMenuOpen(false);
-    requestAnimationFrame(() => setFocusedElement(themeButtonRef.current));
-  };
-
   useGamepadBack(() => {
-    if (languageMenuOpen) {
-      closeLanguageMenu();
-      return true;
-    }
-    if (!themeMenuOpen) return false;
-    closeThemeMenu();
+    if (!languageMenuOpen) return false;
+    closeLanguageMenu();
     return true;
-  }, [languageMenuOpen, themeMenuOpen]);
+  }, [languageMenuOpen]);
 
   useEffect(() => {
     if (!languageMenuOpen) return;
@@ -189,41 +162,9 @@ export const SettingsPage: React.FC = () => {
     };
   }, [languageMenuOpen, settings.language, setFocusedElement]);
 
-  useEffect(() => {
-    if (!themeMenuOpen) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (themeMenuRef.current && !themeMenuRef.current.contains(event.target as Node)) {
-        closeThemeMenu();
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        closeThemeMenu();
-      }
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    const focusFrame = requestAnimationFrame(() => {
-      setFocusedElement(themeOptionRefs.current[settings.theme] || null);
-    });
-
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-      cancelAnimationFrame(focusFrame);
-    };
-  }, [themeMenuOpen, settings.theme, setFocusedElement]);
-
   const handleLanguageSelect = (language: Language) => {
     updateSettings({ language });
     closeLanguageMenu();
-  };
-
-  const handleThemeSelect = (theme: string) => {
-    updateSettings({ theme });
-    closeThemeMenu();
   };
 
   return (
@@ -237,7 +178,7 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-          {/* Language selector — a custom listbox so gamepad navigation works like the theme picker */}
+          {/* Language selector — a custom listbox for gamepad navigation */}
           <div ref={languageMenuRef} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative' }}>
             <label style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
               {t('Language')}
@@ -255,7 +196,6 @@ export const SettingsPage: React.FC = () => {
                 if (languageMenuOpen) {
                   closeLanguageMenu();
                 } else {
-                  setThemeMenuOpen(false);
                   setLanguageMenuOpen(true);
                 }
               }}
@@ -323,106 +263,6 @@ export const SettingsPage: React.FC = () => {
                     </button>
                   );
                 })}
-              </div>
-            )}
-          </div>
-
-          {/* Theme selector */}
-          <div ref={themeMenuRef} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative' }}>
-            <label style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap' }}>{t('UI Theme')}</label>
-            <button
-              ref={themeButtonRef}
-              type="button"
-              className="btn-secondary"
-              aria-label={t('UI Theme')}
-              aria-haspopup="listbox"
-              aria-expanded={themeMenuOpen}
-              onClick={() => {
-                if (themeMenuOpen) {
-                  closeThemeMenu();
-                } else {
-                  setLanguageMenuOpen(false);
-                  setThemeMenuOpen(true);
-                }
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '0.6rem',
-                minWidth: '185px',
-                padding: '0.4rem 0.6rem',
-                fontSize: '0.85rem',
-                cursor: 'pointer'
-              }}
-            >
-              <span>{t(selectedTheme.label)}</span>
-              <ChevronDown size={16} />
-            </button>
-
-            {themeMenuOpen && (
-              <div
-                role="listbox"
-                aria-label={t('UI Theme')}
-                style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 0.35rem)',
-                  right: 0,
-                  zIndex: 80,
-                  width: '240px',
-                  maxHeight: '330px',
-                  overflowY: 'auto',
-                  padding: '0.35rem',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-md)',
-                  boxShadow: '0 14px 34px rgba(0, 0, 0, 0.4)'
-                }}
-              >
-                {(['Dark Themes', 'Light Themes'] as const).map((group) => (
-                  <div key={group}>
-                    <div style={{
-                      padding: '0.35rem 0.5rem 0.2rem',
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.05em',
-                      textTransform: 'uppercase',
-                      color: 'var(--text-muted)'
-                    }}>
-                      {t(group)}
-                    </div>
-                    {THEME_OPTIONS.filter((option) => option.group === group).map((option) => {
-                      const isSelected = option.value === settings.theme;
-                      return (
-                        <button
-                          key={option.value}
-                          ref={(element) => { themeOptionRefs.current[option.value] = element; }}
-                          type="button"
-                          role="option"
-                          aria-selected={isSelected}
-                          onClick={() => handleThemeSelect(option.value)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            width: '100%',
-                            padding: '0.45rem 0.5rem',
-                            border: 'none',
-                            borderRadius: 'var(--radius-sm)',
-                            background: isSelected ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
-                            color: 'var(--text-primary)',
-                            fontSize: '0.82rem',
-                            textAlign: 'left',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <span>{t(option.label)}</span>
-                          {isSelected && <Check size={14} color="var(--accent-cyan)" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
               </div>
             )}
           </div>

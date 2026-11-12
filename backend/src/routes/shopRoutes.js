@@ -5,6 +5,8 @@ import { ShopController } from '../controllers/shopController.js';
 
 const router = Router();
 
+router.get('/themes', ShopController.getThemes);
+router.get('/decorations', ShopController.getDecorations);
 router.get('/', authenticateToken, ShopController.getShop);
 router.post('/purchase', writeLimiter, authenticateToken, ShopController.purchase);
 router.post('/equip', writeLimiter, authenticateToken, ShopController.equip);

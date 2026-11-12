@@ -1,4 +1,4 @@
-export const USERNAME_PATTERN = /^[a-z0-9][a-z0-9_.-]{2,31}$/;
+export const USERNAME_PATTERN = /^[a-z0-9]{3,32}$/;
 
 export function normalizeUsername(value) {
   return String(value ?? '').trim().toLowerCase();
@@ -14,13 +14,12 @@ export function deriveUsername({ displayName, email } = {}) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^a-z0-9]+/g, '');
 
   if (!base) base = 'player';
-  if (base.length < 3) base = `${base}-player`;
+  if (base.length < 3) base = `${base}player`;
 
-  return base.slice(0, 24).replace(/-+$/g, '') || 'player';
+  return base.slice(0, 24) || 'player';
 }
 
 export function ensureUniqueUsername(db, base, excludeUserId = null) {
@@ -32,7 +31,8 @@ export function ensureUniqueUsername(db, base, excludeUserId = null) {
   let candidate = root;
   let suffix = 2;
   while (find.get(...(excludeUserId ? [candidate, excludeUserId] : [candidate]))) {
-    candidate = `${root.slice(0, 28)}-${suffix}`;
+    const suffixText = String(suffix);
+    candidate = `${root.slice(0, 32 - suffixText.length)}${suffixText}`;
     suffix += 1;
   }
   return candidate;

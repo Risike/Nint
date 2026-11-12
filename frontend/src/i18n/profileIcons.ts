@@ -1,0 +1,86 @@
+import type { Language } from './translations';
+
+export type ProfileIconLabels = Record<Language, string>;
+
+export interface ProfileIconDefinition {
+  key: string;
+  emoji: string;
+  price: number;
+  labels: ProfileIconLabels;
+}
+
+export const PROFILE_ICONS: ProfileIconDefinition[] = [
+  { key: 'user', emoji: '👤', price: 0, labels: { en: 'Player', fr: 'Joueur', de: 'Spieler', es: 'Jugador', it: 'Giocatore' } },
+  { key: 'smile', emoji: '😊', price: 20, labels: { en: 'Smile', fr: 'Sourire', de: 'Lächeln', es: 'Sonrisa', it: 'Sorriso' } },
+  { key: 'cool', emoji: '😎', price: 30, labels: { en: 'Cool', fr: 'Cool', de: 'Cool', es: 'Guay', it: 'Fico' } },
+  { key: 'wink', emoji: '😉', price: 25, labels: { en: 'Wink', fr: 'Clin d’œil', de: 'Zwinkern', es: 'Guiño', it: 'Occhiolino' } },
+  { key: 'star', emoji: '⭐', price: 35, labels: { en: 'Star', fr: 'Étoile', de: 'Stern', es: 'Estrella', it: 'Stella' } },
+  { key: 'heart', emoji: '❤️', price: 40, labels: { en: 'Heart', fr: 'Cœur', de: 'Herz', es: 'Corazón', it: 'Cuore' } },
+  { key: 'fire', emoji: '🔥', price: 50, labels: { en: 'Fire', fr: 'Flamme', de: 'Feuer', es: 'Fuego', it: 'Fuoco' } },
+  { key: 'bolt', emoji: '⚡', price: 45, labels: { en: 'Bolt', fr: 'Éclair', de: 'Blitz', es: 'Rayo', it: 'Fulmine' } },
+  { key: 'crown', emoji: '👑', price: 200, labels: { en: 'Crown', fr: 'Couronne', de: 'Krone', es: 'Corona', it: 'Corona' } },
+  { key: 'rocket', emoji: '🚀', price: 150, labels: { en: 'Rocket', fr: 'Fusée', de: 'Rakete', es: 'Cohete', it: 'Razzo' } },
+  { key: 'alien', emoji: '👽', price: 80, labels: { en: 'Alien', fr: 'Alien', de: 'Alien', es: 'Alienígena', it: 'Alieno' } },
+  { key: 'robot', emoji: '🤖', price: 90, labels: { en: 'Robot', fr: 'Robot', de: 'Roboter', es: 'Robot', it: 'Robot' } },
+  { key: 'ghost', emoji: '👻', price: 60, labels: { en: 'Ghost', fr: 'Fantôme', de: 'Geist', es: 'Fantasma', it: 'Fantasma' } },
+  { key: 'skull', emoji: '💀', price: 70, labels: { en: 'Skull', fr: 'Crâne', de: 'Schädel', es: 'Calavera', it: 'Teschio' } },
+  { key: 'cat', emoji: '🐱', price: 25, labels: { en: 'Cat', fr: 'Chat', de: 'Katze', es: 'Gato', it: 'Gatto' } },
+  { key: 'dog', emoji: '🐶', price: 25, labels: { en: 'Dog', fr: 'Chien', de: 'Hund', es: 'Perro', it: 'Cane' } },
+  { key: 'fox', emoji: '🦊', price: 35, labels: { en: 'Fox', fr: 'Renard', de: 'Fuchs', es: 'Zorro', it: 'Volpe' } },
+  { key: 'panda', emoji: '🐼', price: 30, labels: { en: 'Panda', fr: 'Panda', de: 'Panda', es: 'Panda', it: 'Panda' } },
+  { key: 'penguin', emoji: '🐧', price: 30, labels: { en: 'Penguin', fr: 'Pingouin', de: 'Pinguin', es: 'Pingüino', it: 'Pinguino' } },
+  { key: 'frog', emoji: '🐸', price: 25, labels: { en: 'Frog', fr: 'Grenouille', de: 'Frosch', es: 'Rana', it: 'Rana' } },
+  { key: 'unicorn', emoji: '🦄', price: 180, labels: { en: 'Unicorn', fr: 'Licorne', de: 'Einhorn', es: 'Unicornio', it: 'Unicorno' } },
+  { key: 'dragon', emoji: '🐲', price: 200, labels: { en: 'Dragon', fr: 'Dragon', de: 'Drache', es: 'Dragón', it: 'Drago' } },
+  { key: 'lion', emoji: '🦁', price: 120, labels: { en: 'Lion', fr: 'Lion', de: 'Löwe', es: 'León', it: 'Leone' } },
+  { key: 'tiger', emoji: '🐯', price: 110, labels: { en: 'Tiger', fr: 'Tigre', de: 'Tiger', es: 'Tigre', it: 'Tigre' } },
+  { key: 'bear', emoji: '🐻', price: 40, labels: { en: 'Bear', fr: 'Ours', de: 'Bär', es: 'Oso', it: 'Orso' } },
+  { key: 'koala', emoji: '🐨', price: 40, labels: { en: 'Koala', fr: 'Koala', de: 'Koala', es: 'Koala', it: 'Koala' } },
+  { key: 'owl', emoji: '🦉', price: 70, labels: { en: 'Owl', fr: 'Hibou', de: 'Eule', es: 'Búho', it: 'Gufo' } },
+  { key: 'wolf', emoji: '🐺', price: 90, labels: { en: 'Wolf', fr: 'Loup', de: 'Wolf', es: 'Lobo', it: 'Lupo' } },
+  { key: 'shark', emoji: '🦈', price: 80, labels: { en: 'Shark', fr: 'Requin', de: 'Hai', es: 'Tiburón', it: 'Squalo' } },
+  { key: 'octopus', emoji: '🐙', price: 60, labels: { en: 'Octopus', fr: 'Pieuvre', de: 'Oktopus', es: 'Pulpo', it: 'Polpo' } },
+  { key: 'crab', emoji: '🦀', price: 45, labels: { en: 'Crab', fr: 'Crabe', de: 'Krabbe', es: 'Cangrejo', it: 'Granchio' } },
+  { key: 'butterfly', emoji: '🦋', price: 35, labels: { en: 'Butterfly', fr: 'Papillon', de: 'Schmetterling', es: 'Mariposa', it: 'Farfalla' } },
+  { key: 'flower', emoji: '🌸', price: 25, labels: { en: 'Flower', fr: 'Fleur', de: 'Blume', es: 'Flor', it: 'Fiore' } },
+  { key: 'sun', emoji: '☀️', price: 50, labels: { en: 'Sun', fr: 'Soleil', de: 'Sonne', es: 'Sol', it: 'Sole' } },
+  { key: 'moon', emoji: '🌙', price: 50, labels: { en: 'Moon', fr: 'Lune', de: 'Mond', es: 'Luna', it: 'Luna' } },
+  { key: 'rainbow', emoji: '🌈', price: 100, labels: { en: 'Rainbow', fr: 'Arc-en-ciel', de: 'Regenbogen', es: 'Arcoíris', it: 'Arcobaleno' } },
+  { key: 'snowflake', emoji: '❄️', price: 60, labels: { en: 'Snowflake', fr: 'Flocon', de: 'Schneeflocke', es: 'Copo de nieve', it: 'Fiocco di neve' } },
+  { key: 'wave', emoji: '🌊', price: 45, labels: { en: 'Wave', fr: 'Vague', de: 'Welle', es: 'Ola', it: 'Onda' } },
+  { key: 'mountain', emoji: '⛰️', price: 70, labels: { en: 'Mountain', fr: 'Montagne', de: 'Berg', es: 'Montaña', it: 'Montagna' } },
+  { key: 'planet', emoji: '🪐', price: 90, labels: { en: 'Planet', fr: 'Planète', de: 'Planet', es: 'Planeta', it: 'Pianeta' } },
+  { key: 'ufo', emoji: '🛸', price: 160, labels: { en: 'UFO', fr: 'OVNI', de: 'UFO', es: 'OVNI', it: 'UFO' } },
+  { key: 'guitar', emoji: '🎸', price: 80, labels: { en: 'Guitar', fr: 'Guitare', de: 'Gitarre', es: 'Guitarra', it: 'Chitarra' } },
+  { key: 'headphones', emoji: '🎧', price: 60, labels: { en: 'Headphones', fr: 'Casque', de: 'Kopfhörer', es: 'Auriculares', it: 'Cuffie' } },
+  { key: 'gamepad', emoji: '🎮', price: 55, labels: { en: 'Gamepad', fr: 'Manette', de: 'Gamepad', es: 'Mando', it: 'Controller' } },
+  { key: 'dice', emoji: '🎲', price: 40, labels: { en: 'Dice', fr: 'Dé', de: 'Würfel', es: 'Dado', it: 'Dado' } },
+  { key: 'trophy', emoji: '🏆', price: 140, labels: { en: 'Trophy', fr: 'Trophée', de: 'Trophäe', es: 'Trofeo', it: 'Trofeo' } },
+  { key: 'medal', emoji: '🏅', price: 110, labels: { en: 'Medal', fr: 'Médaille', de: 'Medaille', es: 'Medalla', it: 'Medaglia' } },
+  { key: 'target', emoji: '🎯', price: 50, labels: { en: 'Target', fr: 'Cible', de: 'Zielscheibe', es: 'Diana', it: 'Bersaglio' } },
+  { key: 'pizza', emoji: '🍕', price: 30, labels: { en: 'Pizza', fr: 'Pizza', de: 'Pizza', es: 'Pizza', it: 'Pizza' } },
+  { key: 'coffee', emoji: '☕', price: 25, labels: { en: 'Coffee', fr: 'Café', de: 'Kaffee', es: 'Café', it: 'Caffè' } },
+  { key: 'flag_black', emoji: '🏴', price: 40, labels: { en: 'Black flag', fr: 'Drapeau noir', de: 'Schwarze Flagge', es: 'Bandera negra', it: 'Bandiera nera' } },
+  { key: 'flag_red', emoji: '🚩', price: 40, labels: { en: 'Red flag', fr: 'Drapeau rouge', de: 'Rote Flagge', es: 'Bandera roja', it: 'Bandiera rossa' } },
+  { key: 'flag_rainbow', emoji: '🏳️‍🌈', price: 100, labels: { en: 'Rainbow flag', fr: 'Drapeau arc-en-ciel', de: 'Regenbogenflagge', es: 'Bandera arcoíris', it: 'Bandiera arcobaleno' } },
+  { key: 'flag_peace', emoji: '🏳️', price: 60, labels: { en: 'Peace flag', fr: 'Drapeau de la paix', de: 'Friedensflagge', es: 'Bandera de la paz', it: 'Bandiera della pace' } },
+  { key: 'peace_sign', emoji: '☮️', price: 35, labels: { en: 'Peace sign', fr: 'Signe de paix', de: 'Friedenszeichen', es: 'Signo de la paz', it: 'Segno della pace' } },
+  { key: 'flag_pirate', emoji: '🏴‍☠️', price: 150, labels: { en: 'Pirate flag', fr: 'Drapeau pirate', de: 'Piratenflagge', es: 'Bandera pirata', it: 'Bandiera pirata' } }
+];
+
+const PROFILE_ICONS_BY_KEY = new Map(PROFILE_ICONS.map((icon) => [icon.key, icon]));
+
+export function getProfileIcon(value: unknown): string {
+  if (typeof value !== 'string') return 'user';
+  const trimmed = value.trim();
+  return trimmed || 'user';
+}
+
+export function getProfileIconEmoji(value: unknown): string {
+  const icon = getProfileIcon(value);
+  return PROFILE_ICONS_BY_KEY.get(icon)?.emoji || icon;
+}
+
+export function getProfileIconLabel(value: string, language: Language): string {
+  return PROFILE_ICONS_BY_KEY.get(value)?.labels[language] || value;
+}

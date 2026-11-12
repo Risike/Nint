@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import app from '../src/server.js';
+import { registerAndVerify } from './helpers/auth.js';
 
 test('Admin auto-creation and full admin capabilities', async () => {
   // 1. Admin login with the credentials configured for the test run
@@ -22,13 +23,11 @@ test('Admin auto-creation and full admin capabilities', async () => {
 
   // 2. Regular user registration
   const regularEmail = `player_${Date.now()}@example.com`;
-  const regRes = await request(app)
-    .post('/api/auth/register')
-    .send({ email: regularEmail, password: 'PlayerPass123!', displayName: 'NormalPlayer' });
-
-  assert.equal(regRes.status, 201);
-  const regularToken = regRes.body.token;
-  const regularUserId = regRes.body.user.id;
+  const { token: regularToken, user: regularUser } = await registerAndVerify(app, {
+    email: regularEmail,
+    displayName: 'NormalPlayer'
+  });
+  const regularUserId = regularUser.id;
 
   // 3. Regular user is blocked from admin routes (403)
   const forbiddenRes = await request(app)

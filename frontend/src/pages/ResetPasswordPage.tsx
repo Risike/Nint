@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { KeyRound, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { ApiClient } from '../services/api';
+import { validatePassword } from '../utils/passwordPolicy';
 import { useI18n } from '../i18n/useI18n';
 
 interface ResetPasswordPageProps {
@@ -27,8 +28,9 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ token, onN
     e.preventDefault();
     setError(null);
 
-    if (newPassword.length < 6) {
-      setError(t('Password must be at least 6 characters.'));
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      setError(t(passwordError));
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -108,7 +110,7 @@ export const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ token, onN
                 required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder={t('At least 6 characters')}
+                placeholder={t('At least 8 characters, with upper, lower, number and special character')}
                 style={{
                   width: '100%',
                   padding: '0.75rem',

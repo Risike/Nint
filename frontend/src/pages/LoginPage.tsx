@@ -215,7 +215,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
 
           {import.meta.env.DEV && (
             <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-              {t('Dev accounts: {accounts} — leave the password empty.', { accounts: 'test, test2, admin' })}
+              {t('Dev accounts: {accounts} — leave the password empty.', { accounts: 'demo0–demo100, test, test2, admin' })}
             </p>
           )}
 

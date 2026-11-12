@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { DEFAULT_KEYBINDINGS, KeyBindings } from '../game/input/keyboardManager';
 import { DEFAULT_GAMEPAD_BINDINGS, GamepadBindings } from '../game/input/gamepadManager';
 import { soundManager } from '../game/audio/soundManager';
@@ -6,6 +6,8 @@ import { ApiClient } from '../services/api';
 import { LocalStorageManager } from '../services/storage';
 import { useAuth } from './AuthContext';
 import { Language, isLanguage } from '../i18n/translations';
+import { DEFAULT_THEME_VALUE, THEME_CATALOG, isThemeValue } from '../i18n/themes';
+import { useThemeCatalog } from './ThemeContext';
 
 export interface SettingsState {
   language: Language;
@@ -28,7 +30,7 @@ const DEV_SOUND_DEFAULT_KEY = 'dev_sound_default_muted';
 
 const DEFAULT_SETTINGS: SettingsState = {
   language: 'en',
-  theme: 'dark-01',
+  theme: DEFAULT_THEME_VALUE,
   das: 167,
   arr: 33,
   softDropFactor: 20,
@@ -46,7 +48,8 @@ const DEFAULT_SETTINGS: SettingsState = {
 interface SettingsContextType {
   settings: SettingsState;
   updateSettings: (newSettings: Partial<SettingsState>) => void;
-  toggleTheme: () => void;
+  previewTheme: string | null;
+  setPreviewTheme: (theme: string | null) => void;
   toggleMute: () => void;
   resetDefaults: () => void;
 }
@@ -56,7 +59,6 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 function toRemoteSettings(settings: SettingsState) {
   return {
     language: settings.language,
-    theme: settings.theme,
     das: settings.das,
     arr: settings.arr,
     soft_drop_factor: settings.softDropFactor,
@@ -73,6 +75,8 @@ function toRemoteSettings(settings: SettingsState) {
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
+  const { themes } = useThemeCatalog();
+  const [previewTheme, setPreviewThemeState] = useState<string | null>(null);
   const [settings, setSettings] = useState<SettingsState>(() => {
     const stored = LocalStorageManager.getItem<Partial<SettingsState>>('settings', {});
     const initial: SettingsState = {
@@ -81,9 +85,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Older saved settings may miss fields added later; merge defaults instead of
       // letting undefined values reach the engine or the API.
       language: isLanguage(stored.language) ? stored.language : DEFAULT_SETTINGS.language,
-      theme: /^(dark|light)-0[1-5]$/.test(stored.theme || '')
-        ? (stored.theme as string)
-        : DEFAULT_SETTINGS.theme,
+      theme: DEFAULT_SETTINGS.theme,
       keybindings: { ...DEFAULT_KEYBINDINGS, ...(stored.keybindings || {}) },
       gamepadBindings: { ...DEFAULT_GAMEPAD_BINDINGS, ...(stored.gamepadBindings || {}) }
     };
@@ -99,10 +101,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return initial;
   });
 
-  // Apply theme and language to document attributes
+  // Apply the equipped theme, unless a shop preview is active. Previews are
+  // intentionally temporary and never touch the saved settings or the API.
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', settings.theme);
-  }, [settings.theme]);
+    const equippedTheme = isThemeValue(settings.theme, themes) ? settings.theme : DEFAULT_THEME_VALUE;
+    const activeTheme = previewTheme && isThemeValue(previewTheme, themes) ? previewTheme : equippedTheme;
+    const entry = themes[activeTheme] || THEME_CATALOG[activeTheme];
+    document.documentElement.setAttribute('data-theme', activeTheme);
+    document.documentElement.setAttribute('data-theme-mode', entry?.mode || (activeTheme.startsWith('light') ? 'light' : 'dark'));
+  }, [settings.theme, previewTheme, themes]);
 
   useEffect(() => {
     document.documentElement.setAttribute('lang', settings.language);
@@ -126,6 +133,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const merged: SettingsState = {
             ...prev,
             language: isLanguage(remote.language) ? remote.language : prev.language,
+            // The backend validates the equipped theme, so accept it even if the
+            // catalog request has not finished loading yet.
             theme: typeof remote.theme === 'string' ? remote.theme : prev.theme,
             das: typeof remote.das === 'number' ? remote.das : prev.das,
             arr: typeof remote.arr === 'number' ? remote.arr : prev.arr,
@@ -146,6 +155,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       .catch(console.warn);
   }, [isAuthenticated]);
 
+  const setPreviewTheme = useCallback((theme: string | null) => {
+    // The catalog can still be loading when a shop button is clicked; the
+    // active-theme effect resolves the value once the catalog is available.
+    setPreviewThemeState(typeof theme === 'string' && theme ? theme : null);
+  }, []);
+
   const updateSettings = (newSettings: Partial<SettingsState>) => {
     setSettings((prev) => {
       const merged = { ...prev, ...newSettings };
@@ -159,28 +174,23 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   };
 
-  const toggleTheme = () => {
-    const match = /^(dark|light)-0([1-5])$/.exec(settings.theme);
-    const nextTheme = match
-      ? `${match[1] === 'dark' ? 'light' : 'dark'}-0${match[2]}`
-      : 'dark-01';
-    updateSettings({ theme: nextTheme });
-  };
-
   const toggleMute = () => {
     updateSettings({ isMuted: !settings.isMuted });
   };
 
   const resetDefaults = () => {
-    setSettings(DEFAULT_SETTINGS);
-    LocalStorageManager.setItem('settings', DEFAULT_SETTINGS);
-    if (isAuthenticated) {
-      ApiClient.updateSettings(toRemoteSettings(DEFAULT_SETTINGS)).catch(console.warn);
-    }
+    setSettings((previous) => {
+      const next = { ...DEFAULT_SETTINGS, theme: previous.theme };
+      LocalStorageManager.setItem('settings', next);
+      if (isAuthenticated) {
+        ApiClient.updateSettings(toRemoteSettings(next)).catch(console.warn);
+      }
+      return next;
+    });
   };
 
   return (
-    <SettingsContext.Provider value={{ settings, updateSettings, toggleTheme, toggleMute, resetDefaults }}>
+    <SettingsContext.Provider value={{ settings, updateSettings, previewTheme, setPreviewTheme, toggleMute, resetDefaults }}>
       {children}
     </SettingsContext.Provider>
   );

@@ -2,21 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import app from '../src/server.js';
-
-const PASSWORD = 'password123';
+import { registerAndVerify } from './helpers/auth.js';
+import { createOnlineMatch } from './helpers/online.js';
 
 async function register(label) {
   const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  const res = await request(app)
-    .post('/api/auth/register')
-    .send({
-      email: `${label}_${stamp}@test.com`,
-      password: PASSWORD,
-      displayName: `${label}${stamp.slice(-4)}`
-    });
-
-  assert.equal(res.status, 201);
-  return { token: res.body.token, user: res.body.user };
+  const displayName = `${label.replace(/[^A-Za-z0-9]/g, '')}${stamp.slice(-4)}`;
+  return registerAndVerify(app, {
+    email: `${label}_${stamp}@test.com`,
+    displayName
+  });
 }
 
 async function getCredits(token) {
@@ -27,7 +22,7 @@ async function getCredits(token) {
   return res.body.credits;
 }
 
-test('Verified lines in every solo mode credit the account', async () => {
+test('Verified lines in scored solo modes credit the account, Zen does not', async () => {
   const { token, user } = await register('credits_solo');
   assert.equal(user.credits, 0);
   assert.equal(await getCredits(token), 0);
@@ -93,14 +88,14 @@ test('Verified lines in every solo mode credit the account', async () => {
     });
   assert.equal(zen.status, 201);
   assert.equal(zen.body.verified, true);
-  assert.equal(zen.body.creditsAwarded, 7);
-  assert.equal(await getCredits(token), 64);
+  assert.equal(zen.body.creditsAwarded, 0);
+  assert.equal(await getCredits(token), 57);
 
   const stats = await request(app)
     .get('/api/stats/me')
     .set('Authorization', `Bearer ${token}`);
   assert.equal(stats.status, 200);
-  assert.equal(stats.body.credits, 64);
+  assert.equal(stats.body.credits, 57);
 });
 
 test('Rejected results award no credits', async () => {
@@ -145,7 +140,7 @@ test('AI, casual online and ranked online matches credit cleared lines once', as
   assert.equal(aiMatch.status, 201);
   assert.equal(await getCredits(playerA.token), 5);
 
-  const casualMatchId = `credits_casual_${Date.now()}`;
+  const { matchId: casualMatchId } = await createOnlineMatch(app, playerA.token, playerB.token, { ranked: false });
   const casualA = await request(app)
     .post('/api/matches/record')
     .set('Authorization', `Bearer ${playerA.token}`)
@@ -203,7 +198,7 @@ test('AI, casual online and ranked online matches credit cleared lines once', as
   assert.equal(duplicateB.status, 409);
   assert.equal(await getCredits(playerB.token), 4);
 
-  const rankedMatchId = `credits_ranked_${Date.now()}`;
+  const { matchId: rankedMatchId } = await createOnlineMatch(app, playerA.token, playerB.token, { ranked: true });
   const rankedA = await request(app)
     .post('/api/matches/record')
     .set('Authorization', `Bearer ${playerA.token}`)
@@ -267,10 +262,10 @@ test('AI, casual online and ranked online matches credit cleared lines once', as
   assert.equal(await getCredits(playerB.token), 6);
 });
 
-test('Forfeit credits both players once', async () => {
+test('Forfeit never awards credits and ignores client opponent values', async () => {
   const winner = await register('credits_forfeit_winner');
   const loser = await register('credits_forfeit_loser');
-  const matchId = `credits_forfeit_${Date.now()}`;
+  const { matchId } = await createOnlineMatch(app, winner.token, loser.token, { ranked: false });
 
   const forfeit = await request(app)
     .post('/api/matches/forfeit')
@@ -292,8 +287,8 @@ test('Forfeit credits both players once', async () => {
     });
 
   assert.equal(forfeit.status, 201);
-  assert.equal(await getCredits(loser.token), 6);
-  assert.equal(await getCredits(winner.token), 9);
+  assert.equal(await getCredits(loser.token), 0);
+  assert.equal(await getCredits(winner.token), 0);
 
   const repeated = await request(app)
     .post('/api/matches/forfeit')
@@ -309,6 +304,6 @@ test('Forfeit credits both players once', async () => {
     });
 
   assert.equal(repeated.status, 201);
-  assert.equal(await getCredits(loser.token), 6);
-  assert.equal(await getCredits(winner.token), 9);
+  assert.equal(await getCredits(loser.token), 0);
+  assert.equal(await getCredits(winner.token), 0);
 });

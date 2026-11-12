@@ -1,37 +1,49 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowLeft, CheckCircle2, ChevronRight, Coins, Palette, ShoppingBag, Sparkles, Tag, Type } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, ChevronRight, Coins, Eye, Palette, ShoppingBag, Smile, Sparkles, Sun, Tag, Type } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n/useI18n';
 import { ApiClient } from '../services/api';
 import { CanvasRenderer } from '../game/rendering/canvasRenderer';
 import { normalizePieceSkin } from '../game/rendering/pieceSkins';
+import type { TetrominoType } from '../game/engine/constants';
 import { UserName } from '../components/user/UserName';
-import { getShopTitleLabel } from '../i18n/titles';
-import { getShopItemLabel } from '../i18n/shopItems';
+import { getShopItemDisplayName } from '../i18n/shopItems';
+import { getProfileIconEmoji } from '../i18n/profileIcons';
+import { getThemePreview, type ThemePreview as ThemePreviewPalette } from '../i18n/themes';
+import { useSettings } from '../context/SettingsContext';
 
 interface ShopPageProps {
   onNavigate: (tab: string) => void;
 }
 
-type ShopKind = 'piece_skin' | 'name_color' | 'name_decoration' | 'title';
+type ShopKind = 'piece_skin' | 'name_color' | 'name_decoration' | 'profile_icon' | 'title' | 'theme';
 
 interface ShopItem {
   id: string;
   kind: ShopKind;
   name: string;
+  name_fr?: string | null;
+  name_de?: string | null;
+  name_es?: string | null;
+  name_it?: string | null;
   value: string;
   price: number;
   is_default: number;
   owned: boolean;
   equipped: boolean;
   sort_order: number;
+  mode?: 'dark' | 'light';
+  palette?: ThemePreviewPalette | null;
+  html?: string | null;
 }
 
 interface ShopCosmetics {
   piece_skin: string;
   name_color: string;
   name_decoration: string;
+  profile_icon: string;
   title: string;
+  theme: string;
 }
 
 interface ShopData {
@@ -62,6 +74,13 @@ const KIND_META: Array<{
     background: 'rgba(234, 179, 8, 0.2)'
   },
   {
+    kind: 'theme',
+    label: 'Themes',
+    icon: <Sun size={22} />,
+    color: 'var(--accent-orange)',
+    background: 'rgba(249, 115, 22, 0.2)'
+  },
+  {
     kind: 'name_color',
     label: 'Name Colors',
     icon: <Sparkles size={22} />,
@@ -74,6 +93,13 @@ const KIND_META: Array<{
     icon: <Tag size={22} />,
     color: 'var(--accent-purple)',
     background: 'rgba(168, 85, 247, 0.2)'
+  },
+  {
+    kind: 'profile_icon',
+    label: 'Profile Icons',
+    icon: <Smile size={22} />,
+    color: 'var(--accent-green)',
+    background: 'rgba(34, 197, 94, 0.2)'
   }
 ];
 
@@ -84,36 +110,100 @@ const categoryCardStyle: React.CSSProperties = {
   gap: '0.75rem'
 };
 
+const PREVIEW_PIECES: TetrominoType[] = ['I', 'O', 'T', 'S', 'Z', 'J', 'L'];
+
 const isItemEquipped = (item: ShopItem, cosmetics: ShopCosmetics): boolean => {
   if (item.kind === 'piece_skin') return cosmetics.piece_skin === item.value;
   if (item.kind === 'name_color') return cosmetics.name_color === item.value;
   if (item.kind === 'name_decoration') return cosmetics.name_decoration === item.value;
+  if (item.kind === 'profile_icon') return cosmetics.profile_icon === item.value;
+  if (item.kind === 'theme') return cosmetics.theme === item.value;
   return cosmetics.title === item.value;
 };
 
-const SkinPreview: React.FC<{ skin: string }> = ({ skin }) => {
+const SkinPreview: React.FC<{ skin: string; piece: TetrominoType }> = ({ skin, piece }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     if (canvasRef.current) {
-      CanvasRenderer.renderPreview(canvasRef.current, 'T', 24, normalizePieceSkin(skin));
+      CanvasRenderer.renderPreview(canvasRef.current, piece, 24, normalizePieceSkin(skin));
     }
-  }, [skin]);
+  }, [skin, piece]);
 
   return <canvas ref={canvasRef} style={{ width: '72px', height: '72px' }} />;
 };
 
-const ItemPreview: React.FC<{ item: ShopItem; cosmetics: ShopCosmetics; displayName: string }> = ({
+const ThemePreview: React.FC<{ value: string; palette?: ThemePreviewPalette | null }> = ({ value, palette }) => {
+  const preview = palette || getThemePreview(value);
+  if (!preview) return null;
+
+  return (
+    <div style={{ minHeight: '76px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        data-theme-preview={value}
+        style={{
+          width: '100%',
+          minHeight: '66px',
+          padding: '0.55rem 0.65rem',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          gap: '0.4rem',
+          background: preview.bgPrimary,
+          border: `1px solid ${preview.borderColor}`,
+          borderRadius: 'var(--radius-sm)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+          <span style={{ color: preview.textPrimary, fontWeight: 800, fontSize: '1rem' }}>Aa</span>
+          <span style={{ color: preview.textSecondary, fontSize: '0.62rem' }}>Nint</span>
+        </div>
+        <div style={{ display: 'flex', gap: '0.25rem' }}>
+          {[preview.accentCyan, preview.accentPink, preview.accentGreen, preview.accentOrange].map((color) => (
+            <span key={color} style={{ height: '7px', flex: 1, borderRadius: '999px', background: color }} />
+          ))}
+        </div>
+        <div style={{ height: '6px', borderRadius: '999px', background: preview.bgTertiary }} />
+      </div>
+    </div>
+  );
+};
+
+const ItemPreview: React.FC<{
+  item: ShopItem;
+  cosmetics: ShopCosmetics;
+  displayName: string;
+  previewPiece: TetrominoType;
+}> = ({
   item,
   cosmetics,
-  displayName
+  displayName,
+  previewPiece
 }) => {
   if (item.kind === 'piece_skin') {
     return (
       <div style={{ minHeight: '76px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <SkinPreview skin={item.value} />
+        <SkinPreview skin={item.value} piece={previewPiece} />
       </div>
     );
+  }
+
+  if (item.kind === 'profile_icon') {
+    return (
+      <div style={{ minHeight: '76px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span
+          data-profile-icon={item.value}
+          aria-hidden="true"
+          style={{ fontSize: '2.6rem', lineHeight: 1 }}
+        >
+          {getProfileIconEmoji(item.value)}
+        </span>
+      </div>
+    );
+  }
+
+  if (item.kind === 'theme') {
+    return <ThemePreview value={item.value} palette={item.palette} />;
   }
 
   const previewCosmetics = {
@@ -125,13 +215,20 @@ const ItemPreview: React.FC<{ item: ShopItem; cosmetics: ShopCosmetics; displayN
 
   return (
     <div style={{ minHeight: '76px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem 0' }}>
-      <UserName displayName={displayName || 'Player'} cosmetics={previewCosmetics} size="1.15rem" align="center" />
+      <UserName
+        displayName={displayName || 'Player'}
+        cosmetics={previewCosmetics}
+        decorationHtml={item.kind === 'name_decoration' ? item.html || undefined : undefined}
+        size="1.15rem"
+        align="center"
+      />
     </div>
   );
 };
 
 export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
   const { user, isAuthenticated, refreshProfile } = useAuth();
+  const { updateSettings, setPreviewTheme } = useSettings();
   const { t, language } = useI18n();
   const [data, setData] = useState<ShopData | null>(null);
   const [activeCategory, setActiveCategory] = useState<ShopKind | null>(null);
@@ -139,6 +236,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [previewPiece, setPreviewPiece] = useState<TetrominoType>('T');
 
   const loadShop = async () => {
     setLoading(true);
@@ -160,6 +258,10 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
       setLoading(false);
     }
   }, [isAuthenticated]);
+
+  // A preview belongs to the shop. Leaving the shop immediately restores the
+  // equipped theme, including when navigation happens outside this component.
+  useEffect(() => () => setPreviewTheme(null), [setPreviewTheme]);
 
   const purchase = async (item: ShopItem) => {
     setBusyId(item.id);
@@ -196,6 +298,10 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
         }))
       } : previous);
       await refreshProfile().catch(() => undefined);
+      if (item.kind === 'theme' && result.cosmetics?.theme) {
+        setPreviewTheme(null);
+        updateSettings({ theme: result.cosmetics.theme });
+      }
       setMessage(t('Item equipped!'));
     } catch (e: any) {
       setError(e?.message || t('Equip failed'));
@@ -286,7 +392,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
             <ArrowLeft size={16} /> {t('Back to categories')}
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', textAlign: 'left' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem', textAlign: 'left' }}>
             <div style={{ background: activeMeta.background, color: activeMeta.color, padding: '0.6rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
               {activeMeta.icon}
             </div>
@@ -298,6 +404,19 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
                 {t('{count} items', { count: activeItems.length })}
               </span>
             </div>
+            {activeCategory === 'piece_skin' && (
+              <label style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                {t('Preview piece')}
+                <select
+                  aria-label={t('Preview piece')}
+                  value={previewPiece}
+                  onChange={(event) => setPreviewPiece(event.target.value as TetrominoType)}
+                  style={{ padding: '0.4rem 0.55rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)' }}
+                >
+                  {PREVIEW_PIECES.map((piece) => <option key={piece} value={piece}>{piece}</option>)}
+                </select>
+              </label>
+            )}
           </div>
 
           {activeItems.length === 0 ? (
@@ -310,16 +429,18 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
                 const canAfford = (data?.credits ?? 0) >= item.price;
                 const isBusy = busyId === item.id;
                 return (
-                  <div key={item.id} className="panel-card" style={{ padding: '1rem', gap: '0.55rem', position: 'relative' }}>
+                  <div key={item.id} className="panel-card" style={{ padding: '1rem', paddingTop: item.is_default === 1 ? '2.2rem' : '1rem', gap: '0.55rem', position: 'relative' }}>
                     {item.is_default === 1 && (
                       <span style={{ position: 'absolute', top: '0.65rem', right: '0.65rem', fontSize: '0.62rem', color: 'var(--text-muted)', border: '1px solid var(--border-color)', borderRadius: '999px', padding: '0.12rem 0.4rem' }}>
                         {t('Default item')}
                       </span>
                     )}
-                    <ItemPreview item={item} cosmetics={data?.cosmetics || { piece_skin: 'classic', name_color: '#f8fafc', name_decoration: 'none', title: '' }} displayName={user?.display_name || ''} />
-                    <div style={{ fontWeight: 750, fontSize: '0.98rem' }}>
-                      {item.kind === 'title' ? getShopTitleLabel(item.id, item.value, language) : getShopItemLabel(item.id, item.name, language)}
-                    </div>
+                    <ItemPreview item={item} cosmetics={data?.cosmetics || { piece_skin: 'classic', name_color: '#f8fafc', name_decoration: 'none', profile_icon: 'user', title: '', theme: 'dark-01' }} displayName={user?.display_name || ''} previewPiece={previewPiece} />
+                    {item.kind !== 'profile_icon' && (
+                      <div style={{ fontWeight: 750, fontSize: '0.98rem' }}>
+                        {getShopItemDisplayName(item, language)}
+                      </div>
+                    )}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginTop: '0.15rem' }}>
                       <span style={{ color: item.owned ? 'var(--text-muted)' : 'var(--accent-yellow)', fontWeight: 700, fontSize: '0.82rem' }}>
                         {item.owned ? t('Owned') : item.price === 0 ? t('Free') : `${item.price} ${t('Credits')}`}
@@ -333,6 +454,25 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate }) => {
                         {isBusy ? t('Loading...') : item.equipped ? t('Equipped') : item.owned ? t('Equip') : t('Buy')}
                       </button>
                     </div>
+                    {item.kind === 'theme' && (
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        data-theme-preview-action={item.value}
+                        onClick={() => setPreviewTheme(item.value)}
+                        style={{
+                          width: '100%',
+                          padding: '0.38rem 0.8rem',
+                          fontSize: '0.78rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.35rem'
+                        }}
+                      >
+                        <Eye size={14} aria-hidden="true" /> {t('Preview')}
+                      </button>
+                    )}
                     {!item.owned && !canAfford && (
                       <div style={{ color: 'var(--accent-red)', fontSize: '0.72rem' }}>{t('Not enough credits')}</div>
                     )}

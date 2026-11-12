@@ -1,8 +1,10 @@
 import rateLimit from 'express-rate-limit';
+import { config } from '../config/env.js';
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 30, // 30 requests per window
+  // Automated tests create several accounts from the same loopback address.
+  max: config.isTest ? 1000 : 30,
   message: { error: 'Too many authentication attempts, please try again later' },
   standardHeaders: true,
   legacyHeaders: false

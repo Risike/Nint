@@ -1,11 +1,14 @@
 import { getDatabase } from '../config/database.js';
+import { DEFAULT_THEME } from '../config/shopThemes.js';
 
-const THEMES = new Set([
-  'dark-01', 'dark-02', 'dark-03', 'dark-04', 'dark-05',
-  'light-01', 'light-02', 'light-03', 'light-04', 'light-05'
-]);
 const COLORBLIND_MODES = new Set(['none', 'protanopia', 'deuteranopia', 'tritanopia']);
 const LANGUAGES = new Set(['en', 'fr', 'de', 'es', 'it']);
+
+function isActiveTheme(db, value) {
+  return typeof value === 'string' && Boolean(db.prepare(
+    "SELECT 1 FROM shop_items WHERE kind = 'theme' AND value = ? AND active = 1"
+  ).get(value));
+}
 
 function clampNumber(value, fallback, min, max) {
   const num = Number(value);
@@ -45,6 +48,11 @@ export class SettingsService {
       }
     }
 
+    const cosmetics = db.prepare('SELECT theme FROM user_cosmetics WHERE user_id = ?').get(userId);
+    if (settings) {
+      settings.theme = cosmetics && isActiveTheme(db, cosmetics.theme) ? cosmetics.theme : DEFAULT_THEME;
+    }
+
     return settings;
   }
 
@@ -55,8 +63,8 @@ export class SettingsService {
     const requestedLanguage = newSettings.language ?? current.language;
     const language = LANGUAGES.has(requestedLanguage) ? requestedLanguage : 'en';
 
-    const requestedTheme = newSettings.theme ?? current.theme;
-    const theme = THEMES.has(requestedTheme) ? requestedTheme : current.theme;
+    // Themes are equipped from the shop, not from account settings.
+    const theme = isActiveTheme(db, current.theme) ? current.theme : DEFAULT_THEME;
 
     const requestedColorblind = newSettings.colorblind_mode ?? current.colorblind_mode;
     const colorblindMode = COLORBLIND_MODES.has(requestedColorblind) ? requestedColorblind : current.colorblind_mode;

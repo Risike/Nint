@@ -99,6 +99,8 @@ make test
 | `TRUST_PROXY` | Reverse-proxy hops in front of the API | `false` (set `1` behind nginx) |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Optional bootstrap administrator | Empty (disabled) |
 | `DATABASE_PATH` | Path to persistent SQLite file | `./data/nint.db` |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` | Outgoing mail for verification and password-reset emails | Local dev logs verification codes |
+| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Free Cloudflare Turnstile captcha keys | Test keys outside production; required in production |
 | `VITE_API_URL` | Base API URL for frontend | `/api` |
 | `VITE_FIREBASE_API_KEY` | Firebase Web API Key | `demo-api-key` |
 | `VITE_FIREBASE_DATABASE_URL` | Firebase Realtime DB URL | `https://nint-demo-default-rtdb.firebaseio.com` |

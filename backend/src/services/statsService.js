@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { getDatabase } from '../config/database.js';
 import { awardLineCredits } from '../utils/credits.js';
+import { OnlineMatchService } from './onlineMatchService.js';
 
 const ALLOWED_RESULTS = new Set(['win', 'loss', 'draw']);
 const ALLOWED_MODES = new Set(['versus_1v1', 'versus_online']);
@@ -65,7 +66,22 @@ export class StatsService {
 
   static getUserStats(userId, { includeCredits = false } = {}) {
     const db = getDatabase();
-    const user = db.prepare('SELECT id, COALESCE(credits, 0) AS credits FROM users WHERE id = ?').get(userId);
+    const user = db.prepare(`
+      SELECT
+        u.id,
+        u.username,
+        u.display_name,
+        u.avatar_url,
+        u.created_at,
+        COALESCE(u.credits, 0) AS credits,
+        COALESCE(c.name_color, '#f8fafc') AS name_color,
+        COALESCE(c.name_decoration, 'none') AS name_decoration,
+        COALESCE(c.profile_icon, 'user') AS profile_icon,
+        COALESCE(c.title, '') AS title
+      FROM users u
+      LEFT JOIN user_cosmetics c ON c.user_id = u.id
+      WHERE u.id = ?
+    `).get(userId);
     if (!user) {
       throw httpError(404, 'User not found');
     }
@@ -80,11 +96,92 @@ export class StatsService {
 
     return {
       ...(includeCredits ? { credits: user.credits ?? 0 } : {}),
+      user: {
+        id: user.id,
+        username: user.username,
+        display_name: user.display_name,
+        avatar_url: user.avatar_url,
+        created_at: user.created_at
+      },
+      cosmetics: {
+        name_color: user.name_color,
+        name_decoration: user.name_decoration,
+        profile_icon: user.profile_icon,
+        title: user.title
+      },
       stats: stats || {},
       winRate: parseFloat(winRate),
+      rankings: this.getLeaderboardRankings(db, userId, stats),
       personalBests,
       recentMatches
     };
+  }
+
+  static getLeaderboardRankings(db, userId, stats) {
+    const rankings = {};
+
+    for (const mode of ['marathon_150', 'ultra_3m']) {
+      const total = db.prepare(
+        'SELECT COUNT(*) AS count FROM game_results WHERE mode = ? AND verified = 1'
+      ).get(mode).count;
+      const best = db.prepare(
+        'SELECT MAX(score) AS value FROM game_results WHERE user_id = ? AND mode = ? AND verified = 1'
+      ).get(userId, mode).value;
+
+      if (best === null || best === undefined) {
+        rankings[mode] = { rank: null, total, value: null };
+      } else {
+        const better = db.prepare(
+          'SELECT COUNT(*) AS count FROM game_results WHERE mode = ? AND verified = 1 AND score > ?'
+        ).get(mode, best).count;
+        rankings[mode] = { rank: better + 1, total, value: best };
+      }
+    }
+
+    const sprintTotal = db.prepare(
+      'SELECT COUNT(*) AS count FROM game_results WHERE mode = ? AND verified = 1'
+    ).get('sprint_40').count;
+    const bestSprint = db.prepare(
+      'SELECT MIN(duration) AS value FROM game_results WHERE user_id = ? AND mode = ? AND verified = 1'
+    ).get(userId, 'sprint_40').value;
+    if (bestSprint === null || bestSprint === undefined) {
+      rankings.sprint_40 = { rank: null, total: sprintTotal, value: null };
+    } else {
+      const better = db.prepare(
+        'SELECT COUNT(*) AS count FROM game_results WHERE mode = ? AND verified = 1 AND duration < ?'
+      ).get('sprint_40', bestSprint).count;
+      rankings.sprint_40 = { rank: better + 1, total: sprintTotal, value: bestSprint };
+    }
+
+    const eloTotal = db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM user_statistics s
+      WHERE EXISTS (
+        SELECT 1 FROM match_history m
+        WHERE m.user_id = s.user_id AND m.ranked = 1 AND m.rating_applied = 1
+      )
+    `).get().count;
+    const rankedMatches = db.prepare(
+      'SELECT COUNT(*) AS count FROM match_history WHERE user_id = ? AND ranked = 1 AND rating_applied = 1'
+    ).get(userId).count;
+    const rating = stats?.rating ?? 1000;
+
+    if (!rankedMatches) {
+      rankings.elo = { rank: null, total: eloTotal, value: rating };
+    } else {
+      const better = db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM user_statistics s
+        WHERE EXISTS (
+          SELECT 1 FROM match_history m
+          WHERE m.user_id = s.user_id AND m.ranked = 1 AND m.rating_applied = 1
+        )
+        AND (s.rating > ? OR (s.rating = ? AND s.wins > ?))
+      `).get(rating, rating, stats?.wins ?? 0).count;
+      rankings.elo = { rank: better + 1, total: eloTotal, value: rating };
+    }
+
+    return rankings;
   }
 
   static normalizeReport(matchData = {}) {
@@ -162,12 +259,16 @@ export class StatsService {
     };
   }
 
-  static incrementMatchStats(db, userId, report, newRating, now) {
+  static incrementMatchStats(db, userId, report, newRating, now, { awardCredits = true } = {}) {
     const isWin = report.result === 'win';
     const isLoss = report.result === 'loss';
 
-    // One credit per cleared line, including CPU and online matches.
-    awardLineCredits(db, userId, report.playerLines, now);
+    // One credit per cleared line, including CPU and online matches. Forfeit
+    // settlement disables this because the surviving player supplied no
+    // server-verified line count for the abandoned match.
+    if (awardCredits) {
+      awardLineCredits(db, userId, report.playerLines, now);
+    }
 
     if (newRating === null || newRating === undefined) {
       db.prepare(`
@@ -288,101 +389,95 @@ export class StatsService {
    */
   static settleForfeit(userId, matchData = {}) {
     const db = getDatabase();
-    const result = typeof matchData.result === 'string' ? matchData.result.toLowerCase() : '';
-    if (result !== 'loss') {
+
+    if (matchData.result === 'cancel') {
+      return OnlineMatchService.cancel(userId, matchData.matchId);
+    }
+    if (matchData.result !== 'loss') {
       throw httpError(400, 'Only the player who abandons the match can submit a forfeit');
     }
 
-    const parsedDuration = Number(matchData.duration);
-    const duration = Number.isFinite(parsedDuration) ? Math.max(0, Math.round(parsedDuration)) : 0;
-    const report = this.normalizeReport({
-      ...matchData,
-      opponentType: 'human',
-      mode: 'versus_online',
-      result,
-      duration
-    });
-
-    if (report.opponentId === userId) {
-      throw httpError(400, 'You cannot record a match against yourself');
+    // The match, opponent and ranked status all come from the server-owned
+    // match row. Nothing supplied by the leaver about the opponent is trusted.
+    const match = OnlineMatchService.getParticipantMatch(userId, matchData.matchId);
+    if (match.status === 'waiting') {
+      throw httpError(409, 'This online match has not started yet');
+    }
+    if (match.status === 'cancelled') {
+      throw httpError(409, 'This online match has been cancelled');
+    }
+    if (!match.guest_user_id) {
+      throw httpError(409, 'This online match has no opponent yet');
     }
 
+    const opponentId = OnlineMatchService.opponentId(match, userId);
     const caller = db.prepare('SELECT id, display_name FROM users WHERE id = ?').get(userId);
     if (!caller) {
       throw httpError(401, 'Account no longer exists');
     }
-    const opponent = db.prepare('SELECT id, display_name FROM users WHERE id = ?').get(report.opponentId);
+    const opponent = db.prepare('SELECT id, display_name FROM users WHERE id = ?').get(opponentId);
     if (!opponent) {
-      throw httpError(400, 'Opponent account not found');
+      throw httpError(409, 'Opponent account no longer exists');
     }
 
-    report.opponentName = String(opponent.display_name || report.opponentName || 'Online Opponent').slice(0, 32);
+    const report = this.normalizeReport({
+      ...matchData,
+      opponentType: 'human',
+      opponentId,
+      opponentName: opponent.display_name,
+      mode: 'versus_online',
+      ranked: match.ranked === 1,
+      result: 'loss'
+    });
 
-    const opponentReport = {
-      ...report,
-      opponentId: userId,
-      opponentName: String(caller.display_name || 'Online Opponent').slice(0, 32),
-      result: report.result === 'win' ? 'loss' : 'win',
-      playerScore: report.opponentScore,
-      playerLines: report.opponentLines,
-      opponentScore: report.playerScore,
-      opponentLines: report.playerLines,
-      piecesPlaced: 0,
-      tetrises: 0,
-      tSpins: 0,
-      perfectClears: 0,
-      maxCombo: 0,
-      maxB2B: 0
-    };
     const now = Date.now();
 
     const settle = db.transaction(() => {
       const rows = db.prepare(`
         SELECT * FROM match_history
         WHERE match_id = ? AND user_id IN (?, ?)
-      `).all(report.matchId, userId, report.opponentId);
+      `).all(report.matchId, userId, opponentId);
 
       let myRow = rows.find((row) => row.user_id === userId);
-      let oppRow = rows.find((row) => row.user_id === report.opponentId);
+      let oppRow = rows.find((row) => row.user_id === opponentId);
+      const hadMyRow = Boolean(myRow);
+      const hadOppRow = Boolean(oppRow);
 
-      if (myRow && myRow.opponent_id !== report.opponentId) {
+      if (myRow && myRow.opponent_id !== opponentId) {
         throw httpError(409, 'This match belongs to different opponents');
       }
       if (oppRow && oppRow.opponent_id !== userId) {
         throw httpError(409, 'This match belongs to different opponents');
       }
-      if (myRow && myRow.result !== report.result) {
+      if (myRow && myRow.result !== 'loss') {
         throw httpError(409, 'This match has already been recorded with a different result');
       }
-      if (oppRow && oppRow.result !== opponentReport.result) {
+      if (oppRow && oppRow.result !== 'win') {
         throw httpError(409, 'The opponent report conflicts with this forfeit');
       }
-      if (myRow && Boolean(myRow.ranked) !== Boolean(report.ranked)) {
-        throw httpError(409, 'Both players must agree on ranked mode');
-      }
-      if (oppRow && Boolean(oppRow.ranked) !== Boolean(report.ranked)) {
-        throw httpError(409, 'Both players must agree on ranked mode');
-      }
 
-      if (report.ranked) {
-        if (myRow?.rating_applied === 1 || oppRow?.rating_applied === 1) {
-          if (myRow?.rating_applied === 1 && oppRow?.rating_applied === 1) {
-            return {
-              id: myRow.id,
-              success: true,
-              elo: this.eloFromHistory(myRow),
-              pending: false,
-              ranked: true
-            };
-          }
-          throw httpError(409, 'This match is already partially settled');
+      if (myRow?.rating_applied === 1 || oppRow?.rating_applied === 1) {
+        if (myRow?.rating_applied === 1 && oppRow?.rating_applied === 1) {
+          return {
+            id: myRow.id,
+            success: true,
+            elo: this.eloFromHistory(myRow),
+            pending: false,
+            ranked: match.ranked === 1
+          };
         }
-      } else if (myRow && oppRow) {
-        return { id: myRow.id, success: true, elo: null, pending: false, ranked: false };
+        throw httpError(409, 'This match is already partially settled');
       }
 
-      const hadMyRow = Boolean(myRow);
-      const hadOppRow = Boolean(oppRow);
+      if (match.status === 'completed' && myRow && oppRow) {
+        return {
+          id: myRow.id,
+          success: true,
+          elo: this.eloFromHistory(myRow),
+          pending: false,
+          ranked: match.ranked === 1
+        };
+      }
 
       if (!myRow) {
         const id = crypto.randomUUID();
@@ -390,61 +485,96 @@ export class StatsService {
         myRow = db.prepare('SELECT * FROM match_history WHERE id = ?').get(id);
       }
 
-      if (!oppRow) {
+      let opponentReport;
+      if (oppRow) {
+        // The opponent's own pending report is already server-linked to this
+        // match. It is safe to reuse its stats, but not its credits.
+        opponentReport = this.reportFromHistory(oppRow);
+      } else {
+        opponentReport = {
+          result: 'win',
+          playerScore: 0,
+          playerLines: 0,
+          opponentScore: 0,
+          opponentLines: 0,
+          duration: 0,
+          piecesPlaced: 0,
+          tetrises: 0,
+          tSpins: 0,
+          perfectClears: 0,
+          maxCombo: 0,
+          maxB2B: 0
+        };
         const id = crypto.randomUUID();
-        this.insertHistory(db, id, report.opponentId, opponentReport, now);
+        this.insertHistory(db, id, opponentId, {
+          ...report,
+          ...opponentReport,
+          opponentId: userId,
+          opponentName: String(caller.display_name || 'Online Opponent').slice(0, 32)
+        }, now);
         oppRow = db.prepare('SELECT * FROM match_history WHERE id = ?').get(id);
       }
 
-      if (!report.ranked) {
-        if (!hadMyRow) {
-          this.incrementMatchStats(db, userId, report, null, now);
-        }
-        if (!hadOppRow) {
-          this.incrementMatchStats(db, report.opponentId, opponentReport, null, now);
-        }
-        return { id: myRow.id, success: true, elo: null, pending: false, ranked: false };
+      let myElo = null;
+      if (match.ranked === 1) {
+        const myStats = db.prepare('SELECT rating FROM user_statistics WHERE user_id = ?').get(userId)
+          || { rating: 1000 };
+        const oppStats = db.prepare('SELECT rating FROM user_statistics WHERE user_id = ?').get(opponentId)
+          || { rating: 1000 };
+        const myRankedGames = db.prepare(
+          'SELECT COUNT(*) AS count FROM match_history WHERE user_id = ? AND ranked = 1 AND rating_applied = 1'
+        ).get(userId).count;
+
+        myElo = this.calculateElo({
+          playerRating: myStats.rating ?? 1000,
+          opponentRating: oppStats.rating ?? 1000,
+          result: 'loss',
+          gamesPlayed: myRankedGames
+        });
+        const oppElo = {
+          oldRating: oppStats.rating ?? 1000,
+          newRating: oppStats.rating ?? 1000,
+          delta: 0,
+          opponentRating: myStats.rating ?? 1000
+        };
+
+        db.prepare(`
+          UPDATE match_history
+          SET rating_change = ?, new_rating = ?, opponent_rating = ?, rating_applied = 1
+          WHERE id = ?
+        `).run(myElo.delta, myElo.newRating, myElo.opponentRating, myRow.id);
+
+        db.prepare(`
+          UPDATE match_history
+          SET rating_change = ?, new_rating = ?, opponent_rating = ?, rating_applied = 1
+          WHERE id = ?
+        `).run(oppElo.delta, oppElo.newRating, oppElo.opponentRating, oppRow.id);
       }
 
-      const myStats = db.prepare('SELECT rating, games_played FROM user_statistics WHERE user_id = ?').get(userId)
-        || { rating: 1000, games_played: 0 };
-      const oppStats = db.prepare('SELECT rating, games_played FROM user_statistics WHERE user_id = ?').get(report.opponentId)
-        || { rating: 1000, games_played: 0 };
+      // A forfeit never awards credits: neither the leaver's opponent values
+      // nor the surviving player's guessed line count are trusted.
+      const myStatsAlreadyRecorded = !match.ranked && hadMyRow;
+      const oppStatsAlreadyRecorded = !match.ranked && hadOppRow;
+      if (!myStatsAlreadyRecorded) {
+        this.incrementMatchStats(db, userId, this.reportFromHistory(myRow), myElo?.newRating ?? null, now, {
+          awardCredits: false
+        });
+      }
+      if (!oppStatsAlreadyRecorded) {
+        this.incrementMatchStats(db, opponentId, opponentReport, match.ranked === 1 ? oppRow.new_rating ?? null : null, now, {
+          awardCredits: false
+        });
+      }
 
-      const myRankedGames = db.prepare(
-        'SELECT COUNT(*) AS count FROM match_history WHERE user_id = ? AND ranked = 1 AND rating_applied = 1'
-      ).get(userId).count;
-      const myElo = this.calculateElo({
-        playerRating: myStats.rating ?? 1000,
-        opponentRating: oppStats.rating ?? 1000,
-        result: report.result,
-        gamesPlayed: myRankedGames
-      });
-      // A forfeit only penalizes the player who abandoned. The opponent
-      // receives the win, but no rating gain.
-      const oppElo = {
-        oldRating: oppStats.rating ?? 1000,
-        newRating: oppStats.rating ?? 1000,
-        delta: 0,
-        opponentRating: myStats.rating ?? 1000
+      OnlineMatchService.markCompleted(db, match.id, opponentId, now);
+
+      return {
+        id: myRow.id,
+        success: true,
+        elo: myElo,
+        pending: false,
+        ranked: match.ranked === 1
       };
-
-      db.prepare(`
-        UPDATE match_history
-        SET rating_change = ?, new_rating = ?, opponent_rating = ?, rating_applied = 1
-        WHERE id = ?
-      `).run(myElo.delta, myElo.newRating, myElo.opponentRating, myRow.id);
-
-      db.prepare(`
-        UPDATE match_history
-        SET rating_change = ?, new_rating = ?, opponent_rating = ?, rating_applied = 1
-        WHERE id = ?
-      `).run(oppElo.delta, oppElo.newRating, oppElo.opponentRating, oppRow.id);
-
-      this.incrementMatchStats(db, userId, report, myElo.newRating, now);
-      this.incrementMatchStats(db, report.opponentId, opponentReport, oppElo.newRating, now);
-
-      return { id: myRow.id, success: true, elo: myElo, pending: false, ranked: true };
     });
 
     return settle();
@@ -452,7 +582,42 @@ export class StatsService {
 
   static recordMatch(userId, matchData) {
     const db = getDatabase();
-    const report = this.normalizeReport(matchData);
+    const online = matchData.opponentType !== 'ai';
+    let onlineMatch = null;
+    let normalizedData = matchData;
+
+    if (online) {
+      // The match id, opponent and ranked flag are server-owned. Client values
+      // for these fields are ignored completely.
+      onlineMatch = OnlineMatchService.getParticipantMatch(userId, matchData.matchId);
+      if (onlineMatch.status !== 'active') {
+        throw httpError(409, onlineMatch.status === 'completed'
+          ? 'This online match is already completed'
+          : onlineMatch.status === 'cancelled'
+            ? 'This online match has been cancelled'
+            : 'The opponent has not joined this online match yet');
+      }
+      if (!onlineMatch.guest_user_id) {
+        throw httpError(409, 'The opponent has not joined this online match yet');
+      }
+
+      const opponentId = OnlineMatchService.opponentId(onlineMatch, userId);
+      const opponent = db.prepare('SELECT id, display_name FROM users WHERE id = ?').get(opponentId);
+      if (!opponent) {
+        throw httpError(409, 'Opponent account no longer exists');
+      }
+
+      normalizedData = {
+        ...matchData,
+        opponentType: 'human',
+        opponentId,
+        opponentName: opponent.display_name,
+        mode: 'versus_online',
+        ranked: onlineMatch.ranked === 1
+      };
+    }
+
+    const report = this.normalizeReport(normalizedData);
     const id = crypto.randomUUID();
     const now = Date.now();
 
@@ -484,7 +649,7 @@ export class StatsService {
       throw httpError(409, 'Both players must agree on ranked mode');
     }
 
-    if (report.ranked && counterpart && !areComplementary(report.result, counterpart.result)) {
+    if (counterpart && !areComplementary(report.result, counterpart.result)) {
       throw httpError(409, 'Conflicting match reports for this match');
     }
 
@@ -501,6 +666,14 @@ export class StatsService {
     if (!report.ranked) {
       const casualTx = db.transaction(() => {
         this.incrementMatchStats(db, userId, report, null, now);
+        if (counterpart) {
+          const winner = report.result === 'win'
+            ? userId
+            : counterpart.result === 'win'
+              ? report.opponentId
+              : null;
+          OnlineMatchService.markCompleted(db, report.matchId, winner, now);
+        }
       });
       casualTx();
       return { id, success: true, elo: null, pending: false, ranked: false };
@@ -562,6 +735,13 @@ export class StatsService {
         maxCombo: counterpart.max_combo,
         maxB2B: counterpart.max_b2b
       }, oppElo.newRating, now);
+
+      const winner = report.result === 'win'
+        ? userId
+        : counterpart.result === 'win'
+          ? report.opponentId
+          : null;
+      OnlineMatchService.markCompleted(db, report.matchId, winner, now);
 
       return myElo;
     });

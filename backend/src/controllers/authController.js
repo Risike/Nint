@@ -1,14 +1,50 @@
+import { config } from '../config/env.js';
 import { AuthService } from '../services/authService.js';
 
 export class AuthController {
-  static register(req, res, next) {
+  static getCaptchaConfig(req, res) {
+    res.json({ siteKey: config.turnstileSiteKey, enabled: Boolean(config.turnstileSiteKey) });
+  }
+
+  static async register(req, res, next) {
     try {
-      const { email, password, displayName, username } = req.body || {};
+      const { email, password, displayName, username, captchaToken } = req.body || {};
       if (!email || !password || !displayName) {
         return res.status(400).json({ error: 'Email, password, and display name are required' });
       }
-      const result = AuthService.register({ email, password, displayName, username });
+      const result = await AuthService.register({
+        email,
+        password,
+        displayName,
+        username,
+        captchaToken,
+        captchaIp: req.ip
+      });
       res.status(201).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async verifyEmail(req, res, next) {
+    try {
+      const { email, code } = req.body || {};
+      if (!email || !code) {
+        return res.status(400).json({ error: 'Email and verification code are required' });
+      }
+      res.json(AuthService.verifyEmail({ email, code }));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async resendVerification(req, res, next) {
+    try {
+      const { email } = req.body || {};
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+      res.json(await AuthService.resendVerification({ email }));
     } catch (err) {
       next(err);
     }

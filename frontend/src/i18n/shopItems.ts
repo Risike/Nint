@@ -1,6 +1,11 @@
 import type { Language } from './translations';
+import { FIXED_COLOR_LABELS, GRADIENT_COLOR_LABELS } from './nameColors';
 
 type ShopLabels = Record<Language, string>;
+
+const labels = (en: string, fr: string, de: string, es: string, it: string): ShopLabels => ({
+  en, fr, de, es, it
+});
 
 const PIECE_SKIN_LABELS: Record<string, ShopLabels> = {
   classic: { en: 'Classic', fr: 'Classique', de: 'Klassisch', es: 'Clásico', it: 'Classico' },
@@ -22,30 +27,27 @@ const PIECE_SKIN_LABELS: Record<string, ShopLabels> = {
   wood: { en: 'Wood', fr: 'Bois', de: 'Holz', es: 'Madera', it: 'Legno' },
   marble: { en: 'Marble', fr: 'Marbre', de: 'Marmor', es: 'Mármol', it: 'Marmo' },
   carbon: { en: 'Carbon', fr: 'Carbone', de: 'Kohlenstoff', es: 'Carbono', it: 'Carbonio' },
-  ice: { en: 'Ice', fr: 'Glace', de: 'Eis', es: 'Hielo', it: 'Ghiaccio' }
-};
-
-const NAME_COLOR_LABELS: Record<string, ShopLabels> = {
-  default: { en: 'White', fr: 'Blanc', de: 'Weiß', es: 'Blanco', it: 'Bianco' },
-  cyan: { en: 'Cyan', fr: 'Cyan', de: 'Cyan', es: 'Cian', it: 'Ciano' },
-  pink: { en: 'Pink', fr: 'Rose', de: 'Rosa', es: 'Rosa', it: 'Rosa' },
-  gold: { en: 'Gold', fr: 'Or', de: 'Gold', es: 'Dorado', it: 'Oro' },
-  green: { en: 'Green', fr: 'Vert', de: 'Grün', es: 'Verde', it: 'Verde' },
-  red: { en: 'Red', fr: 'Rouge', de: 'Rot', es: 'Rojo', it: 'Rosso' },
-  orange: { en: 'Orange', fr: 'Orange', de: 'Orange', es: 'Naranja', it: 'Arancione' },
-  yellow: { en: 'Yellow', fr: 'Jaune', de: 'Gelb', es: 'Amarillo', it: 'Giallo' },
-  lime: { en: 'Lime', fr: 'Citron vert', de: 'Limette', es: 'Lima', it: 'Lime' },
-  emerald: { en: 'Emerald', fr: 'Émeraude', de: 'Smaragd', es: 'Esmeralda', it: 'Smeraldo' },
-  teal: { en: 'Teal', fr: 'Bleu canard', de: 'Petrol', es: 'Verde azulado', it: 'Verde acqua' },
-  sky: { en: 'Sky', fr: 'Bleu ciel', de: 'Himmelblau', es: 'Azul cielo', it: 'Azzurro cielo' },
-  blue: { en: 'Blue', fr: 'Bleu', de: 'Blau', es: 'Azul', it: 'Blu' },
-  indigo: { en: 'Indigo', fr: 'Indigo', de: 'Indigo', es: 'Índigo', it: 'Indaco' },
-  violet: { en: 'Violet', fr: 'Violet', de: 'Violett', es: 'Violeta', it: 'Viola' },
-  purple: { en: 'Purple', fr: 'Pourpre', de: 'Purpur', es: 'Púrpura', it: 'Porpora' },
-  fuchsia: { en: 'Fuchsia', fr: 'Fuchsia', de: 'Fuchsia', es: 'Fucsia', it: 'Fucsia' },
-  rose: { en: 'Rose', fr: 'Rose', de: 'Rosé', es: 'Rosa', it: 'Rosa' },
-  silver: { en: 'Silver', fr: 'Argent', de: 'Silber', es: 'Plateado', it: 'Argento' },
-  lava: { en: 'Lava', fr: 'Lave', de: 'Lava', es: 'Lava', it: 'Lava' }
+  ice: { en: 'Ice', fr: 'Glace', de: 'Eis', es: 'Hielo', it: 'Ghiaccio' },
+  round_classic: { en: 'Round Classic', fr: 'Classique rond', de: 'Rund klassisch', es: 'Clásico redondo', it: 'Classico rotondo' },
+  round_neon: { en: 'Neon Orb', fr: 'Orbe néon', de: 'Neon-Kugel', es: 'Orbe neón', it: 'Sfera neon' },
+  round_glass: { en: 'Glass Bubble', fr: 'Bulle de verre', de: 'Glaskugel', es: 'Burbuja de cristal', it: 'Bolla di vetro' },
+  round_candy: { en: 'Candy Drop', fr: 'Bonbon rond', de: 'Bonbon-Tropfen', es: 'Gota de caramelo', it: 'Goccia di caramella' },
+  round_metallic: { en: 'Metal Sphere', fr: 'Sphère métallique', de: 'Metallkugel', es: 'Esfera metálica', it: 'Sfera metallica' },
+  round_gem: { en: 'Gemstone', fr: 'Gemme ronde', de: 'Edelstein-Kugel', es: 'Gema redonda', it: 'Gemma rotonda' },
+  round_glow: { en: 'Glow Ball', fr: 'Boule lumineuse', de: 'Leuchtkugel', es: 'Bola brillante', it: 'Sfera luminosa' },
+  round_marble: { en: 'Marble Orb', fr: 'Orbe de marbre', de: 'Marmorkugel', es: 'Orbe de mármol', it: 'Sfera di marmo' },
+  round_ice: { en: 'Ice Sphere', fr: 'Sphère de glace', de: 'Eiskugel', es: 'Esfera de hielo', it: 'Sfera di ghiaccio' },
+  round_wood: { en: 'Wooden Ball', fr: 'Boule en bois', de: 'Holzkugel', es: 'Bola de madera', it: 'Sfera di legno' },
+  round_holographic: { en: 'Holo Orb', fr: 'Orbe holographique', de: 'Holo-Kugel', es: 'Orbe holográfico', it: 'Sfera olografica' },
+  round_striped: { en: 'Striped Sphere', fr: 'Sphère rayée', de: 'Gestreifte Kugel', es: 'Esfera rayada', it: 'Sfera a righe' },
+  round_checker: { en: 'Checker Ball', fr: 'Boule damier', de: 'Schachbrettkugel', es: 'Bola de damero', it: 'Sfera a scacchiera' },
+  round_mosaic: { en: 'Mosaic Orb', fr: 'Orbe mosaïque', de: 'Mosaikkugel', es: 'Orbe de mosaico', it: 'Sfera a mosaico' },
+  round_carbon: { en: 'Carbon Sphere', fr: 'Sphère carbone', de: 'Kohlenstoffkugel', es: 'Esfera de carbono', it: 'Sfera di carbonio' },
+  round_gradient: { en: 'Gradient Orb', fr: 'Orbe dégradé', de: 'Verlaufskugel', es: 'Orbe degradado', it: 'Sfera sfumata' },
+  round_glossy: { en: 'Glossy Ball', fr: 'Boule lustrée', de: 'Glanzkugel', es: 'Bola brillante', it: 'Sfera lucida' },
+  round_matte: { en: 'Matte Sphere', fr: 'Sphère mate', de: 'Matte Kugel', es: 'Esfera mate', it: 'Sfera opaca' },
+  round_pearl: { en: 'Pearl', fr: 'Perle', de: 'Perle', es: 'Perla', it: 'Perla' },
+  round_planet: { en: 'Planet', fr: 'Planète', de: 'Planet', es: 'Planeta', it: 'Pianeta' }
 };
 
 const NAME_DECORATION_LABELS: Record<string, ShopLabels> = {
@@ -68,18 +70,69 @@ const NAME_DECORATION_LABELS: Record<string, ShopLabels> = {
   arrows: { en: 'Arrows', fr: 'Flèches', de: 'Pfeile', es: 'Flechas', it: 'Frecce' },
   brackets_square: { en: 'Square Brackets', fr: 'Crochets', de: 'Eckige Klammern', es: 'Corchetes', it: 'Parentesi quadre' },
   parentheses: { en: 'Parentheses', fr: 'Parenthèses', de: 'Klammern', es: 'Paréntesis', it: 'Parentesi' },
-  highlight: { en: 'Highlight', fr: 'Surlignage', de: 'Hervorhebung', es: 'Resaltado', it: 'Evidenziazione' }
+  highlight: { en: 'Highlight', fr: 'Surlignage', de: 'Hervorhebung', es: 'Resaltado', it: 'Evidenziazione' },
+  quotes: labels('Quotes', 'Guillemets anglais', 'Anführungszeichen', 'Comillas', 'Virgolette'),
+  guillemets: labels('Guillemets', 'Guillemets français', 'Spitzklammern', 'Comillas francesas', 'Virgolette francesi'),
+  corner: labels('Corners', 'Coins', 'Ecken', 'Esquinas', 'Angoli'),
+  corner_double: labels('Double Corners', 'Doubles coins', 'Doppelte Ecken', 'Dobles esquinas', 'Doppi angoli'),
+  braces: labels('Braces', 'Accolades', 'Geschweifte Klammern', 'Llaves', 'Graffe'),
+  chevrons_double: labels('Double Chevrons', 'Doubles chevrons', 'Doppelspitzen', 'Dobles chevrones', 'Doppi chevron'),
+  tildes: labels('Tildes', 'Tildes', 'Tilden', 'Tildes', 'Tilde'),
+  pipes: labels('Pipes', 'Barres', 'Senkrechte Striche', 'Barras', 'Barre'),
+  slashes: labels('Slashes', 'Barres obliques', 'Schrägstriche', 'Barras inclinadas', 'Barre oblique'),
+  plus_signs: labels('Plus Signs', 'Signes plus', 'Pluszeichen', 'Signos más', 'Segni più'),
+  equals: labels('Equals', 'Égales', 'Gleichheitszeichen', 'Iguales', 'Uguali'),
+  hashes: labels('Hashes', 'Dièses', 'Rauten', 'Almohadillas', 'Cancelletto'),
+  at_sign: labels('At Signs', 'Arobases', 'At-Zeichen', 'Arrobas', 'Chiocciole'),
+  music: labels('Music', 'Musique', 'Musik', 'Música', 'Musica'),
+  hearts: labels('Hearts', 'Cœurs', 'Herzen', 'Corazones', 'Cuori'),
+  lightning: labels('Lightning', 'Éclairs', 'Blitze', 'Rayos', 'Fulmini'),
+  flames: labels('Flames', 'Flammes', 'Flammen', 'Llamas', 'Fiamme'),
+  flowers: labels('Flowers', 'Fleurs', 'Blumen', 'Flores', 'Fiori'),
+  moons: labels('Moons', 'Lunes', 'Monde', 'Lunas', 'Lune'),
+  crystals: labels('Crystals', 'Cristaux', 'Kristalle', 'Cristales', 'Cristalli'),
+  target: labels('Targets', 'Cibles', 'Ziele', 'Dianas', 'Bersagli'),
+  crowns: labels('Crowns', 'Couronnes', 'Kronen', 'Coronas', 'Corone'),
+  wings: labels('Wings', 'Ailes', 'Flügel', 'Alas', 'Ali'),
+  ribbon: labels('Ribbon', 'Ruban', 'Schleife', 'Cinta', 'Nastro'),
+  gold_frame: labels('Gold Frame', 'Cadre doré', 'Goldrahmen', 'Marco dorado', 'Cornice dorata'),
+  emboss: labels('Emboss', 'Relief', 'Geprägt', 'Relieve', 'Rilievo'),
+  glitch: labels('Glitch', 'Glitch', 'Glitch', 'Glitch', 'Glitch'),
+  dashed_line: labels('Dashed Line', 'Ligne pointillée', 'Gestrichelte Linie', 'Línea discontinua', 'Linea tratteggiata'),
+  orbit: labels('Orbit', 'Orbite', 'Orbit', 'Órbita', 'Orbita'),
+  terminal: labels('Terminal', 'Terminal', 'Terminal', 'Terminal', 'Terminal')
 };
 
 const SHOP_ITEM_LABELS: Record<string, ShopLabels> = {
   ...Object.fromEntries(Object.entries(PIECE_SKIN_LABELS).map(([value, labels]) => [`piece_${value}`, labels])),
-  ...Object.fromEntries(Object.entries(NAME_COLOR_LABELS).map(([value, labels]) => [`color_${value}`, labels])),
+  ...Object.fromEntries(Object.entries(FIXED_COLOR_LABELS).map(([value, labels]) => [`color_${value}`, labels])),
+  ...Object.fromEntries(Object.entries(GRADIENT_COLOR_LABELS).map(([value, labels]) => [`color_${value}`, labels])),
   ...Object.fromEntries(Object.entries(NAME_DECORATION_LABELS).map(([value, labels]) => [`decor_${value}`, labels]))
 };
 SHOP_ITEM_LABELS.decor_square_brackets = NAME_DECORATION_LABELS.brackets_square;
+SHOP_ITEM_LABELS.decor_gradient_fill = NAME_DECORATION_LABELS.gold_frame;
+
+export interface LocalizedShopItem {
+  id: string;
+  kind: string;
+  name: string;
+  value?: string;
+  is_default?: number | boolean;
+  name_fr?: string | null;
+  name_de?: string | null;
+  name_es?: string | null;
+  name_it?: string | null;
+}
 
 export function getShopItemLabel(itemId: string, fallback: string, language: Language): string {
   return SHOP_ITEM_LABELS[itemId]?.[language] || fallback;
+}
+
+export function getShopItemDisplayName(item: LocalizedShopItem, language: Language): string {
+  const englishName = String(item.name || '').trim();
+  if (language === 'en') return englishName;
+  const localizedName = String(item[`name_${language}` as keyof LocalizedShopItem] || '').trim();
+  return localizedName || englishName;
 }
 
 export function getPieceSkinLabel(value: string, language: Language): string {

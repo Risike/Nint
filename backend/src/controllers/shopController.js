@@ -9,6 +9,22 @@ export class ShopController {
     }
   }
 
+  static getThemes(req, res, next) {
+    try {
+      res.json(ShopService.getThemes());
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static getDecorations(req, res, next) {
+    try {
+      res.json(ShopService.getDecorations());
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static purchase(req, res, next) {
     try {
       res.json(ShopService.purchase(req.user.id, req.body?.itemId));

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Eye, X } from 'lucide-react';
 import { AuthProvider } from './context/AuthContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { GamepadNavProvider } from './context/GamepadNavContext';
@@ -18,11 +19,16 @@ import { ProfilePage } from './pages/ProfilePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { AdminPage } from './pages/AdminPage';
 import { ShopPage } from './pages/ShopPage';
+import { useI18n } from './i18n/useI18n';
+import { ThemeProvider, useThemeCatalog } from './context/ThemeContext';
+import { NameDecorationProvider } from './context/NameDecorationContext';
 import { toggleFullscreen } from './utils/fullscreen';
 import './styles/main.css';
 
 export const AppContent: React.FC = () => {
-  const { toggleMute } = useSettings();
+  const { toggleMute, previewTheme, setPreviewTheme } = useSettings();
+  const { themes } = useThemeCatalog();
+  const { t, language } = useI18n();
   const [resetToken, setResetToken] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('token');
@@ -35,6 +41,7 @@ export const AppContent: React.FC = () => {
     return 'home';
   });
   const [cpuInitialLevel, setCpuInitialLevel] = useState<number | null>(null);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const isGameRoute = activeTab === 'solo' || activeTab === 'versus_ai' || activeTab === 'online';
 
   const handleNavigate = (tab: string) => {
@@ -68,7 +75,20 @@ export const AppContent: React.FC = () => {
       case 'online':
         return <OnlineVersusPage onNavigate={handleNavigate} />;
       case 'leaderboards':
-        return <LeaderboardsPage />;
+        return (
+          <LeaderboardsPage
+            onSelectPlayer={(userId) => {
+              setSelectedPlayerId(userId);
+              setActiveTab('player');
+            }}
+          />
+        );
+      case 'player':
+        return selectedPlayerId ? (
+          <StatsPage userId={selectedPlayerId} onBack={() => setActiveTab('leaderboards')} />
+        ) : (
+          <LeaderboardsPage />
+        );
       case 'stats':
         return <StatsPage />;
       case 'shop':
@@ -104,6 +124,22 @@ export const AppContent: React.FC = () => {
     >
       <div className={`app-container${isGameRoute ? ' app-container--game' : ''}`}>
         <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+        {previewTheme && (
+          <div className="theme-preview-banner" role="status" aria-live="polite">
+            <span className="theme-preview-banner__label">
+              <Eye size={16} aria-hidden="true" />
+              {t('Previewing {theme}', { theme: themes[previewTheme]?.labels[language] || previewTheme })}
+            </span>
+            <button
+              type="button"
+              className="btn-secondary theme-preview-banner__exit"
+              onClick={() => setPreviewTheme(null)}
+            >
+              <X size={14} aria-hidden="true" />
+              {t('Exit preview')}
+            </button>
+          </div>
+        )}
         <main className={`main-content${isGameRoute ? ' main-content--game' : ''}`}>
           {renderActivePage()}
         </main>
@@ -116,11 +152,15 @@ export const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <SettingsProvider>
-        <AppContent />
-      </SettingsProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <NameDecorationProvider>
+        <AuthProvider>
+          <SettingsProvider>
+            <AppContent />
+          </SettingsProvider>
+        </AuthProvider>
+      </NameDecorationProvider>
+    </ThemeProvider>
   );
 };
 

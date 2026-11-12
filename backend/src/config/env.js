@@ -13,6 +13,11 @@ const nodeEnv = process.env.NODE_ENV || 'development';
 const isProduction = nodeEnv === 'production';
 const appBaseUrl = process.env.APP_BASE_URL || 'http://localhost:5173';
 
+// Cloudflare Turnstile is free and has dedicated always-pass keys for local
+// development and automated tests. Production must provide real keys.
+const TURNSTILE_TEST_SITE_KEY = '1x00000000000000000000AA';
+const TURNSTILE_TEST_SECRET_KEY = '1x0000000000000000000000000000000AA';
+
 function resolveJwtSecret() {
   const secret = process.env.JWT_SECRET;
   if (secret && secret.trim()) return secret;
@@ -42,6 +47,7 @@ export const config = {
   port: resolvePort(),
   nodeEnv,
   isProduction,
+  isTest: nodeEnv === 'test',
   jwtSecret: resolveJwtSecret(),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   databasePath: process.env.NODE_ENV === 'test'
@@ -54,6 +60,10 @@ export const config = {
   corsOrigin: process.env.CORS_ORIGIN || appBaseUrl,
   trustProxy: resolveTrustProxy(),
   appBaseUrl,
+  turnstileSiteKey: process.env.TURNSTILE_SITE_KEY || (isProduction ? '' : TURNSTILE_TEST_SITE_KEY),
+  turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY || (isProduction ? '' : TURNSTILE_TEST_SECRET_KEY),
+  turnstileTestSiteKey: TURNSTILE_TEST_SITE_KEY,
+  turnstileTestSecretKey: TURNSTILE_TEST_SECRET_KEY,
   smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
   smtpPort: parseInt(process.env.SMTP_PORT || '587', 10),
   smtpUser: process.env.SMTP_USER || '',

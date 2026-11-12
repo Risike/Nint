@@ -4,7 +4,11 @@ import { Trophy, Medal, Timer, Flame, Zap, RefreshCw, Swords } from 'lucide-reac
 import { useI18n } from '../i18n/useI18n';
 import { UserName } from '../components/user/UserName';
 
-export const LeaderboardsPage: React.FC = () => {
+interface LeaderboardsPageProps {
+  onSelectPlayer?: (userId: string) => void;
+}
+
+export const LeaderboardsPage: React.FC<LeaderboardsPageProps> = ({ onSelectPlayer }) => {
   const [mode, setMode] = useState<string>('marathon_150');
   const [timeframe, setTimeframe] = useState<string>('all');
   const [entries, setEntries] = useState<any[]>([]);
@@ -155,11 +159,27 @@ export const LeaderboardsPage: React.FC = () => {
                 <tr key={entry.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '0.75rem 1rem' }}>{getRankBadge(entry.rank)}</td>
                   <td style={{ padding: '0.75rem 1rem' }}>
-                    <UserName
-                      displayName={entry.display_name}
-                      cosmetics={{ name_color: entry.name_color, name_decoration: entry.name_decoration, title: entry.title }}
-                      size="0.9rem"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => onSelectPlayer?.(entry.user_id)}
+                      title={t('View player profile')}
+                      aria-label={`${t('View player profile')}: ${entry.display_name}`}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        color: 'inherit',
+                        font: 'inherit',
+                        cursor: 'pointer',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <UserName
+                        displayName={entry.display_name}
+                        cosmetics={{ name_color: entry.name_color, name_decoration: entry.name_decoration, profile_icon: entry.profile_icon, title: entry.title }}
+                        size="0.9rem"
+                      />
+                    </button>
                   </td>
                   <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
                     {formatScoreOrTime(entry)}

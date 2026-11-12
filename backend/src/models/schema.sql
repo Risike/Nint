@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     display_name TEXT NOT NULL,
     username TEXT,
+    email_verified INTEGER NOT NULL DEFAULT 1,
     avatar_url TEXT,
     is_admin INTEGER DEFAULT 0,
     token_version INTEGER DEFAULT 0,
@@ -96,6 +97,19 @@ CREATE TABLE IF NOT EXISTS match_history (
     created_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS online_matches (
+    id TEXT PRIMARY KEY,
+    seed INTEGER NOT NULL,
+    ranked INTEGER NOT NULL DEFAULT 0,
+    host_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    guest_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'waiting',
+    winner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at INTEGER NOT NULL,
+    started_at INTEGER,
+    completed_at INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS user_statistics (
     user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     games_played INTEGER DEFAULT 0,
@@ -117,8 +131,15 @@ CREATE TABLE IF NOT EXISTS shop_items (
     id TEXT PRIMARY KEY,
     kind TEXT NOT NULL,
     name TEXT NOT NULL,
+    name_fr TEXT NOT NULL DEFAULT '',
+    name_de TEXT NOT NULL DEFAULT '',
+    name_es TEXT NOT NULL DEFAULT '',
+    name_it TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     value TEXT NOT NULL,
+    mode TEXT NOT NULL DEFAULT 'dark',
+    palette TEXT NOT NULL DEFAULT '',
+    html TEXT NOT NULL DEFAULT '',
     price INTEGER NOT NULL DEFAULT 0,
     is_default INTEGER NOT NULL DEFAULT 0,
     active INTEGER NOT NULL DEFAULT 1,
@@ -139,7 +160,9 @@ CREATE TABLE IF NOT EXISTS user_cosmetics (
     piece_skin TEXT NOT NULL DEFAULT 'classic',
     name_color TEXT NOT NULL DEFAULT '#f8fafc',
     name_decoration TEXT NOT NULL DEFAULT 'none',
+    profile_icon TEXT NOT NULL DEFAULT 'user',
     title TEXT NOT NULL DEFAULT '',
+    theme TEXT NOT NULL DEFAULT 'dark-01',
     updated_at INTEGER NOT NULL
 );
 
@@ -148,6 +171,14 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at INTEGER NOT NULL,
     used INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS email_verification_codes (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_sent_at INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS site_config (
@@ -165,5 +196,8 @@ CREATE INDEX IF NOT EXISTS idx_personal_bests_mode_val ON personal_bests(mode, m
 CREATE INDEX IF NOT EXISTS idx_match_history_user ON match_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_shop_items_kind ON shop_items(kind, active, sort_order);
 CREATE INDEX IF NOT EXISTS idx_match_history_match ON match_history(match_id);
+CREATE INDEX IF NOT EXISTS idx_online_matches_host ON online_matches(host_user_id);
+CREATE INDEX IF NOT EXISTS idx_online_matches_guest ON online_matches(guest_user_id);
+CREATE INDEX IF NOT EXISTS idx_online_matches_status ON online_matches(status);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_match_history_user_match
     ON match_history(match_id, user_id) WHERE match_id IS NOT NULL;

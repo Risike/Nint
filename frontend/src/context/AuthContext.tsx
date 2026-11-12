@@ -13,7 +13,9 @@ export interface User {
     piece_skin?: string;
     name_color?: string;
     name_decoration?: string;
+    profile_icon?: string;
     title?: string;
+    theme?: string;
   };
   is_admin?: boolean;
 }
@@ -25,7 +27,8 @@ interface AuthContextType {
   isGuest: boolean;
   isLoading: boolean;
   login: (identifier: string, pass: string) => Promise<void>;
-  register: (email: string, pass: string, name: string, username?: string) => Promise<void>;
+  register: (email: string, pass: string, name: string, username: string | undefined, captchaToken: string) => Promise<{ requiresVerification: boolean; email: string }>;
+  verifyEmail: (email: string, code: string) => Promise<void>;
   logout: () => void;
   playAsGuest: () => void;
   refreshProfile: () => Promise<void>;
@@ -68,8 +71,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsGuest(false);
   };
 
-  const register = async (email: string, pass: string, name: string, username?: string) => {
-    const res = await ApiClient.register({ email, password: pass, displayName: name, username });
+  const register = async (email: string, pass: string, name: string, username: string | undefined, captchaToken: string) => {
+    return ApiClient.register({ email, password: pass, displayName: name, username, captchaToken });
+  };
+
+  const verifyEmail = async (email: string, code: string) => {
+    const res = await ApiClient.verifyEmail(email, code);
     ApiClient.setToken(res.token);
     setToken(res.token);
     setUser(res.user);
@@ -109,6 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         register,
+        verifyEmail,
         logout,
         playAsGuest,
         refreshProfile

@@ -14,6 +14,8 @@ import {
   Database
 } from 'firebase/database';
 import { getAuth, connectAuthEmulator, signInAnonymously, Auth } from 'firebase/auth';
+import { normalizeNameColor } from '../utils/nameColor';
+import { ApiClient } from './api';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
@@ -58,9 +60,7 @@ export interface RemotePlayerState {
 }
 
 function normalizePlayerCosmetics(cosmetics?: PlayerCosmetics | null): PlayerCosmetics {
-  const color = typeof cosmetics?.name_color === 'string' && /^#[0-9a-f]{6}$/i.test(cosmetics.name_color)
-    ? cosmetics.name_color.toLowerCase()
-    : '#f8fafc';
+  const color = normalizeNameColor(cosmetics?.name_color);
   const decoration = typeof cosmetics?.name_decoration === 'string'
     ? cosmetics.name_decoration.slice(0, 32)
     : 'none';
@@ -137,24 +137,29 @@ export class FirebaseRealtimeService {
     return this.currentUid;
   }
 
-  // Create an online room
+  // Create an online room. The match id and seed come from the API so a
+  // client can never invent a match that will later be accepted for ELO.
   public static async createRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false, cosmetics?: PlayerCosmetics): Promise<{ matchId: string; seed: number }> {
-    const matchId = 'match_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const uid = this.getUid();
-    const seed = Math.floor(Math.random() * 1000000);
 
     if (this.isConfigured && this.db) {
-      // Setup room entry
-      const roomRef = ref(this.db, `rooms/${roomCode}`);
-      const existingRoom = await get(roomRef);
+      // Reject a duplicate room code before creating the server-side match.
+      const existingRoom = await get(ref(this.db, `rooms/${roomCode}`));
       if (existingRoom.exists()) {
         throw new Error(`Room code "${roomCode}" is already in use. Please try again.`);
       }
+    }
+
+    const serverMatch = await ApiClient.createOnlineMatch(ranked);
+    const { matchId, seed } = serverMatch;
+
+    if (this.isConfigured && this.db) {
+      const roomRef = ref(this.db, `rooms/${roomCode}`);
       await set(roomRef, {
         matchId,
         hostUid: uid,
         status: 'waiting',
-        ranked,
+        ranked: serverMatch.ranked,
         createdAt: Date.now()
       });
 
@@ -168,7 +173,7 @@ export class FirebaseRealtimeService {
         roomCode,
         seed,
         status: 'waiting',
-        ranked,
+        ranked: serverMatch.ranked,
         createdAt: Date.now(),
         players: {
           [uid]: {
@@ -238,6 +243,13 @@ export class FirebaseRealtimeService {
       throw new Error('This room is already full.');
     }
 
+    // The API validates that this account is the guest of a waiting
+    // server-created match and returns the authoritative seed.
+    const joined = await ApiClient.joinOnlineMatch(matchId);
+    if (Boolean(joined.ranked) !== ranked) {
+      throw new Error(ranked ? 'This room is not a ranked match.' : 'This room is ranked. Use Ranked Match to join.');
+    }
+
     // Register second player
     const playerRef = ref(this.db, `matches/${matchId}/players/${uid}`);
     await set(playerRef, {
@@ -266,7 +278,7 @@ export class FirebaseRealtimeService {
       startedAt: Date.now()
     });
 
-    return { matchId, seed: matchData.seed || 12345 };
+    return { matchId, seed: joined.seed };
   }
 
   // Listen for match status once (triggered only on status change)
@@ -410,12 +422,16 @@ export class FirebaseRealtimeService {
     currentMatchId: string,
     roomCode: string
   ): Promise<{ nextMatchId: string; seed: number }> {
-    const nextMatchId = 'match_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-    const seed = Math.floor(Math.random() * 1000000);
+    if (!this.isConfigured || !this.db) {
+      throw new Error('Firebase is not configured. Please check your .env settings.');
+    }
 
-    if (this.isConfigured && this.db) {
-      // 1. Fetch previous players to carry over display names and reset stats
-      const currentSnap = await get(ref(this.db, `matches/${currentMatchId}`));
+    // 1. Ask the API for a server-owned rematch before touching Firebase.
+    const serverMatch = await ApiClient.createOnlineRematch(currentMatchId);
+    const { matchId: nextMatchId, seed } = serverMatch;
+
+    // 2. Fetch previous players to carry over display names and reset stats
+    const currentSnap = await get(ref(this.db, `matches/${currentMatchId}`));
       const currentData = currentSnap.exists() ? currentSnap.val() : {};
       const previousPlayers = currentData.players || {};
 
@@ -435,18 +451,18 @@ export class FirebaseRealtimeService {
         };
       }
 
-      // 2. Create the next match document
+      // 3. Create the next match document
       await set(ref(this.db, `matches/${nextMatchId}`), {
         matchId: nextMatchId,
         roomCode,
         seed,
         status: 'active',
-        ranked: currentData.ranked === true,
+        ranked: serverMatch.ranked,
         createdAt: Date.now(),
         players: freshPlayers
       });
 
-      // 3. Setup host onDisconnect on the new match
+      // 4. Setup host onDisconnect on the new match
       const myUid = this.getUid();
       const myPlayerRef = ref(this.db, `matches/${nextMatchId}/players/${myUid}`);
       onDisconnect(myPlayerRef).update({
@@ -455,18 +471,17 @@ export class FirebaseRealtimeService {
         lastSeen: Date.now()
       }).catch(() => {});
 
-      // 4. Update room to point to the new match
+      // 5. Update room to point to the new match
       await update(ref(this.db, `rooms/${roomCode}`), {
         matchId: nextMatchId,
         status: 'active'
       });
 
-      // 5. Notify both participants through the previous match
-      await set(ref(this.db, `matches/${currentMatchId}/nextMatch`), {
-        nextMatchId,
-        seed
-      });
-    }
+      // 6. Notify both participants through the previous match
+    await set(ref(this.db, `matches/${currentMatchId}/nextMatch`), {
+      nextMatchId,
+      seed
+    });
 
     return { nextMatchId, seed };
   }
@@ -565,6 +580,7 @@ export class FirebaseRealtimeService {
 
     if (isDisposed) {
       // User cancelled during room creation
+      ApiClient.sendBeaconForfeit({ matchId, result: 'cancel' });
       this.leaveRoom(roomCode, matchId, true).catch(() => {});
       return async () => {};
     }
@@ -627,6 +643,7 @@ export class FirebaseRealtimeService {
 
                 // Clean up our own room and queue entry
                 set(myQueueRef, null).catch(() => {});
+                ApiClient.sendBeaconForfeit({ matchId, result: 'cancel' });
                 this.leaveRoom(roomCode, matchId, true).catch(() => {});
 
                 // Join the older room
@@ -648,6 +665,7 @@ export class FirebaseRealtimeService {
       if (pollTimer) clearInterval(pollTimer);
       if (unsubscribeStart) unsubscribeStart();
       try {
+        ApiClient.sendBeaconForfeit({ matchId, result: 'cancel' });
         await set(myQueueRef, null);
         await this.leaveRoom(roomCode, matchId, true);
       } catch (e) {

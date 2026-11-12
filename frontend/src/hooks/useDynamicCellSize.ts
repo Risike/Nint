@@ -1,6 +1,7 @@
 import { useState, useLayoutEffect, RefObject } from 'react';
 
-const VERSUS_ARENA_HEADER_HEIGHT = 30; // side title row + its gap
+const VERSUS_ARENA_HEADER_FALLBACK = 44; // fixed title slot + its gap before layout
+const VERSUS_ARENA_VERTICAL_SAFETY = 6; // board borders and rounding
 const VERSUS_FIXED_WIDTH = 600; // four side panels, the VS badge and all gaps
 const MAIN_CONTENT_MAX_WIDTH = 1440;
 const MAIN_CONTENT_HORIZONTAL_PADDING = 32;
@@ -22,8 +23,21 @@ export function useDynamicCellSize(
     const vw = window.innerWidth;
 
     if (isVersus) {
+      let headerHeight = VERSUS_ARENA_HEADER_FALLBACK;
+      if (arena) {
+        const title = arena.querySelector<HTMLElement>('.versus-side-title');
+        const titleHeight = title?.getBoundingClientRect().height || 0;
+        const side = title?.parentElement;
+        const gapValue = side ? (window.getComputedStyle(side).rowGap || window.getComputedStyle(side).gap) : '';
+        const parsedGap = Number.parseFloat(gapValue);
+        const sideGap = Number.isFinite(parsedGap) ? parsedGap : VERSUS_ARENA_HEADER_FALLBACK / 5;
+        if (titleHeight > 0) {
+          headerHeight = titleHeight + sideGap;
+        }
+      }
+
       const availableHeight = arena && arena.clientHeight > 0
-        ? Math.max(0, arena.clientHeight - VERSUS_ARENA_HEADER_HEIGHT)
+        ? Math.max(0, arena.clientHeight - headerHeight - VERSUS_ARENA_VERTICAL_SAFETY)
         : Math.max(0, vh - 300);
       // The initial render happens before the arena ref exists. Use the same
       // capped content width as .main-content (1440px minus its 2×16px padding)
@@ -71,6 +85,8 @@ export function useDynamicCellSize(
     if (arena && typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(handleResize);
       observer.observe(arena);
+      const title = arena.querySelector<HTMLElement>('.versus-side-title');
+      if (title) observer.observe(title);
     }
 
     window.addEventListener('resize', handleResize);

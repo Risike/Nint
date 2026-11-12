@@ -1,7 +1,7 @@
 import { BOARD_BUFFER_HEIGHT, BOARD_VISIBLE_HEIGHT, BOARD_WIDTH, PIECES, TetrominoType } from '../engine/constants';
 import { GameEngine } from '../engine/gameEngine';
 import { ParticleSystem } from './particleSystem';
-import { drawSkinnedMino, normalizePieceSkin, PieceSkin } from './pieceSkins';
+import { drawSkinnedMino, isRoundPieceSkin, normalizePieceSkin, PieceSkin } from './pieceSkins';
 
 export interface RendererOptions {
   cellSize?: number;
@@ -199,7 +199,11 @@ export class CanvasRenderer {
     ctx.lineWidth = 1.5;
 
     ctx.beginPath();
-    ctx.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, r);
+    if (isRoundPieceSkin(this.pieceSkin)) {
+      ctx.arc(x + size / 2, y + size / 2, Math.max(1, size / 2 - pad), 0, Math.PI * 2);
+    } else {
+      ctx.roundRect(x + pad, y + pad, size - pad * 2, size - pad * 2, r);
+    }
     ctx.fill();
     ctx.stroke();
   }

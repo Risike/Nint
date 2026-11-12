@@ -125,25 +125,20 @@ export class ResultService {
 
     const db = getDatabase();
 
-    // Zen mode: only playtime is recorded, no leaderboard or other statistics.
-    // Cleared lines still earn account credits like every other mode.
+    // Zen mode: only playtime is recorded, no leaderboard, statistics or credits.
     if (mode === 'zen') {
       if (!verified) {
         return { id: null, verified: false, validationReason: validation.reason, creditsAwarded: 0 };
       }
       const now = Date.now();
-      const tx = db.transaction(() => {
-        db.prepare(`
-          UPDATE user_statistics SET
-            total_playtime_ms = total_playtime_ms + ?,
-            updated_at = ?
-          WHERE user_id = ?
-        `).run(duration, now, userId);
-        return awardLineCredits(db, userId, lines, now);
-      });
-      const creditsAwarded = tx();
+      db.prepare(`
+        UPDATE user_statistics SET
+          total_playtime_ms = total_playtime_ms + ?,
+          updated_at = ?
+        WHERE user_id = ?
+      `).run(duration, now, userId);
 
-      return { id: crypto.randomUUID(), verified: true, zen: true, creditsAwarded };
+      return { id: crypto.randomUUID(), verified: true, zen: true, creditsAwarded: 0 };
     }
 
     const durationSec = duration / 1000;

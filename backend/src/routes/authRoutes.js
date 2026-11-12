@@ -5,7 +5,10 @@ import { authLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
+router.get('/captcha', AuthController.getCaptchaConfig);
 router.post('/register', authLimiter, AuthController.register);
+router.post('/verify-email', authLimiter, AuthController.verifyEmail);
+router.post('/verify-email/resend', authLimiter, AuthController.resendVerification);
 router.post('/login', authLimiter, AuthController.login);
 router.post('/logout', authenticateToken, AuthController.logout);
 router.post('/password-reset', authLimiter, AuthController.requestPasswordReset);

@@ -36,8 +36,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
   const [opponentCosmetics, setOpponentCosmetics] = useState<PlayerCosmetics | null>(null);
   const [opponentRating, setOpponentRating] = useState<number>(1000);
   const [isRankedMatch, setIsRankedMatch] = useState<boolean>(false);
-  const opponentUserIdRef = useRef<string | null>(null);
-  const isRankedRef = useRef<boolean>(false);
+
   const [eloResult, setEloResult] = useState<{ oldRating: number; newRating: number; delta: number; opponentRating: number } | null>(null);
 
   const [playerEngine, setPlayerEngine] = useState<GameEngine>(() => new GameEngine());
@@ -96,7 +95,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
   const gameStartedRef = useRef<boolean>(false);
   const lastSyncTimeRef = useRef<number>(0);
   const matchEndedRef = useRef<boolean>(false);
-  const currentOpponentNameRef = useRef<string>(t('Online Opponent'));
+
   const playerEngineRef = useRef<GameEngine>(playerEngine);
   playerEngineRef.current = playerEngine;
   const matchStatusRef = useRef(matchStatus);
@@ -132,7 +131,6 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
   };
 
   const setRankedMode = (ranked: boolean) => {
-    isRankedRef.current = ranked;
     setIsRankedMatch(ranked);
   };
 
@@ -151,16 +149,19 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       FirebaseRealtimeService.leaveRoom(code, mId, isHostRef.current);
     }
 
-    // Record defeat if in an active game and the opponent account is known
-    if (status === 'in_game' && isAuthenticatedRef.current && opponentUserIdRef.current) {
+    if (!mId || !isAuthenticatedRef.current) return;
+
+    if (status === 'waiting') {
+      // Cancel the server-owned waiting match so abandoned rooms do not linger.
+      ApiClient.sendBeaconForfeit({ matchId: mId, result: 'cancel' });
+      return;
+    }
+
+    if (status === 'in_game') {
       const stats = playerEngineRef.current.getStats();
+      // The opponent identity and ranked status come from the server match.
       ApiClient.sendBeaconForfeit({
-        opponentName: currentOpponentNameRef.current,
-        opponentType: 'human',
-        mode: 'versus_online',
         matchId: mId,
-        opponentId: opponentUserIdRef.current,
-        ranked: isRankedRef.current,
         result: 'loss',
         playerScore: playerEngineRef.current.score,
         playerLines: playerEngineRef.current.lines,
@@ -318,13 +319,9 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
           for (const [uid, p] of Object.entries<any>(matchData.players)) {
             if (uid !== myUid) {
               setOpponentName(p.displayName || t('Player 2'));
-              currentOpponentNameRef.current = p.displayName || t('Player 2');
               setOpponentCosmetics(p.cosmetics || null);
               if (p.rating) {
                 setOpponentRating(p.rating);
-              }
-              if (p.userId) {
-                opponentUserIdRef.current = p.userId;
               }
               break;
             }
@@ -450,16 +447,12 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     unsubscribeOpponentRef.current = FirebaseRealtimeService.listenToOpponent(currentMatchId, (opponentState: RemotePlayerState) => {
       if (opponentState.displayName) {
         setOpponentName(opponentState.displayName);
-        currentOpponentNameRef.current = opponentState.displayName;
       }
       if (opponentState.rating) {
         setOpponentRating(opponentState.rating);
       }
       if (opponentState.cosmetics) {
         setOpponentCosmetics(opponentState.cosmetics);
-      }
-      if (opponentState.userId) {
-        opponentUserIdRef.current = opponentState.userId;
       }
       if (opponentState.connected === false) {
         if (matchStatusRef.current === 'finished') {
@@ -665,18 +658,13 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
     }
 
     const matchIdForRecord = matchIdRef.current;
-    const opponentIdForRecord = opponentUserIdRef.current;
 
-    if (isAuthenticated && matchIdForRecord && opponentIdForRecord) {
+    if (isAuthenticated && matchIdForRecord) {
       try {
         const stats = engine.getStats();
         const payload = {
-          opponentName: currentOpponentNameRef.current || opponentName,
           opponentType: 'human',
           matchId: matchIdForRecord,
-          opponentId: opponentIdForRecord,
-          mode: 'versus_online',
-          ranked: isRankedRef.current,
           result,
           playerScore: engine.score,
           playerLines: engine.lines,

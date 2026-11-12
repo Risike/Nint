@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { User, Volume2, VolumeX, Shield, Maximize2, Minimize2, ShoppingBag } from 'lucide-react';
+import { Volume2, VolumeX, Shield, Maximize2, Minimize2, ShoppingBag, Home, Gamepad2, Users, Trophy, BarChart3, Settings as SettingsIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useGamepadNav } from '../../context/GamepadNavContext';
 import { useI18n } from '../../i18n/useI18n';
-import { MAIN_NAV_ITEMS } from '../../navigation';
+import { MAIN_NAV_ITEMS, type MainTab } from '../../navigation';
 import { toggleFullscreen } from '../../utils/fullscreen';
 import { UserName } from '../user/UserName';
 
@@ -12,6 +13,16 @@ interface NavbarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
 }
+
+const NAV_ICONS: Record<MainTab, LucideIcon> = {
+  home: Home,
+  solo: Gamepad2,
+  online: Users,
+  leaderboards: Trophy,
+  stats: BarChart3,
+  shop: ShoppingBag,
+  settings: SettingsIcon
+};
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
   const { user, isAuthenticated } = useAuth();
@@ -28,7 +39,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
   }, []);
 
   const isItemActive = (tab: string) =>
-    activeTab === tab || (tab === 'solo' && activeTab === 'versus_ai');
+    activeTab === tab
+    || (tab === 'solo' && activeTab === 'versus_ai')
+    || (tab === 'leaderboards' && activeTab === 'player');
 
   return (
     <nav className="navbar">
@@ -71,17 +84,20 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
         {gamepadConnected && (
           <span className="gamepad-nav-badge" title={t('Previous tab')}>LB</span>
         )}
-        {MAIN_NAV_ITEMS.map((item) => (
-          <button
-            key={item.tab}
-            className={`nav-item ${isItemActive(item.tab) ? 'active' : ''}`}
-            onClick={() => setActiveTab(item.tab)}
-            style={item.tab === 'shop' ? { display: 'flex', alignItems: 'center', gap: '0.3rem' } : undefined}
-          >
-            {item.tab === 'shop' && <ShoppingBag size={14} />}
-            {t(item.label)}
-          </button>
-        ))}
+        {MAIN_NAV_ITEMS.map((item) => {
+          const Icon = NAV_ICONS[item.tab];
+          return (
+            <button
+              key={item.tab}
+              className={`nav-item ${isItemActive(item.tab) ? 'active' : ''}`}
+              onClick={() => setActiveTab(item.tab)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+            >
+              <Icon size={14} />
+              {t(item.label)}
+            </button>
+          );
+        })}
         {user?.is_admin && (
           <button
             className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
@@ -123,7 +139,6 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
               onClick={() => setActiveTab('profile')}
               style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
             >
-              <User size={16} />
               <UserName displayName={user?.display_name || 'Profile'} cosmetics={user?.cosmetics} size="0.9rem" showTitle={false} />
             </button>
           </div>

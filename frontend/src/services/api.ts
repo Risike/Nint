@@ -41,10 +41,34 @@ export class ApiClient {
   }
 
   // Auth
-  public static register(payload: { email: string; password: string; displayName: string; username?: string }) {
-    return this.request<{ user: any; token: string }>('/auth/register', {
+  public static getCaptchaConfig() {
+    return this.request<{ siteKey: string; enabled: boolean }>('/auth/captcha');
+  }
+
+  public static register(payload: {
+    email: string;
+    password: string;
+    displayName: string;
+    username?: string;
+    captchaToken: string;
+  }) {
+    return this.request<{ requiresVerification: boolean; email: string; message: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload)
+    });
+  }
+
+  public static verifyEmail(email: string, code: string) {
+    return this.request<{ user: any; token: string }>('/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ email, code })
+    });
+  }
+
+  public static resendVerification(email: string) {
+    return this.request<{ message: string }>('/auth/verify-email/resend', {
+      method: 'POST',
+      body: JSON.stringify({ email })
     });
   }
 
@@ -107,9 +131,21 @@ export class ApiClient {
     return this.request<any>('/stats/me');
   }
 
+  public static getPlayerStats(userId: string) {
+    return this.request<any>(`/stats/${encodeURIComponent(userId)}`);
+  }
+
   // Shop
   public static getShop() {
     return this.request<any>('/shop');
+  }
+
+  public static getThemes() {
+    return this.request<any[]>('/shop/themes');
+  }
+
+  public static getDecorations() {
+    return this.request<any[]>('/shop/decorations');
   }
 
   public static purchaseShopItem(itemId: string) {
@@ -139,6 +175,27 @@ export class ApiClient {
   }
 
   // Matches
+  public static createOnlineMatch(ranked: boolean) {
+    return this.request<{ matchId: string; seed: number; ranked: boolean; status: string }>('/matches/online', {
+      method: 'POST',
+      body: JSON.stringify({ ranked })
+    });
+  }
+
+  public static joinOnlineMatch(matchId: string) {
+    return this.request<{ matchId: string; seed: number; ranked: boolean; status: string }>(
+      `/matches/online/${encodeURIComponent(matchId)}/join`,
+      { method: 'POST', body: JSON.stringify({}) }
+    );
+  }
+
+  public static createOnlineRematch(matchId: string) {
+    return this.request<{ matchId: string; seed: number; ranked: boolean; status: string }>(
+      `/matches/online/${encodeURIComponent(matchId)}/rematch`,
+      { method: 'POST', body: JSON.stringify({}) }
+    );
+  }
+
   public static recordMatch(data: any) {
     return this.request<any>('/matches/record', {
       method: 'POST',
