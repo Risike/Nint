@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { ApiClient } from '../services/api';
-import { User, KeyRound, Trash2, LogOut, CheckCircle2, Coins } from 'lucide-react';
+import { User, KeyRound, Trash2, LogOut, CheckCircle2 } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 import { UserName } from '../components/user/UserName';
 

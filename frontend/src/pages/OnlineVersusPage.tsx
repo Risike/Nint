@@ -12,7 +12,7 @@ import { UserName } from '../components/user/UserName';
 import { ApiClient } from '../services/api';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
-import { Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2, Lock, ShieldAlert, Trophy } from 'lucide-react';
+import { Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2, Lock, Trophy } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 
 interface OnlineVersusPageProps {

@@ -17,7 +17,7 @@ import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack, scrollElementIntoViewSmart } from '../context/GamepadNavContext';
 import { useI18n } from '../i18n/useI18n';
 import { SoloModeMenu } from './SoloModeMenu';
-import { Play, Pause, RotateCcw, ArrowLeft, Flame, Smile, Sliders, Shield } from 'lucide-react';
+import { Play, Pause, RotateCcw, ArrowLeft, Flame, Smile, Sliders } from 'lucide-react';
 
 type SoloMode = 'marathon' | 'sprint' | 'ultra' | 'zen' | 'custom';
 
@@ -28,7 +28,7 @@ interface SoloPageProps {
 }
 
 export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialMode, onStartCpu }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { settings } = useSettings();
   const { t } = useI18n();
   const cellSize = useDynamicCellSize(false);
@@ -50,8 +50,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   // Trigger flags for zen actions (avoids stale closures in RAF loop)
   const [zenActionPending, setZenActionPending] = useState<'start' | 'back' | null>(null);
 
-  const [sprintGoal, setSprintGoal] = useState<number>(40);
-  const [ultraDuration, setUltraDuration] = useState<number>(180000); // 3 mins
+  const sprintGoal = 40;
+  const ultraDuration = 180000; // 3 mins
   const [marathonStartLevel, setMarathonStartLevel] = useState<number>(1);
 
   const [engine, setEngine] = useState<GameEngine>(() => new GameEngine());

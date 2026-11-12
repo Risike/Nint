@@ -99,7 +99,7 @@ export class SoundManager {
     }
   }
 
-  public playCountdown(num: number) {
+  public playCountdown(_num: number) {
     this.playTone(440, 'triangle', 0.1, 0.3);
   }
 

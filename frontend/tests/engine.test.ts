@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BOARD_BUFFER_HEIGHT, BOARD_TOTAL_HEIGHT, BOARD_WIDTH } from '../src/game/engine/constants';
+import { BOARD_TOTAL_HEIGHT, BOARD_WIDTH } from '../src/game/engine/constants';
 import { GameEngine } from '../src/game/engine/gameEngine';
 import { GarbageManager } from '../src/game/engine/garbage';
 import { Randomizer } from '../src/game/engine/randomizer';

@@ -1,7 +1,6 @@
 import { TetrominoType } from './constants';
 
 export class Randomizer {
-  private bag: TetrominoType[] = [];
   private queue: TetrominoType[] = [];
   private rng: () => number;
 

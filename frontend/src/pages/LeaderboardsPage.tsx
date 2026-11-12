@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../services/api';
-import { Trophy, Medal, Timer, Flame, Zap, RefreshCw, Swords } from 'lucide-react';
+import { Timer, Flame, Zap, RefreshCw, Swords } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 import { UserName } from '../components/user/UserName';
 

@@ -205,7 +205,6 @@ export function drawSkinnedMino(
   const inner = Math.max(1, size - pad * 2);
   const base = normalizeHex(color);
   const radius = Math.max(2, size * 0.16);
-  const line = Math.max(1, size * 0.06);
   const cx = x + size / 2;
   const cy = y + size / 2;
   const discRadius = Math.max(1, size / 2 - pad);

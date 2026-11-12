@@ -179,7 +179,7 @@ export const VersusAiPage: React.FC<VersusAiPageProps> = ({
     aEngine.events.onPieceLock = () => {
       setAiGarbage(aEngine.garbageManager.getPendingCount());
     };
-    aEngine.events.onLineClear = (res) => {
+    aEngine.events.onLineClear = () => {
       setAiGarbage(aEngine.garbageManager.getPendingCount());
       setAiLinesDisplay(aEngine.lines);
     };

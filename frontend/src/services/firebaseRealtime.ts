@@ -127,7 +127,7 @@ export class FirebaseRealtimeService {
     return this.auth?.currentUser?.uid || this.currentUid;
   }
 
-  public static async authenticate(displayName: string = 'Player'): Promise<string> {
+  public static async authenticate(_displayName: string = 'Player'): Promise<string> {
     this.initialize();
     if (this.isConfigured && this.auth) {
       try {

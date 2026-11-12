@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { LocalStorageManager } from '../services/storage';
-import { BarChart2, Trophy, Clock, Zap, Target, Swords, Flame, Timer, Bot, Users, ArrowLeft } from 'lucide-react';
+import { BarChart2, Trophy, Zap, Target, Swords, Flame, Timer, Bot, Users, ArrowLeft } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 import { UserName } from '../components/user/UserName';
 
