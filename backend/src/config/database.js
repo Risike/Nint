@@ -105,6 +105,11 @@ export function initSchema(db = getDatabase()) {
     ensureColumn(db, 'online_matches', 'mode', "TEXT NOT NULL DEFAULT 'versus'");
 
     db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_match_history_match
+        ON match_history(match_id)
+    `);
+
+    db.exec(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_match_history_user_match
         ON match_history(match_id, user_id) WHERE match_id IS NOT NULL
     `);

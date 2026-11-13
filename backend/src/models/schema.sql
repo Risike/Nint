@@ -196,9 +196,8 @@ CREATE INDEX IF NOT EXISTS idx_game_results_mode_created ON game_results(mode, c
 CREATE INDEX IF NOT EXISTS idx_personal_bests_mode_val ON personal_bests(mode, metric, value);
 CREATE INDEX IF NOT EXISTS idx_match_history_user ON match_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_shop_items_kind ON shop_items(kind, active, sort_order);
-CREATE INDEX IF NOT EXISTS idx_match_history_match ON match_history(match_id);
 CREATE INDEX IF NOT EXISTS idx_online_matches_host ON online_matches(host_user_id);
 CREATE INDEX IF NOT EXISTS idx_online_matches_guest ON online_matches(guest_user_id);
 CREATE INDEX IF NOT EXISTS idx_online_matches_status ON online_matches(status);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_match_history_user_match
-    ON match_history(match_id, user_id) WHERE match_id IS NOT NULL;
+-- match_history indexes are created after migrations (database.js), because
+-- older databases need the match_id column added first.
