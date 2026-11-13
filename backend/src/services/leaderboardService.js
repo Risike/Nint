@@ -83,7 +83,7 @@ export class LeaderboardService {
 
     const isSprint = TIME_MODES.has(mode);
     const orderDirection = isSprint ? 'ASC' : 'DESC';
-    const primaryCol = isSprint ? 'r.duration' : 'r.score';
+    const primaryCol = isSprint ? 'duration' : 'score';
     const cutoffMs = TIMEFRAMES[safeTimeframe];
 
     const params = [mode];
@@ -93,7 +93,19 @@ export class LeaderboardService {
       params.push(Date.now() - cutoffMs);
     }
 
+    // A leaderboard ranks players, not individual attempts. Keep only each
+    // player's best run (highest score, or fastest Sprint) before paginating.
     const sql = `
+      WITH ranked_results AS (
+        SELECT
+          r.*,
+          ROW_NUMBER() OVER (
+            PARTITION BY r.user_id
+            ORDER BY r.${primaryCol} ${orderDirection}, r.created_at ASC
+          ) AS user_run_rank
+        FROM game_results r
+        WHERE r.mode = ? AND r.verified = 1 ${timeFilter}
+      )
       SELECT
         r.id,
         r.user_id,
@@ -114,18 +126,18 @@ export class LeaderboardService {
         r.tetrises,
         r.t_spins,
         r.created_at
-      FROM game_results r
+      FROM ranked_results r
       JOIN users u ON u.id = r.user_id
       LEFT JOIN user_cosmetics c ON c.user_id = r.user_id
-      WHERE r.mode = ? AND r.verified = 1 ${timeFilter}
-      ORDER BY ${primaryCol} ${orderDirection}
+      WHERE r.user_run_rank = 1
+      ORDER BY r.${primaryCol} ${orderDirection}, r.created_at ASC
       LIMIT ? OFFSET ?
     `;
 
     const entries = db.prepare(sql).all(...params, safeLimit, safeOffset);
 
     const countRow = db.prepare(`
-      SELECT COUNT(*) as total
+      SELECT COUNT(DISTINCT r.user_id) as total
       FROM game_results r
       WHERE r.mode = ? AND r.verified = 1 ${timeFilter}
     `).get(...params);

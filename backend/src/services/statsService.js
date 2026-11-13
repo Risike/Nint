@@ -124,7 +124,7 @@ export class StatsService {
 
     for (const mode of ['marathon_150', 'ultra_3m', 'boss_attack', 'blast_contest', 'blast_fight']) {
       const total = db.prepare(
-        'SELECT COUNT(*) AS count FROM game_results WHERE mode = ? AND verified = 1'
+        'SELECT COUNT(DISTINCT user_id) AS count FROM game_results WHERE mode = ? AND verified = 1'
       ).get(mode).count;
       const best = db.prepare(
         'SELECT MAX(score) AS value FROM game_results WHERE user_id = ? AND mode = ? AND verified = 1'
@@ -133,15 +133,20 @@ export class StatsService {
       if (best === null || best === undefined) {
         rankings[mode] = { rank: null, total, value: null };
       } else {
-        const better = db.prepare(
-          'SELECT COUNT(*) AS count FROM game_results WHERE mode = ? AND verified = 1 AND score > ?'
-        ).get(mode, best).count;
+        const better = db.prepare(`
+          SELECT COUNT(*) AS count FROM (
+            SELECT user_id, MAX(score) AS best_score
+            FROM game_results
+            WHERE mode = ? AND verified = 1
+            GROUP BY user_id
+          ) WHERE best_score > ?
+        `).get(mode, best).count;
         rankings[mode] = { rank: better + 1, total, value: best };
       }
     }
 
     const sprintTotal = db.prepare(
-      'SELECT COUNT(*) AS count FROM game_results WHERE mode = ? AND verified = 1'
+      'SELECT COUNT(DISTINCT user_id) AS count FROM game_results WHERE mode = ? AND verified = 1'
     ).get('sprint_40').count;
     const bestSprint = db.prepare(
       'SELECT MIN(duration) AS value FROM game_results WHERE user_id = ? AND mode = ? AND verified = 1'
@@ -149,9 +154,14 @@ export class StatsService {
     if (bestSprint === null || bestSprint === undefined) {
       rankings.sprint_40 = { rank: null, total: sprintTotal, value: null };
     } else {
-      const better = db.prepare(
-        'SELECT COUNT(*) AS count FROM game_results WHERE mode = ? AND verified = 1 AND duration < ?'
-      ).get('sprint_40', bestSprint).count;
+      const better = db.prepare(`
+        SELECT COUNT(*) AS count FROM (
+          SELECT user_id, MIN(duration) AS best_duration
+          FROM game_results
+          WHERE mode = ? AND verified = 1
+          GROUP BY user_id
+        ) WHERE best_duration < ?
+      `).get('sprint_40', bestSprint).count;
       rankings.sprint_40 = { rank: better + 1, total: sprintTotal, value: bestSprint };
     }
 
