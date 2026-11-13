@@ -281,5 +281,4 @@ export const SHOP_THEMES = [
   }
 ];
 
-export const THEME_VALUES = new Set(SHOP_THEMES.map((theme) => theme.value));
 export const DEFAULT_THEME = 'dark-01';

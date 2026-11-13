@@ -92,7 +92,8 @@ test('Verified lines in scored solo modes credit the account, Zen does not', asy
   assert.equal(await getCredits(token), 64);
 
   const bossLeaderboard = await request(app).get('/api/leaderboards/boss_attack');
-  assert.equal(bossLeaderboard.status, 400);
+  assert.equal(bossLeaderboard.status, 200);
+  assert.equal(bossLeaderboard.body.entries[0].score, 7000);
 
   const zen = await request(app)
     .post('/api/results')

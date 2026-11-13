@@ -10,6 +10,8 @@ import { HUD } from '../components/game/HUD';
 import { GameOverModal } from '../components/game/GameOverModal';
 import { CountdownOverlay } from '../components/game/CountdownOverlay';
 import { BossHUD, type BossEffectBadge } from '../components/game/BossHUD';
+import { BossDamageTrail, type BossDamageSpark } from '../components/game/BossDamageTrail';
+import { BOARD_BUFFER_HEIGHT, BOARD_VISIBLE_HEIGHT } from '../game/engine/constants';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { ApiClient } from '../services/api';
@@ -17,68 +19,36 @@ import { LocalStorageManager } from '../services/storage';
 import { getUnlockedCpuLevel } from '../game/cpuLevels';
 import {
   BOSS_BASE_HP,
+  MAX_BOSS_LEVEL,
   getBossLevelDefinition,
   getBossSpeedLevel,
   getUnlockedBossLevel,
   unlockBossLevelAfterWin
 } from '../game/bossLevels';
+import {
+  BOSS_ATTACKS,
+  BOSS_ATTACK_DURATION_MS,
+  BOSS_ATTACK_INTERVAL_MS,
+  BOSS_ATTACK_META,
+  BOSS_FIRST_ATTACK_MS,
+  type BossAttack
+} from '../game/bossAttacks';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
+import { useDevBossKill } from '../hooks/useDevBossKill';
+import { emptySoloRunStats, mergeSoloRunStats, type SoloRunStats } from '../game/soloRunStats';
 import { useGamepadActive, useGamepadBack, scrollElementIntoViewSmart } from '../context/GamepadNavContext';
 import { useI18n } from '../i18n/useI18n';
 import { SoloModeMenu } from './SoloModeMenu';
 import { Play, Pause, RotateCcw, ArrowLeft, Flame, Smile, Sliders } from 'lucide-react';
 
 type SoloMode = 'marathon' | 'sprint' | 'ultra' | 'zen' | 'boss' | 'custom';
-type BossAttack = 'rotation' | 'invert' | 'garbage' | 'blind' | 'speed' | 'ghostless';
 
-const BOSS_FIRST_ATTACK_MS = 30_000;
-const BOSS_ATTACK_INTERVAL_MS = 30_000;
+interface SoloInitOptions {
+  bossCarryScore?: number;
+  preserveBossRun?: boolean;
+}
+
 const BOSS_HUD_RESERVED_HEIGHT = 120;
-const BOSS_ATTACK_DURATION_MS = 15_000;
-const BOSS_ATTACKS: BossAttack[] = ['rotation', 'invert', 'garbage', 'blind', 'speed', 'ghostless'];
-const BOSS_ATTACK_META: Record<BossAttack, {
-  label: string;
-  color: string;
-  background: string;
-  timed: boolean;
-}> = {
-  rotation: {
-    label: 'Rotation Locked',
-    color: 'var(--accent-purple)',
-    background: 'rgba(168, 85, 247, 0.2)',
-    timed: true
-  },
-  invert: {
-    label: 'Controls Inverted',
-    color: 'var(--accent-cyan)',
-    background: 'rgba(6, 182, 212, 0.2)',
-    timed: true
-  },
-  garbage: {
-    label: 'Garbage Attack',
-    color: 'var(--accent-red)',
-    background: 'rgba(239, 68, 68, 0.2)',
-    timed: false
-  },
-  blind: {
-    label: 'Screen Blurred',
-    color: 'var(--accent-slate, #94a3b8)',
-    background: 'rgba(100, 116, 139, 0.25)',
-    timed: true
-  },
-  speed: {
-    label: 'Speed Up',
-    color: 'var(--accent-orange)',
-    background: 'rgba(249, 115, 22, 0.2)',
-    timed: true
-  },
-  ghostless: {
-    label: 'Ghost Piece Hidden',
-    color: 'var(--accent-blue)',
-    background: 'rgba(59, 130, 246, 0.2)',
-    timed: true
-  }
-};
 
 interface SoloPageProps {
   initialMode?: string | null;
@@ -149,6 +119,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     color: string;
     background: string;
   } | null>(null);
+  const [bossDamageSparks, setBossDamageSparks] = useState<BossDamageSpark[]>([]);
+  const [bossImpactKey, setBossImpactKey] = useState<number>(0);
 
   const isPlaying = !isSelectingMode && !isConfiguringZen && !isGameOverModalOpen && (gameState === 'playing' || isCountingDown);
   // Also suppress global gamepad nav during zen config (we handle it ourselves)
@@ -156,8 +128,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
 
   useGamepadBack(() => {
     if (isGameOverModalOpen) {
-      setIsGameOverModalOpen(false);
-      setIsSelectingMode(true);
+      exitToMenu();
       return true;
     }
     if (isConfiguringZen) {
@@ -188,6 +159,9 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   const gamepadManagerRef = useRef<GamepadManager | null>(null);
   const bossHpRef = useRef<number>(BOSS_BASE_HP);
   const bossLevelRef = useRef<number>(1);
+  const bossRunStatsRef = useRef<SoloRunStats>(emptySoloRunStats());
+  const bossRunSubmittedRef = useRef<boolean>(false);
+  const bossRunSavingRef = useRef<boolean>(false);
   const bossStartingSpeedLevelRef = useRef<number>(1);
   const bossSpeedLevelRef = useRef<number>(1);
   const bossAttacksAppliedRef = useRef<number>(0);
@@ -196,6 +170,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   const activeBossEffectsRef = useRef<Map<BossAttack, number>>(new Map());
   const bossAttackBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bossAttackBannerIdRef = useRef<number>(0);
+  const bossDamageSparkIdRef = useRef<number>(0);
+  const bossDamageCleanupTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const playfieldRef = useRef<HTMLDivElement | null>(null);
+  const bossHudRef = useRef<HTMLDivElement | null>(null);
   const zenTimeRecordedRef = useRef<number>(0);
   const zenLinesRecordedRef = useRef<number>(0);
   const zenPiecesRecordedRef = useRef<number>(0);
@@ -214,11 +192,21 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   const zenFocusSectionRef = useRef(zenFocusSection);
   zenFocusSectionRef.current = zenFocusSection;
 
+  useDevBossKill(mode === 'boss' && !isSelectingMode && !isGameOverModalOpen, () => {
+    bossHpRef.current = 0;
+    pendingBossAttackRef.current = null;
+    setPendingBossAttack(null);
+    setBossImpactKey((key) => key + 1);
+    setBossHp(0);
+  });
+
   const resetBossState = (initialHp: number = BOSS_BASE_HP, startingSpeedLevel: number = 1) => {
     if (bossAttackBannerTimerRef.current) {
       clearTimeout(bossAttackBannerTimerRef.current);
       bossAttackBannerTimerRef.current = null;
     }
+    bossDamageCleanupTimersRef.current.forEach((timer) => clearTimeout(timer));
+    bossDamageCleanupTimersRef.current = [];
     bossHpRef.current = initialHp;
     bossStartingSpeedLevelRef.current = startingSpeedLevel;
     bossSpeedLevelRef.current = startingSpeedLevel;
@@ -232,6 +220,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     setPendingBossAttack(null);
     setActiveBossEffects([]);
     setBossAttackBanner(null);
+    setBossDamageSparks([]);
+    setBossImpactKey(0);
   };
 
   const showBossBanner = (label: string, color: string, background: string) => {
@@ -246,9 +236,63 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     }, 2200);
   };
 
+  const triggerBossLineImpact = (rows: number[], linesCleared: number) => {
+    const canvas = playfieldRef.current?.querySelector<HTMLCanvasElement>('canvas');
+    const hpBar = bossHudRef.current?.querySelector<HTMLElement>('[data-boss-hp-bar]');
+    if (!canvas || !hpBar) return;
+
+    const boardRect = canvas.getBoundingClientRect();
+    const barRect = hpBar.getBoundingClientRect();
+    if (boardRect.height <= 0 || barRect.width <= 0) return;
+
+    const targetX = barRect.left + barRect.width / 2;
+    const targetY = barRect.top + barRect.height / 2;
+    const isTetris = linesCleared === 4;
+    const color = '#ffffff';
+    const sparksPerRow = isTetris ? 6 : 3 + linesCleared;
+    const createdAt = Date.now();
+    const sparks: BossDamageSpark[] = [];
+
+    rows.forEach((row, rowIndex) => {
+      const visibleRow = row - BOARD_BUFFER_HEIGHT;
+      if (visibleRow < 0 || visibleRow >= BOARD_VISIBLE_HEIGHT) return;
+
+      const startY = boardRect.top
+        + (visibleRow + 0.5) * (boardRect.height / BOARD_VISIBLE_HEIGHT);
+
+      for (let index = 0; index < sparksPerRow; index += 1) {
+        const lane = (index + 0.5) / sparksPerRow;
+        sparks.push({
+          id: `boss-spark-${createdAt}-${row}-${index}-${bossDamageSparkIdRef.current++}`,
+          startX: boardRect.left + boardRect.width * (0.08 + lane * 0.84),
+          startY,
+          endX: targetX + (lane - 0.5) * Math.min(72, barRect.width * 0.2),
+          endY: targetY,
+          delay: rowIndex * 32 + index * 22,
+          duration: 620 + (index % 3) * 70,
+          size: 4 + (index % 3) * 2,
+          color
+        });
+      }
+    });
+
+    if (sparks.length === 0) return;
+
+    setBossDamageSparks((current) => [...current, ...sparks]);
+    const ids = new Set(sparks.map((spark) => spark.id));
+    let cleanupTimer: ReturnType<typeof setTimeout>;
+    cleanupTimer = setTimeout(() => {
+      setBossDamageSparks((current) => current.filter((spark) => !ids.has(spark.id)));
+      bossDamageCleanupTimersRef.current = bossDamageCleanupTimersRef.current
+        .filter((timer) => timer !== cleanupTimer);
+    }, 1200);
+    bossDamageCleanupTimersRef.current.push(cleanupTimer);
+  };
+
   const activateBossAttack = (attack: BossAttack, targetEngine: GameEngine) => {
     const meta = BOSS_ATTACK_META[attack];
     const now = targetEngine.totalPlayTimeMs;
+    soundManager.playBossAttack(attack);
 
     switch (attack) {
       case 'rotation':
@@ -303,6 +347,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       if (bossAttackBannerTimerRef.current) {
         clearTimeout(bossAttackBannerTimerRef.current);
       }
+      bossDamageCleanupTimersRef.current.forEach((timer) => clearTimeout(timer));
+      bossDamageCleanupTimersRef.current = [];
     };
   }, []);
 
@@ -603,12 +649,19 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     initGame('marathon');
   };
 
-  const initGame = (targetMode?: SoloMode, targetBossLevel?: number) => {
+  const initGame = (targetMode?: SoloMode, targetBossLevel?: number, options: SoloInitOptions = {}) => {
     soundManager.stopBgm();
     // Solo uses page scrolling so the browser scrollbar stays at the right
     // edge; starting a game should bring the HUD and header back into view.
     window.scrollTo({ top: 0, behavior: 'instant' });
     const activeMode = (typeof targetMode === 'string') ? targetMode : mode;
+    const bossCarryScore = activeMode === 'boss'
+      ? Math.max(0, Number(options.bossCarryScore) || 0)
+      : 0;
+    if (activeMode === 'boss' && !options.preserveBossRun) {
+      bossRunStatsRef.current = emptySoloRunStats();
+      bossRunSubmittedRef.current = false;
+    }
     const bossDefinition = activeMode === 'boss'
       ? getBossLevelDefinition(targetBossLevel ?? bossLevelRef.current)
       : null;
@@ -656,7 +709,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
         setCombo(res.comboCount);
       },
       onScoreUpdate: (s, l, lvl) => {
-        setScore(s);
+        setScore(bossCarryScore + s);
         setLines(l);
         setLevel(lvl);
       },
@@ -668,6 +721,12 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           const nextHp = Math.max(0, bossHpRef.current - info.scoreGained);
           bossHpRef.current = nextHp;
           setBossHp(nextHp);
+        }
+
+        if (info.linesCleared > 0) {
+          triggerBossLineImpact(info.clearedRows, info.linesCleared);
+          setBossImpactKey((key) => key + 1);
+          soundManager.playBossDamage(info.linesCleared);
         }
 
         // The killing blow ends the fight immediately; the boss gets no last attack.
@@ -687,6 +746,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
 
         // A Tetris cancels the queued attack and still scores its points.
         if (info.tetris) {
+          soundManager.playBossCounter();
           showBossBanner(t('Attack countered!'), 'var(--accent-green)', 'rgba(34, 197, 94, 0.2)');
           return;
         }
@@ -704,7 +764,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
 
     setEngine(newEngine);
     setGameState('ready');
-    setScore(0);
+    setScore(bossCarryScore);
     setLines(0);
     setLevel(startingLevel);
     setTimeMs(0);
@@ -829,31 +889,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     return () => cancelAnimationFrame(animId);
   }, [engine, mode, sprintGoal, ultraDuration, isSelectingMode, isCountingDown]);
 
-  const handleGameOver = async (victory: boolean, sourceEngine: GameEngine = engine, sourceMode: string = mode) => {
-    soundManager.stopBgm();
-    setIsVictory(victory);
-    setIsGameOverModalOpen(true);
-    if (!victory) {
-      soundManager.playGameOver();
-    } else {
-      soundManager.playClear(4);
-    }
-
-    const stats = sourceEngine.getStats();
-
-    // Zen Mode: no leaderboard or competitive statistics, but cleared lines
-    // still earn credits for the account.
-    if (sourceMode === 'zen') {
-      saveZenSessionTime(sourceEngine, sourceMode);
-      setIsSaved(true);
-      return;
-    }
-
-    if (sourceMode === 'boss' && victory) {
-      setUnlockedBossLevel(unlockBossLevelAfterWin(bossLevelRef.current, user?.id));
-    }
-
-    // Persist result for competitive solo modes
+  const persistSoloResult = async (sourceMode: string, stats: SoloRunStats): Promise<boolean> => {
     const resultPayload = {
       mode: sourceMode === 'sprint'
         ? `sprint_${sprintGoal}`
@@ -882,18 +918,102 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
         setIsSaved(true);
         // Credits can change even when the run ends in a loss.
         refreshProfile().catch(() => {});
+        return true;
       } catch (err) {
         console.warn('Failed to save result:', err);
+        setIsSaved(false);
+        return false;
       }
-    } else {
-      const localResults = LocalStorageManager.getItem<any[]>('guest_results', []);
-      localResults.unshift({ ...resultPayload, date: Date.now() });
-      LocalStorageManager.setItem('guest_results', localResults.slice(0, 50));
-      setIsSaved(false);
     }
+
+    const localResults = LocalStorageManager.getItem<any[]>('guest_results', []);
+    localResults.unshift({ ...resultPayload, date: Date.now() });
+    LocalStorageManager.setItem('guest_results', localResults.slice(0, 50));
+    setIsSaved(false);
+    return true;
   };
 
-  const currentStats = engine.getStats();
+  const finalizeBossRun = async (sourceEngine: GameEngine = engine): Promise<boolean> => {
+    if (bossRunSubmittedRef.current || bossRunSavingRef.current) {
+      return bossRunSubmittedRef.current;
+    }
+
+    bossRunSavingRef.current = true;
+    const stats = mergeSoloRunStats(bossRunStatsRef.current, sourceEngine.getStats());
+    const saved = await persistSoloResult('boss', stats);
+    bossRunSavingRef.current = false;
+    if (saved) bossRunSubmittedRef.current = true;
+    return saved;
+  };
+
+  const handleGameOver = async (victory: boolean, sourceEngine: GameEngine = engine, sourceMode: string = mode) => {
+    soundManager.stopBgm();
+    setIsVictory(victory);
+    setIsGameOverModalOpen(true);
+    if (!victory) {
+      soundManager.playGameOver();
+    } else {
+      soundManager.playClear(4);
+    }
+
+    // Zen Mode: no leaderboard or competitive statistics, but cleared lines
+    // still earn credits for the account.
+    if (sourceMode === 'zen') {
+      saveZenSessionTime(sourceEngine, sourceMode);
+      setIsSaved(true);
+      return;
+    }
+
+    if (sourceMode === 'boss') {
+      if (victory) {
+        setUnlockedBossLevel(unlockBossLevelAfterWin(bossLevelRef.current, user?.id));
+      }
+
+      // A victory below the last boss keeps the run alive. The accumulated
+      // score is saved when the player continues, loses, or leaves the run.
+      if (victory && bossLevelRef.current < MAX_BOSS_LEVEL) {
+        setIsSaved(false);
+        return;
+      }
+
+      await finalizeBossRun(sourceEngine);
+      return;
+    }
+
+    await persistSoloResult(sourceMode, sourceEngine.getStats());
+  };
+
+  const startNextBoss = () => {
+    if (bossLevelRef.current >= MAX_BOSS_LEVEL) return;
+
+    const carriedStats = mergeSoloRunStats(bossRunStatsRef.current, engine.getStats());
+    bossRunStatsRef.current = carriedStats;
+    bossRunSubmittedRef.current = false;
+    initGame('boss', bossLevelRef.current + 1, {
+      bossCarryScore: carriedStats.score,
+      preserveBossRun: true
+    });
+  };
+
+  const exitToMenu = () => {
+    if (mode === 'boss' && isGameOverModalOpen) {
+      void finalizeBossRun();
+    }
+    setIsGameOverModalOpen(false);
+    setIsSelectingMode(true);
+  };
+
+  const handleModalRestart = () => {
+    if (mode === 'boss' && isVictory && bossLevel < MAX_BOSS_LEVEL) {
+      startNextBoss();
+      return;
+    }
+    initGame();
+  };
+
+  const currentStats = mode === 'boss'
+    ? mergeSoloRunStats(bossRunStatsRef.current, engine.getStats())
+    : engine.getStats();
   const isBossMode = mode === 'boss';
   const bossEffectBadges: BossEffectBadge[] = activeBossEffects.map((attack) => {
     const meta = BOSS_ATTACK_META[attack];
@@ -1229,6 +1349,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   // Active Game Screen
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+      {isBossMode && <BossDamageTrail sparks={bossDamageSparks} />}
+
       {/* Top Header Bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
         <button
@@ -1271,13 +1393,14 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       </div>
 
       {isBossMode && (
-        <div style={{ width: '100%', maxWidth: '760px', marginBottom: '0.75rem' }}>
+        <div ref={bossHudRef} style={{ width: '100%', maxWidth: '760px', marginBottom: '0.75rem' }}>
           <BossHUD
             hp={bossHp}
             maxHp={bossMaxHp}
             nextAttackMs={Math.max(0, nextAttackAt - timeMs)}
             pendingAttackName={pendingBossAttackName}
             activeEffects={bossEffectBadges}
+            impactKey={bossImpactKey}
           />
         </div>
       )}
@@ -1302,6 +1425,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
 
         {/* Center: Playfield */}
         <div
+          ref={playfieldRef}
           style={{
             position: 'relative',
             borderRadius: 'var(--radius-md)',
@@ -1411,8 +1535,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
         mode={mode}
         stats={currentStats}
         isSaved={isSaved}
-        onRestart={() => initGame()}
-        onExit={() => setIsSelectingMode(true)}
+        hideSaveNote={mode === 'boss' && isVictory && bossLevel < MAX_BOSS_LEVEL}
+        restartLabel={mode === 'boss' && isVictory && bossLevel < MAX_BOSS_LEVEL ? t('Next Boss') : undefined}
+        onRestart={handleModalRestart}
+        onExit={exitToMenu}
       />
     </div>
   );

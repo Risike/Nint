@@ -323,7 +323,7 @@ describe('Combo versus integration', () => {
 describe('Multi-line Clear (Tetris & Double)', () => {
   it('reports a Tetris to post-lock listeners', () => {
     const engine = new GameEngine();
-    const locked: Array<{ linesCleared: number; scoreGained: number; tetris: boolean }> = [];
+    const locked: Array<{ linesCleared: number; scoreGained: number; tetris: boolean; clearedRows: number[] }> = [];
     engine.events.onPieceLocked = (info) => locked.push(info);
     engine.start();
 
@@ -336,7 +336,7 @@ describe('Multi-line Clear (Tetris & Double)', () => {
     engine.lockPiece();
 
     expect(locked).toHaveLength(1);
-    expect(locked[0]).toMatchObject({ linesCleared: 4, tetris: true });
+    expect(locked[0]).toMatchObject({ linesCleared: 4, tetris: true, clearedRows: [36, 37, 38, 39] });
     expect(locked[0].scoreGained).toBeGreaterThan(0);
   });
 

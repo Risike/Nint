@@ -16,17 +16,6 @@ export const PIECE_SKIN_VALUES = [
   'round_gradient', 'round_glossy', 'round_matte', 'round_pearl', 'round_planet'
 ];
 export const NON_CREATABLE_SHOP_KINDS = new Set(['piece_skin']);
-export const NAME_DECORATION_VALUES = [
-  'none', 'glow', 'underline', 'brackets', 'sparkle',
-  'double_underline', 'overline', 'shadow', 'outline', 'pill', 'box',
-  'dots', 'wave', 'angles', 'stars', 'diamonds', 'arrows',
-  'brackets_square', 'parentheses', 'highlight',
-  'quotes', 'guillemets', 'corner', 'corner_double', 'braces', 'chevrons_double',
-  'tildes', 'pipes', 'slashes', 'plus_signs', 'equals', 'hashes', 'at_sign',
-  'music', 'hearts', 'lightning', 'flames', 'flowers', 'moons', 'crystals',
-  'target', 'crowns', 'wings', 'ribbon', 'gold_frame', 'emboss',
-  'glitch', 'dashed_line', 'orbit', 'terminal'
-];
 const NAME_DECORATION_VALUE_PATTERN = /^[a-z0-9][a-z0-9_-]{1,31}$/;
 
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;

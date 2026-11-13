@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS online_matches (
     id TEXT PRIMARY KEY,
     seed INTEGER NOT NULL,
     ranked INTEGER NOT NULL DEFAULT 0,
+    mode TEXT NOT NULL DEFAULT 'versus',
     host_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     guest_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     status TEXT NOT NULL DEFAULT 'waiting',

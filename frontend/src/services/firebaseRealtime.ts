@@ -11,6 +11,7 @@ import {
   off,
   push,
   onDisconnect,
+  runTransaction,
   Database
 } from 'firebase/database';
 import { getAuth, connectAuthEmulator, signInAnonymously, Auth } from 'firebase/auth';
@@ -31,6 +32,30 @@ export interface PlayerCosmetics {
   name_color?: string;
   name_decoration?: string;
   title?: string;
+}
+
+export type OnlineMatchMode = 'versus' | 'coop_boss';
+
+export interface CoopBossState {
+  hp: number;
+  maxHp: number;
+  level: number;
+  roundStartedAt: number;
+}
+
+export interface CoopAttackState {
+  dueAt: number;
+  pick: string | null;
+  pickAt: number;
+  resolvedAt: number;
+  resolvedAttack: string | null;
+  cancelled: boolean;
+  count: number;
+}
+
+export interface CoopVotes {
+  retry?: Record<string, boolean>;
+  next?: Record<string, boolean>;
 }
 
 export interface RemotePlayerState {
@@ -147,7 +172,7 @@ export class FirebaseRealtimeService {
 
   // Create an online room. The match id and seed come from the API so a
   // client can never invent a match that will later be accepted for ELO.
-  public static async createRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false, cosmetics?: PlayerCosmetics): Promise<{ matchId: string; seed: number }> {
+  public static async createRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false, cosmetics?: PlayerCosmetics, mode: OnlineMatchMode = 'versus'): Promise<{ matchId: string; seed: number }> {
     if (!this.isConfigured || !this.db) {
       throw this.unavailableError();
     }
@@ -165,7 +190,7 @@ export class FirebaseRealtimeService {
       throw new Error(`Room code "${roomCode}" is already in use. Please try again.`);
     }
 
-    const serverMatch = await ApiClient.createOnlineMatch(ranked);
+    const serverMatch = await ApiClient.createOnlineMatch(ranked, mode);
     const { matchId, seed } = serverMatch;
 
     try {
@@ -175,6 +200,7 @@ export class FirebaseRealtimeService {
         hostUid: uid,
         status: 'waiting',
         ranked: serverMatch.ranked,
+        mode,
         createdAt: Date.now()
       });
 
@@ -189,6 +215,7 @@ export class FirebaseRealtimeService {
         seed,
         status: 'waiting',
         ranked: serverMatch.ranked,
+        mode,
         createdAt: Date.now(),
         players: {
           [uid]: {
@@ -223,7 +250,7 @@ export class FirebaseRealtimeService {
   }
 
   // Join an online room
-  public static async joinRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false, cosmetics?: PlayerCosmetics): Promise<{ matchId: string; seed: number }> {
+  public static async joinRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false, cosmetics?: PlayerCosmetics, mode: OnlineMatchMode = 'versus'): Promise<{ matchId: string; seed: number }> {
     const uid = this.getUid();
 
     if (!this.isConfigured || !this.db) {
@@ -251,6 +278,11 @@ export class FirebaseRealtimeService {
     if (Boolean(roomData.ranked) !== ranked) {
       throw new Error(ranked ? 'This room is not a ranked match.' : 'This room is ranked. Use Ranked Match to join.');
     }
+    if ((roomData.mode || 'versus') !== mode) {
+      throw new Error(mode === 'coop_boss'
+        ? 'This room is not a co-op boss room.'
+        : 'This room is for co-op boss battles.');
+    }
 
     const matchId = roomData.matchId;
 
@@ -272,6 +304,9 @@ export class FirebaseRealtimeService {
     const joined = await ApiClient.joinOnlineMatch(matchId);
     if (Boolean(joined.ranked) !== ranked) {
       throw new Error(ranked ? 'This room is not a ranked match.' : 'This room is ranked. Use Ranked Match to join.');
+    }
+    if ((joined.mode || 'versus') !== mode) {
+      throw new Error('This room was created for a different online mode.');
     }
 
     // Register second player
@@ -441,6 +476,141 @@ export class FirebaseRealtimeService {
     return () => off(rematchRef, 'value', listener);
   }
 
+  public static async setCoopLevel(matchId: string, level: number) {
+    if (!this.isConfigured || !this.db) return;
+    const clamped = Math.max(1, Math.min(10, Math.floor(level)));
+    await set(ref(this.db, `matches/${matchId}/coop/levels/${this.getUid()}`), clamped);
+  }
+
+  public static listenToCoopLevels(
+    matchId: string,
+    onLevels: (levels: Record<string, number>) => void
+  ): () => void {
+    if (!this.isConfigured || !this.db) return () => {};
+    const levelsRef = ref(this.db, `matches/${matchId}/coop/levels`);
+    const listener = onValue(levelsRef, (snapshot) => {
+      onLevels(snapshot.exists() ? snapshot.val() : {});
+    });
+    return () => off(levelsRef, 'value', listener);
+  }
+
+  public static async initializeCoopRound(matchId: string, level: number, maxHp: number) {
+    if (!this.isConfigured || !this.db) return;
+    const now = Date.now();
+    await set(ref(this.db, `matches/${matchId}/coop/boss`), {
+      hp: maxHp,
+      maxHp,
+      level,
+      roundStartedAt: now
+    } satisfies CoopBossState);
+    await set(ref(this.db, `matches/${matchId}/coop/attack`), {
+      dueAt: now + 30_000,
+      pick: null,
+      pickAt: 0,
+      resolvedAt: 0,
+      resolvedAttack: null,
+      cancelled: false,
+      count: 0
+    } satisfies CoopAttackState);
+    await set(ref(this.db, `matches/${matchId}/coop/votes`), null);
+  }
+
+  public static listenToCoopBoss(
+    matchId: string,
+    onBoss: (boss: CoopBossState | null) => void
+  ): () => void {
+    if (!this.isConfigured || !this.db) return () => {};
+    const bossRef = ref(this.db, `matches/${matchId}/coop/boss`);
+    const listener = onValue(bossRef, (snapshot) => {
+      onBoss(snapshot.exists() ? snapshot.val() : null);
+    });
+    return () => off(bossRef, 'value', listener);
+  }
+
+  public static async damageCoopBoss(matchId: string, amount: number) {
+    if (!this.isConfigured || !this.db) return;
+    const damage = Math.max(0, Math.floor(amount));
+    if (damage <= 0) return;
+    const bossRef = ref(this.db, `matches/${matchId}/coop/boss`);
+    await runTransaction(bossRef, (current: CoopBossState | null) => {
+      if (!current) return current;
+      return { ...current, hp: Math.max(0, current.hp - damage) };
+    });
+  }
+
+  /** Development-only shortcut: set the shared co-op boss HP to zero. */
+  public static async defeatCoopBoss(matchId: string) {
+    if (!this.isConfigured || !this.db) return;
+    const bossRef = ref(this.db, `matches/${matchId}/coop/boss`);
+    await runTransaction(bossRef, (current: CoopBossState | null) => {
+      if (!current) return current;
+      return { ...current, hp: 0 };
+    });
+  }
+
+  public static listenToCoopAttack(
+    matchId: string,
+    onAttack: (attack: CoopAttackState | null) => void
+  ): () => void {
+    if (!this.isConfigured || !this.db) return () => {};
+    const attackRef = ref(this.db, `matches/${matchId}/coop/attack`);
+    const listener = onValue(attackRef, (snapshot) => {
+      onAttack(snapshot.exists() ? snapshot.val() : null);
+    });
+    return () => off(attackRef, 'value', listener);
+  }
+
+  public static async createCoopPendingAttack(matchId: string, attack: string) {
+    if (!this.isConfigured || !this.db) return;
+    const attackRef = ref(this.db, `matches/${matchId}/coop/attack`);
+    await runTransaction(attackRef, (current: CoopAttackState | null) => {
+      if (!current) return current;
+      const now = Date.now();
+      if (current.pick || now < current.dueAt) return current;
+      return { ...current, pick: attack, pickAt: now };
+    });
+  }
+
+  public static async resolveCoopAttack(
+    matchId: string,
+    cancelled: boolean
+  ): Promise<CoopAttackState | null> {
+    if (!this.isConfigured || !this.db) return null;
+    const attackRef = ref(this.db, `matches/${matchId}/coop/attack`);
+    const result = await runTransaction(attackRef, (current: CoopAttackState | null) => {
+      if (!current || !current.pick) return current;
+      const now = Date.now();
+      return {
+        ...current,
+        pick: null,
+        pickAt: 0,
+        resolvedAt: now,
+        resolvedAttack: current.pick,
+        cancelled,
+        count: (current.count || 0) + 1,
+        dueAt: now + 30_000
+      };
+    });
+    return (result.snapshot.val() as CoopAttackState | null) ?? null;
+  }
+
+  public static async requestCoopVote(matchId: string, kind: 'retry' | 'next') {
+    if (!this.isConfigured || !this.db) return;
+    await set(ref(this.db, `matches/${matchId}/coop/votes/${kind}/${this.getUid()}`), true);
+  }
+
+  public static listenToCoopVotes(
+    matchId: string,
+    onVotes: (votes: CoopVotes) => void
+  ): () => void {
+    if (!this.isConfigured || !this.db) return () => {};
+    const votesRef = ref(this.db, `matches/${matchId}/coop/votes`);
+    const listener = onValue(votesRef, (snapshot) => {
+      onVotes(snapshot.exists() ? snapshot.val() : {});
+    });
+    return () => off(votesRef, 'value', listener);
+  }
+
   // Trigger next match in the same room when both players agreed
   public static async createNextMatch(
     currentMatchId: string,
@@ -482,6 +652,7 @@ export class FirebaseRealtimeService {
         seed,
         status: 'active',
         ranked: serverMatch.ranked,
+        mode: currentData.mode || 'versus',
         createdAt: Date.now(),
         players: freshPlayers
       });
@@ -539,7 +710,8 @@ export class FirebaseRealtimeService {
     rating: number = 1000,
     userId?: string,
     ranked: boolean = false,
-    cosmetics?: PlayerCosmetics
+    cosmetics?: PlayerCosmetics,
+    mode: OnlineMatchMode = 'versus'
   ): Promise<() => Promise<void>> {
     await this.authenticate(displayName);
     const uid = this.getUid();
@@ -566,7 +738,7 @@ export class FirebaseRealtimeService {
         const now = Date.now();
 
         for (const [otherUid, entry] of Object.entries<any>(queue)) {
-          if (otherUid !== uid && entry && entry.roomCode && Boolean(entry.ranked) === ranked && (now - (entry.createdAt || 0) < 60000)) {
+          if (otherUid !== uid && entry && entry.roomCode && Boolean(entry.ranked) === ranked && (entry.mode || 'versus') === mode && (now - (entry.createdAt || 0) < 60000)) {
             // Verify the room is still waiting
             const roomSnap = await get(ref(this.db!, `rooms/${entry.roomCode}`));
             if (roomSnap.exists() && roomSnap.val().status === 'waiting') {
@@ -579,7 +751,7 @@ export class FirebaseRealtimeService {
               // Remove our own queue entry if we had one
               set(myQueueRef, null).catch(() => {});
 
-              const { matchId, seed } = await this.joinRoom(entry.roomCode, displayName, rating, userId, ranked, cosmetics);
+              const { matchId, seed } = await this.joinRoom(entry.roomCode, displayName, rating, userId, ranked, cosmetics, mode);
               onMatched('guest', seed, matchId, entry.roomCode);
               return true;
             }
@@ -600,7 +772,7 @@ export class FirebaseRealtimeService {
     // Step 2: Nobody is waiting yet, so we become the host
     const myCreatedAt = Date.now();
     const roomCode = 'Q' + Math.random().toString(36).substring(2, 7).toUpperCase();
-    const { matchId, seed } = await this.createRoom(roomCode, displayName, rating, userId, ranked, cosmetics);
+    const { matchId, seed } = await this.createRoom(roomCode, displayName, rating, userId, ranked, cosmetics, mode);
 
     if (isDisposed) {
       // User cancelled during room creation
@@ -619,6 +791,7 @@ export class FirebaseRealtimeService {
       matchId,
       seed,
       ranked,
+      mode,
       createdAt: myCreatedAt
     });
 
@@ -652,7 +825,7 @@ export class FirebaseRealtimeService {
         const now = Date.now();
 
         for (const [otherUid, entry] of Object.entries<any>(queue)) {
-          if (otherUid !== uid && entry && entry.roomCode && Boolean(entry.ranked) === ranked && (now - (entry.createdAt || 0) < 60000)) {
+          if (otherUid !== uid && entry && entry.roomCode && Boolean(entry.ranked) === ranked && (entry.mode || 'versus') === mode && (now - (entry.createdAt || 0) < 60000)) {
             const otherCreated = entry.createdAt || 0;
             // Deterministic tie-breaker: if other room is older, or created at same ms and has lower UID:
             const otherHasPrecedence = otherCreated < myCreatedAt || (otherCreated === myCreatedAt && otherUid < uid);
@@ -671,7 +844,7 @@ export class FirebaseRealtimeService {
                 this.leaveRoom(roomCode, matchId, true).catch(() => {});
 
                 // Join the older room
-                const res = await this.joinRoom(entry.roomCode, displayName, rating, userId, ranked, cosmetics);
+                const res = await this.joinRoom(entry.roomCode, displayName, rating, userId, ranked, cosmetics, mode);
                 onMatched('guest', res.seed, res.matchId, entry.roomCode);
                 return;
               }

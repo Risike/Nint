@@ -1,6 +1,6 @@
 import { getDatabase } from '../config/database.js';
 
-const SCORE_MODES = new Set(['marathon_150', 'ultra_3m']);
+const SCORE_MODES = new Set(['marathon_150', 'ultra_3m', 'boss_attack']);
 const TIME_MODES = new Set(['sprint_40']);
 const ELO_MODES = new Set(['elo', 'pvp_elo']);
 const TIMEFRAMES = {

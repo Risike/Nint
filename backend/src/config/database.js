@@ -102,6 +102,7 @@ export function initSchema(db = getDatabase()) {
     ensureColumn(db, 'match_history', 'perfect_clears', 'INTEGER DEFAULT 0');
     ensureColumn(db, 'match_history', 'max_combo', 'INTEGER DEFAULT 0');
     ensureColumn(db, 'match_history', 'max_b2b', 'INTEGER DEFAULT 0');
+    ensureColumn(db, 'online_matches', 'mode', "TEXT NOT NULL DEFAULT 'versus'");
 
     db.exec(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_match_history_user_match

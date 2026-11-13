@@ -228,7 +228,280 @@ html {
   flex-direction: column;
   align-items: center;
   width: 100%;
+  min-width: 0;
   min-height: 0;
+}
+
+.coop-game {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* The board must shrink to the space left by the toolbar and boss HUD,
+   instead of growing the arena from its own content height. */
+.coop-game .versus-arena {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.coop-game .versus-vs {
+  align-self: flex-start;
+  margin-top: var(--coop-vs-offset, 160px);
+}
+
+/* Co-op level picker: compact centred window, five levels per row. */
+.coop-level-window {
+  width: min(720px, 100%);
+  max-width: 720px;
+  padding: 1.1rem 1.2rem;
+  gap: 0.65rem;
+  align-items: stretch;
+}
+
+.coop-level-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.coop-room-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px dashed rgba(6, 182, 212, 0.5);
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.coop-room-code strong {
+  color: var(--accent-cyan);
+  letter-spacing: 0.12em;
+  font-size: 0.82rem;
+}
+
+.coop-level-summary {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.coop-level-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+}
+
+.coop-level-choice span {
+  color: var(--text-muted);
+  font-size: 0.61rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.coop-level-choice strong {
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.coop-level-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.coop-level-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.05rem;
+  min-width: 0;
+  padding: 0.45rem 0.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.coop-level-card:hover {
+  transform: translateY(-1px);
+  background: var(--bg-secondary);
+  border-color: var(--accent-cyan);
+}
+
+.coop-level-card:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 1px;
+}
+
+.coop-level-label {
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.coop-level-number {
+  font-size: 1.15rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.coop-level-hp {
+  color: var(--text-secondary);
+  font-size: 0.6rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.coop-level-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.coop-level-back {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8rem;
+}
+
+.versus-compact-stats {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  max-width: 100%;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.versus-compact-stats strong {
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  /* The four hold/queue rails do not fit beside two boards on tablets and phones. */
+  .coop-game .versus-side-panel {
+    display: none;
+  }
+
+  .coop-game .versus-compact-stats {
+    display: flex;
+  }
+
+  .coop-game .versus-side-body {
+    gap: 0;
+  }
+
+  .coop-game .versus-side {
+    min-width: 0;
+    max-width: calc((100% - 120px) / 2);
+  }
+
+  .coop-game .versus-side-title {
+    width: 100%;
+    max-width: 100%;
+    gap: 0.25rem;
+    overflow: hidden;
+  }
+
+  .coop-game .versus-side-title > *:first-child {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .coop-game .versus-side-title .versus-elo-badge {
+    flex-shrink: 0;
+    padding: 0.08rem 0.3rem;
+    font-size: 0.6rem;
+  }
+
+  .coop-game .versus-vs {
+    padding: 0.35rem 0.55rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .coop-level-window {
+    padding: 0.85rem 0.8rem;
+  }
+
+  .coop-level-head {
+    gap: 0.35rem;
+  }
+
+  .coop-level-summary {
+    gap: 0.35rem;
+  }
+
+  .coop-level-choice {
+    padding: 0.35rem 0.45rem;
+  }
+
+  .coop-level-choice span {
+    font-size: 0.57rem;
+  }
+
+  .coop-level-grid {
+    gap: 0.3rem;
+  }
+
+  .coop-level-card {
+    padding: 0.4rem 0.15rem;
+  }
+
+  .coop-level-label {
+    font-size: 0.52rem;
+  }
+
+  .coop-level-hp {
+    font-size: 0.54rem;
+  }
+
+  .coop-level-back {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .coop-level-hp {
+    font-size: 0.48rem;
+    letter-spacing: -0.01em;
+  }
 }
 
 .versus-toolbar {
@@ -655,6 +928,77 @@ html {
   width: 1.25rem;
   height: 1.25rem;
   padding: 0;
+}
+
+/* Boss Battle: line-clear sparks fly from the cleared rows to the HP bar. */
+.boss-damage-trail {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.boss-damage-spark {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 6px currentColor, 0 0 16px currentColor;
+  animation-name: bossDamageSparkFly;
+  animation-timing-function: cubic-bezier(0.18, 0.72, 0.22, 1);
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+}
+
+.boss-damage-spark::after {
+  content: '';
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, currentColor);
+  transform: translateY(-50%);
+}
+
+@keyframes bossDamageSparkFly {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  10% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--boss-dx)), calc(-50% + var(--boss-dy))) scale(0.25);
+  }
+}
+
+.boss-hp-impact {
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  border: 2px solid #fda4af;
+  box-shadow: 0 0 18px rgba(251, 113, 133, 0.9), inset 0 0 12px rgba(251, 113, 133, 0.45);
+  pointer-events: none;
+  animation: bossHpImpact 420ms ease-out forwards;
+}
+
+@keyframes bossHpImpact {
+  0% {
+    opacity: 1;
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.08);
+  }
 }
 
 .gamepad-pill-b {

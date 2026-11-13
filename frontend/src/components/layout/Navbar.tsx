@@ -41,6 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
   const isItemActive = (tab: string) =>
     activeTab === tab
     || (tab === 'solo' && activeTab === 'versus_ai')
+    || (tab === 'online' && activeTab === 'coop_boss')
     || (tab === 'leaderboards' && activeTab === 'player-public');
 
   return (

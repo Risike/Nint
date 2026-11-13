@@ -167,6 +167,12 @@ export const StatsPage: React.FC<StatsPageProps> = ({ userId, onBack }) => {
       color: 'var(--accent-yellow)'
     },
     {
+      id: 'boss_attack',
+      title: t('Boss Battle'),
+      icon: <Skull size={18} color="var(--accent-red)" />,
+      color: 'var(--accent-red)'
+    },
+    {
       id: 'elo',
       title: t('Online PvP (ELO)'),
       icon: <Swords size={18} color="var(--accent-blue)" />,
@@ -348,7 +354,7 @@ export const StatsPage: React.FC<StatsPageProps> = ({ userId, onBack }) => {
 
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
+                  gridTemplateColumns: m.id === 'boss_attack' ? '1fr' : '1fr 1fr',
                   gap: '0.75rem',
                   background: 'var(--bg-tertiary)',
                   padding: '0.85rem',
@@ -362,12 +368,14 @@ export const StatsPage: React.FC<StatsPageProps> = ({ userId, onBack }) => {
                     </div>
                   </div>
 
-                  <div>
-                    <div className="stat-label" style={{ fontSize: '0.7rem' }}>{t('Best Time')}</div>
-                    <div style={{ fontWeight: 800, fontSize: '1.25rem', color: m.primaryMetric === 'time' ? m.color : 'var(--text-primary)' }}>
-                      {best?.time !== undefined ? formatDuration(best.time) : '—'}
+                  {m.id !== 'boss_attack' && (
+                    <div>
+                      <div className="stat-label" style={{ fontSize: '0.7rem' }}>{t('Best Time')}</div>
+                      <div style={{ fontWeight: 800, fontSize: '1.25rem', color: m.primaryMetric === 'time' ? m.color : 'var(--text-primary)' }}>
+                        {best?.time !== undefined ? formatDuration(best.time) : '—'}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {best?.date && (

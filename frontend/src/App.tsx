@@ -10,6 +10,7 @@ import { HomePage } from './pages/HomePage';
 import { SoloPage } from './pages/SoloPage';
 import { VersusAiPage } from './pages/VersusAiPage';
 import { OnlineVersusPage } from './pages/OnlineVersusPage';
+import { CoopBossPage, type CoopBossEntry } from './pages/CoopBossPage';
 import { LeaderboardsPage } from './pages/LeaderboardsPage';
 import { StatsPage } from './pages/StatsPage';
 import { PlayerPage } from './pages/PlayerPage';
@@ -43,15 +44,17 @@ export const AppContent: React.FC = () => {
   });
   const [cpuInitialLevel, setCpuInitialLevel] = useState<number | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [coopEntry, setCoopEntry] = useState<CoopBossEntry | null>(null);
   // Solo keeps normal page scrolling so its scrollbar stays at the far right,
   // like the leaderboards. The versus arena still uses the locked game layout.
-  const isGameRoute = activeTab === 'versus_ai' || activeTab === 'online';
+  const isGameRoute = activeTab === 'versus_ai' || activeTab === 'online' || activeTab === 'coop_boss';
 
   const handleNavigate = (tab: string) => {
     if (resetToken) {
       setResetToken(null);
       window.history.replaceState({}, '', window.location.pathname.startsWith('/reset-password') ? '/' : window.location.pathname);
     }
+    if (tab !== 'coop_boss') setCoopEntry(null);
     setActiveTab(tab);
   };
 
@@ -76,7 +79,17 @@ export const AppContent: React.FC = () => {
           />
         );
       case 'online':
-        return <OnlineVersusPage onNavigate={handleNavigate} />;
+        return (
+          <OnlineVersusPage
+            onNavigate={handleNavigate}
+            onStartCoop={(intent, roomCode) => {
+              setCoopEntry({ intent, roomCode });
+              setActiveTab('coop_boss');
+            }}
+          />
+        );
+      case 'coop_boss':
+        return <CoopBossPage initialEntry={coopEntry} onExit={() => handleNavigate('online')} />;
       case 'leaderboards':
         return (
           <LeaderboardsPage

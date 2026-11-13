@@ -12,14 +12,52 @@ import { UserName } from '../components/user/UserName';
 import { ApiClient } from '../services/api';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
-import { Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2, Lock, Trophy } from 'lucide-react';
+import { Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2, Lock, Trophy, Skull } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 
 interface OnlineVersusPageProps {
   onNavigate?: (tab: string) => void;
+  onStartCoop?: (intent: 'quick' | 'create' | 'join', roomCode?: string) => void;
 }
 
-export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }) => {
+const categorySectionStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.9rem',
+  padding: '1.25rem',
+  background: 'var(--bg-secondary)',
+  border: '1px solid var(--border-color)',
+  borderRadius: 'var(--radius-lg)',
+  textAlign: 'left'
+};
+
+const categoryTitleStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.55rem',
+  fontSize: '1.15rem',
+  fontWeight: 800
+};
+
+const modeCardStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.65rem',
+  padding: '1.15rem'
+};
+
+const modeButtonStyle: React.CSSProperties = {
+  marginTop: 'auto',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '0.5rem',
+  padding: '0.65rem',
+  fontSize: '0.9rem',
+  fontWeight: 700
+};
+
+export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, onStartCoop }) => {
   const { user, isAuthenticated, refreshProfile } = useAuth();
   const { settings } = useSettings();
   const { t } = useI18n();
@@ -29,6 +67,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
   const [matchId, setMatchId] = useState<string | null>(null);
   const [roomCode, setRoomCode] = useState<string>('');
   const [inputCode, setInputCode] = useState<string>('');
+  const [coopInputCode, setCoopInputCode] = useState<string>('');
   const [matchStatus, setMatchStatus] = useState<'lobby' | 'waiting' | 'quick_searching' | 'in_game' | 'finished'>('lobby');
   const [quickSearchSeconds, setQuickSearchSeconds] = useState<number>(0);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
@@ -882,9 +921,9 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
       {matchStatus === 'lobby' && (
         <div style={{ width: '100%', maxWidth: '980px', textAlign: 'center', marginTop: '1rem' }}>
           <div style={{ marginBottom: '2rem' }}>
-            <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Online Player vs Player')}</h1>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Online Multiplayer')}</h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1rem' }}>
-              {t('Real-time competitive multiplayer. Play a casual quick match, a ranked ELO match, or create a private room for a friend.')}
+              {t('Real-time multiplayer. Play casual or ranked 1v1, or team up against a boss.')}
             </p>
             <div style={{
               display: 'inline-flex',
@@ -901,61 +940,36 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
             </div>
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '1.25rem',
-            textAlign: 'left'
-          }}>
+          <section style={categorySectionStyle} aria-labelledby="online-pvp-heading">
+            <div>
+              <h2 id="online-pvp-heading" style={categoryTitleStyle}>
+                <Users size={20} color="var(--accent-purple)" />
+                {t('Player VS Player')}
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '0.25rem' }}>
+                {t('Play online against another player.')}
+              </p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.85rem' }}>
             {/* Quick Match / Quick Search Card */}
-            <div
-              className="panel-card"
-              style={{
-                padding: '1.75rem',
-                gap: '1rem',
-                display: 'flex',
-                flexDirection: 'column',
-                border: '2px solid rgba(6, 182, 212, 0.45)',
-                background: 'linear-gradient(180deg, rgba(6, 182, 212, 0.08) 0%, var(--bg-card) 100%)',
-                boxShadow: '0 8px 24px rgba(6, 182, 212, 0.15)'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                    <Zap size={24} />
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{t('Quick Search')}</h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>{t('Instant 1v1 Matchmaking')}</span>
-                  </div>
+            <div className="panel-card" style={modeCardStyle}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.55rem' }}>
+                <div style={{ background: 'rgba(6, 182, 212, 0.2)', color: 'var(--accent-cyan)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                  <Zap size={20} />
                 </div>
-                <span style={{
-                  fontSize: '0.65rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.05em',
-                  padding: '0.2rem 0.5rem',
-                  borderRadius: '999px',
-                  background: 'var(--accent-cyan)',
-                  color: '#000'
-                }}>
-                  {t('CASUAL')}
-                </span>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('Quick Search')}</h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('Instant 1v1 Matchmaking')}</span>
+                </div>
               </div>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
                 {t('Jump into a casual match against another player in the Quick Search queue. Casual matches are recorded but never affect your ELO.')}
               </p>
               <button
                 className="btn-primary"
                 style={{
-                  marginTop: 'auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  padding: '0.75rem',
-                  fontSize: '1rem',
-                  fontWeight: 700,
+                  ...modeButtonStyle,
                   background: 'linear-gradient(135deg, #06b6d4, #a855f7)'
                 }}
                 onClick={() => handleQuickSearch(false)}
@@ -965,54 +979,23 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
             </div>
 
             {/* Ranked Match Card */}
-            <div
-              className="panel-card"
-              style={{
-                padding: '1.75rem',
-                gap: '1rem',
-                display: 'flex',
-                flexDirection: 'column',
-                border: '2px solid rgba(234, 179, 8, 0.55)',
-                background: 'linear-gradient(180deg, rgba(234, 179, 8, 0.1) 0%, var(--bg-card) 100%)',
-                boxShadow: '0 8px 24px rgba(234, 179, 8, 0.14)'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ background: 'rgba(234, 179, 8, 0.2)', color: 'var(--accent-yellow)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                    <Trophy size={24} />
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{t('Ranked Match')}</h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-yellow)', fontWeight: 600 }}>{t('Competitive ELO Matchmaking')}</span>
-                  </div>
+            <div className="panel-card" style={modeCardStyle}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.55rem' }}>
+                <div style={{ background: 'rgba(234, 179, 8, 0.2)', color: 'var(--accent-yellow)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                  <Trophy size={20} />
                 </div>
-                <span style={{
-                  fontSize: '0.65rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.05em',
-                  padding: '0.2rem 0.5rem',
-                  borderRadius: '999px',
-                  background: 'var(--accent-yellow)',
-                  color: '#000'
-                }}>
-                  ELO
-                </span>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('Ranked Match')}</h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('Competitive ELO Matchmaking')}</span>
+                </div>
               </div>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
                 {t('Same instant matchmaking as Quick Search, but every win or loss updates your ELO rating.')}
               </p>
               <button
                 className="btn-primary"
                 style={{
-                  marginTop: 'auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  padding: '0.75rem',
-                  fontSize: '1rem',
-                  fontWeight: 700,
+                  ...modeButtonStyle,
                   background: 'linear-gradient(135deg, #eab308, #f97316)'
                 }}
                 onClick={() => handleQuickSearch(true)}
@@ -1022,36 +1005,36 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
             </div>
 
             {/* Create Room Card */}
-            <div className="panel-card" style={{ padding: '1.75rem', gap: '1rem', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                  <Plus size={24} />
+            <div className="panel-card" style={modeCardStyle}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.55rem' }}>
+                <div style={{ background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                  <Plus size={20} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{t('Create Private Room')}</h3>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('Generate 6-letter room code')}</span>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('Create Private Room')}</h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('Generate 6-letter room code')}</span>
                 </div>
               </div>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
 {t('Host a casual private match and share the code with a friend. The game waits until your friend joins before starting. Does not affect ELO.')}
               </p>
-              <button className="btn-secondary" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.7rem' }} onClick={handleCreateRoom}>
+              <button className="btn-secondary" style={modeButtonStyle} onClick={handleCreateRoom}>
                 <Plus size={18} /> {t('Host Room')}
               </button>
             </div>
 
             {/* Join Room Card */}
-            <div className="panel-card" style={{ padding: '1.75rem', gap: '1rem', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ background: 'rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                  <LogIn size={24} />
+            <div className="panel-card" style={modeCardStyle}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.55rem' }}>
+                <div style={{ background: 'rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                  <LogIn size={20} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{t('Join with Room Code')}</h3>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t("Enter your friend's code")}</span>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('Join with Room Code')}</h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t("Enter your friend's code")}</span>
                 </div>
               </div>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
 {t('Enter the 6-letter code generated by the host to join their casual room immediately. Does not affect ELO.')}
               </p>
               <div style={{ display: 'flex', gap: '0.5rem', width: '100%', marginTop: 'auto' }}>
@@ -1080,8 +1063,107 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate }
                   {t('Join')}
                 </button>
               </div>
+              </div>
             </div>
-          </div>
+          </section>
+
+          <section style={{ ...categorySectionStyle, marginTop: '1.25rem' }} aria-labelledby="coop-boss-heading">
+            <div>
+              <h2 id="coop-boss-heading" style={categoryTitleStyle}>
+                <Skull size={20} color="var(--accent-red)" />
+                {t('Co-op Boss Battle')}
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '0.25rem' }}>
+                {t('Team up with another player to defeat the boss.')}
+              </p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.85rem' }}>
+              <div className="panel-card" style={modeCardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.55rem' }}>
+                  <div style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--accent-red)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                    <Users size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('Co-op Quick Search')}</h3>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('Find a teammate')}</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+                  {t('Team up with another player and fight the boss together.')}
+                </p>
+                <button className="btn-primary" style={modeButtonStyle} onClick={() => onStartCoop?.('quick')}>
+                  <Users size={18} /> {t('Team Quick Play')}
+                </button>
+              </div>
+
+              <div className="panel-card" style={modeCardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.55rem' }}>
+                  <div style={{ background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                    <Plus size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('Create Co-op Room')}</h3>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('Generate 6-letter room code')}</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+                  {t('Host a co-op boss room and share the code with a friend.')}
+                </p>
+                <button className="btn-secondary" style={modeButtonStyle} onClick={() => onStartCoop?.('create')}>
+                  <Plus size={18} /> {t('Host Co-op Room')}
+                </button>
+              </div>
+
+              <div className="panel-card" style={modeCardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.55rem' }}>
+                  <div style={{ background: 'rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                    <LogIn size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('Join Co-op Room')}</h3>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t("Enter your friend's code")}</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+                  {t('Enter the 6-letter co-op room code to join the fight immediately.')}
+                </p>
+                <div style={{ display: 'flex', gap: '0.5rem', width: '100%', marginTop: 'auto' }}>
+                  <input
+                    type="text"
+                    placeholder={t('CODE')}
+                    value={coopInputCode}
+                    onChange={(e) => setCoopInputCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && coopInputCode.trim()) onStartCoop?.('join', coopInputCode.trim());
+                    }}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      width: '100%',
+                      padding: '0.55rem 0.6rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-tertiary)',
+                      color: 'var(--text-primary)',
+                      fontWeight: 700,
+                      fontSize: '0.9rem',
+                      textAlign: 'center',
+                      letterSpacing: '0.15em'
+                    }}
+                    maxLength={6}
+                  />
+                  <button
+                    className="btn-secondary"
+                    style={{ padding: '0.55rem 1rem', whiteSpace: 'nowrap', fontWeight: 600, fontSize: '0.85rem' }}
+                    onClick={() => coopInputCode.trim() && onStartCoop?.('join', coopInputCode.trim())}
+                  >
+                    {t('Join')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       )}
 

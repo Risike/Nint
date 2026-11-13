@@ -1271,7 +1271,6 @@ export const THEME_CATALOG: Record<string, ThemeCatalogEntry> = {
   }
 };
 
-export const THEME_VALUES = Object.keys(THEME_CATALOG);
 export const DEFAULT_THEME_VALUE = 'dark-01';
 export const DEFAULT_THEME_PREVIEW = THEME_CATALOG[DEFAULT_THEME_VALUE].preview;
 

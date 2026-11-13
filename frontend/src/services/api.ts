@@ -174,10 +174,10 @@ export class ApiClient {
   }
 
   // Matches
-  public static createOnlineMatch(ranked: boolean) {
-    return this.request<{ matchId: string; seed: number; ranked: boolean; status: string }>('/matches/online', {
+  public static createOnlineMatch(ranked: boolean, mode: 'versus' | 'coop_boss' = 'versus') {
+    return this.request<{ matchId: string; seed: number; ranked: boolean; mode: string; status: string }>('/matches/online', {
       method: 'POST',
-      body: JSON.stringify({ ranked })
+      body: JSON.stringify({ ranked, mode })
     });
   }
 
@@ -186,6 +186,7 @@ export class ApiClient {
       matchId: string;
       seed: number;
       ranked: boolean;
+      mode: string;
       status: string;
       winnerUserId: string | null;
       players: {
@@ -207,7 +208,7 @@ export class ApiClient {
   }
 
   public static joinOnlineMatch(matchId: string) {
-    return this.request<{ matchId: string; seed: number; ranked: boolean; status: string }>(
+    return this.request<{ matchId: string; seed: number; ranked: boolean; mode: string; status: string }>(
       `/matches/online/${encodeURIComponent(matchId)}/join`,
       { method: 'POST', body: JSON.stringify({}) }
     );
@@ -221,7 +222,7 @@ export class ApiClient {
   }
 
   public static createOnlineRematch(matchId: string) {
-    return this.request<{ matchId: string; seed: number; ranked: boolean; status: string }>(
+    return this.request<{ matchId: string; seed: number; ranked: boolean; mode: string; status: string }>(
       `/matches/online/${encodeURIComponent(matchId)}/rematch`,
       { method: 'POST', body: JSON.stringify({}) }
     );

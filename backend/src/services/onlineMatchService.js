@@ -5,6 +5,13 @@ const WAITING = 'waiting';
 const ACTIVE = 'active';
 const COMPLETED = 'completed';
 const CANCELLED = 'cancelled';
+const MODE_VERSUS = 'versus';
+const MODE_COOP_BOSS = 'coop_boss';
+const ONLINE_MODES = new Set([MODE_VERSUS, MODE_COOP_BOSS]);
+
+function normalizeMode(mode) {
+  return ONLINE_MODES.has(mode) ? mode : MODE_VERSUS;
+}
 
 function httpError(status, message, code) {
   const err = new Error(message);
@@ -52,6 +59,7 @@ export class OnlineMatchService {
       matchId: match.id,
       seed: match.seed,
       ranked: match.ranked === 1,
+      mode: match.mode || MODE_VERSUS,
       status: match.status,
       winnerUserId: match.winner_user_id,
       players: {
@@ -63,11 +71,16 @@ export class OnlineMatchService {
     };
   }
 
-  static create(userId, { ranked = false } = {}) {
+  static create(userId, { ranked = false, mode = MODE_VERSUS } = {}) {
     const db = getDatabase();
     const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
     if (!user) {
       throw httpError(401, 'Account no longer exists');
+    }
+
+    const normalizedMode = normalizeMode(mode);
+    if (normalizedMode === MODE_COOP_BOSS && ranked === true) {
+      throw httpError(400, 'Co-op boss matches cannot be ranked');
     }
 
     const id = crypto.randomUUID();
@@ -75,11 +88,17 @@ export class OnlineMatchService {
     const now = Date.now();
 
     db.prepare(`
-      INSERT INTO online_matches (id, seed, ranked, host_user_id, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, seed, ranked === true ? 1 : 0, userId, WAITING, now);
+      INSERT INTO online_matches (id, seed, ranked, mode, host_user_id, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(id, seed, ranked === true ? 1 : 0, normalizedMode, userId, WAITING, now);
 
-    return { matchId: id, seed, ranked: ranked === true, status: WAITING };
+    return {
+      matchId: id,
+      seed,
+      ranked: ranked === true,
+      mode: normalizedMode,
+      status: WAITING
+    };
   }
 
   static join(userId, matchId) {
@@ -94,6 +113,7 @@ export class OnlineMatchService {
         matchId: match.id,
         seed: match.seed,
         ranked: match.ranked === 1,
+        mode: match.mode || MODE_VERSUS,
         status: match.status
       };
     }
@@ -114,7 +134,13 @@ export class OnlineMatchService {
       throw httpError(409, 'This online match is already full');
     }
 
-    return { matchId: match.id, seed: match.seed, ranked: match.ranked === 1, status: ACTIVE };
+    return {
+      matchId: match.id,
+      seed: match.seed,
+      ranked: match.ranked === 1,
+      mode: match.mode || MODE_VERSUS,
+      status: ACTIVE
+    };
   }
 
   static rematch(userId, matchId) {
@@ -133,11 +159,27 @@ export class OnlineMatchService {
     const now = Date.now();
 
     db.prepare(`
-      INSERT INTO online_matches (id, seed, ranked, host_user_id, guest_user_id, status, created_at, started_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, seed, match.ranked, match.host_user_id, match.guest_user_id, ACTIVE, now, now);
+      INSERT INTO online_matches (id, seed, ranked, mode, host_user_id, guest_user_id, status, created_at, started_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      seed,
+      match.ranked,
+      match.mode || MODE_VERSUS,
+      match.host_user_id,
+      match.guest_user_id,
+      ACTIVE,
+      now,
+      now
+    );
 
-    return { matchId: id, seed, ranked: match.ranked === 1, status: ACTIVE };
+    return {
+      matchId: id,
+      seed,
+      ranked: match.ranked === 1,
+      mode: match.mode || MODE_VERSUS,
+      status: ACTIVE
+    };
   }
 
   static cancel(userId, matchId) {

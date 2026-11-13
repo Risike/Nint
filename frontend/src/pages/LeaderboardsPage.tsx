@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../services/api';
-import { Timer, Flame, Zap, RefreshCw, Swords } from 'lucide-react';
+import { Timer, Flame, Zap, RefreshCw, Swords, Skull } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 import { UserName } from '../components/user/UserName';
 
@@ -84,6 +84,13 @@ export const LeaderboardsPage: React.FC<LeaderboardsPageProps> = ({ onSelectPlay
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem' }}
           >
             <Timer size={16} /> {t('Ultra (3m)')}
+          </button>
+          <button
+            className={`btn-secondary ${mode === 'boss_attack' ? 'btn-primary' : ''}`}
+            onClick={() => setMode('boss_attack')}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem' }}
+          >
+            <Skull size={16} /> {t('Boss Battle')}
           </button>
           <button
             className={`btn-secondary ${mode === 'elo' ? 'btn-primary' : ''}`}

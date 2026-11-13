@@ -40,7 +40,7 @@ export interface GameEvents {
   onPieceMove?: () => void;
   onPieceRotate?: () => void;
   onPieceLock?: () => void;
-  onPieceLocked?: (info: { linesCleared: number; scoreGained: number; tSpin: TSpinType; tetris: boolean }) => void;
+  onPieceLocked?: (info: { linesCleared: number; scoreGained: number; tSpin: TSpinType; tetris: boolean; clearedRows: number[] }) => void;
   onLineClear?: (result: ClearResult) => void;
   onLineClearFinish?: (clearedRows: number[]) => void;
   onPerfectClear?: () => void;
@@ -509,7 +509,8 @@ export class GameEngine {
       linesCleared,
       scoreGained: result.scoreGained,
       tSpin: tSpinType,
-      tetris: linesCleared === 4
+      tetris: linesCleared === 4,
+      clearedRows: clearedRowIndices
     });
 
     // Garbage interaction in versus mode:

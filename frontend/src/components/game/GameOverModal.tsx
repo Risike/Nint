@@ -30,6 +30,11 @@ interface GameOverModalProps {
   rematchOpponentLeft?: boolean;
   // Online ELO
   eloChange?: { delta: number; newRating: number; oldRating: number } | null;
+  // Co-op result controls
+  restartLabel?: string;
+  restartDisabled?: boolean;
+  statusMessage?: string | null;
+  hideSaveNote?: boolean;
 }
 
 export const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -44,7 +49,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   rematchPlayerReady = false,
   rematchOpponentReady = false,
   rematchOpponentLeft = false,
-  eloChange
+  eloChange,
+  restartLabel,
+  restartDisabled = false,
+  statusMessage,
+  hideSaveNote = false
 }) => {
   const { setFocusedElement } = useGamepadNav();
   const { t } = useI18n();
@@ -96,10 +105,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   };
 
   const isOnline = mode === 'online_1v1';
+  const isCoop = mode === 'coop_boss';
 
   // Determine button state and label for online rematch
-  let restartButtonLabel = t('Play Again');
-  let isRestartDisabled = !canInteract;
+  let restartButtonLabel = restartLabel || t('Play Again');
+  let isRestartDisabled = !canInteract || restartDisabled;
   let restartButtonBg: string | undefined = undefined;
 
   if (isOnline) {
@@ -133,7 +143,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         </div>
 
         <h2 className="modal-title" style={{ color: isVictory ? 'var(--accent-green)' : 'var(--text-primary)' }}>
-          {isVictory ? (mode === 'boss' ? t('BOSS DEFEATED!') : t('VICTORY!')) : t('GAME OVER')}
+          {isVictory ? (mode === 'boss' || isCoop ? t('BOSS DEFEATED!') : t('VICTORY!')) : t('GAME OVER')}
         </h2>
 
         {eloChange && (
@@ -220,7 +230,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
         </div>
 
-        {isSaved ? (
+        {!hideSaveNote && (isSaved ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: 'var(--accent-green)', fontSize: '0.85rem' }}>
             <CheckCircle2 size={16} />
             <span>{t('Score saved to leaderboard!')}</span>
@@ -228,6 +238,21 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
             <span>{t('Score not saved to the leaderboard')}</span>
+          </div>
+        ))}
+
+        {isCoop && statusMessage && (
+          <div style={{
+            background: 'rgba(6, 182, 212, 0.15)',
+            border: '1px solid rgba(6, 182, 212, 0.4)',
+            color: 'var(--accent-cyan)',
+            padding: '0.5rem 0.75rem',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '0.85rem',
+            textAlign: 'center',
+            fontWeight: 600
+          }}>
+            {statusMessage}
           </div>
         )}
 

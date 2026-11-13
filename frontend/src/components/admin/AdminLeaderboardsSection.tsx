@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle, Flame, RefreshCw, Swords, Timer, Trash2, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Flame, RefreshCw, Skull, Swords, Timer, Trash2, Zap } from 'lucide-react';
 import { ApiClient } from '../../services/api';
 import { useI18n } from '../../i18n/useI18n';
 import { UserName } from '../user/UserName';
 
-type LeaderboardMode = 'marathon_150' | 'sprint_40' | 'ultra_3m' | 'elo';
+type LeaderboardMode = 'marathon_150' | 'sprint_40' | 'ultra_3m' | 'boss_attack' | 'elo';
 
 const MODES: { id: LeaderboardMode; label: string; icon: React.ReactNode }[] = [
   { id: 'marathon_150', label: 'Marathon', icon: <Flame size={16} /> },
   { id: 'sprint_40', label: 'Sprint (40L)', icon: <Zap size={16} /> },
   { id: 'ultra_3m', label: 'Ultra (3m)', icon: <Timer size={16} /> },
+  { id: 'boss_attack', label: 'Boss Battle', icon: <Skull size={16} /> },
   { id: 'elo', label: 'Online PvP (ELO)', icon: <Swords size={16} /> }
 ];
 
