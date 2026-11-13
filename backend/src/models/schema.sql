@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
     email_verified INTEGER NOT NULL DEFAULT 1,
     avatar_url TEXT,
     is_admin INTEGER DEFAULT 0,
+    must_change_password INTEGER NOT NULL DEFAULT 0,
     token_version INTEGER DEFAULT 0,
     credits INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,

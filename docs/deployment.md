@@ -15,7 +15,7 @@ cp .env.example .env
 - `TRUST_PROXY=1` when running behind the bundled nginx container.
 - `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` from a free [Cloudflare Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile) widget. Registration is disabled without them.
 - `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` and `SMTP_FROM` so account-verification and password-reset emails can be delivered. Registration returns an error when the verification email cannot be sent.
-- Optionally `ADMIN_EMAIL` / `ADMIN_PASSWORD` to bootstrap an administrator. There is no default admin account; leaving both empty disables admin creation.
+- On the first production start, the service clears all existing user accounts once and creates the bootstrap administrator `admin` (`admin@nint.local` / `admin`). The first sign-in forces a password change. This runs only once; later restarts keep the new password. Back up the database first if it already contains accounts you need to keep.
 
 ### 2. Launch Services
 Run with a single command:

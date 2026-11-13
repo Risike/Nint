@@ -36,7 +36,7 @@ export function authenticateRequest(req) {
   }
 
   const db = getDatabase();
-  const row = db.prepare('SELECT id, token_version, is_admin FROM users WHERE id = ?').get(payload.id);
+  const row = db.prepare('SELECT id, token_version, is_admin, must_change_password FROM users WHERE id = ?').get(payload.id);
   if (!row) throw httpError(401, 'Account no longer exists');
 
   const tokenVersion = payload.tv ?? 0;
@@ -44,12 +44,27 @@ export function authenticateRequest(req) {
     throw httpError(401, 'Session has been revoked, please sign in again');
   }
 
-  return { id: row.id, isAdmin: row.is_admin === 1 };
+  return {
+    id: row.id,
+    isAdmin: row.is_admin === 1,
+    mustChangePassword: row.must_change_password === 1
+  };
+}
+
+function isPasswordChangeRequest(req) {
+  const path = String(req.originalUrl || '').split('?')[0];
+  if (path === '/api/auth/me' && (req.method === 'GET' || req.method === 'PATCH')) {
+    return true;
+  }
+  return path === '/api/auth/logout' && req.method === 'POST';
 }
 
 export function authenticateToken(req, res, next) {
   try {
     req.user = authenticateRequest(req);
+    if (req.user.mustChangePassword && !isPasswordChangeRequest(req)) {
+      return res.status(403).json({ error: 'Password change required', code: 'PASSWORD_CHANGE_REQUIRED' });
+    }
     next();
   } catch (err) {
     res.status(err.status || 401).json({ error: err.message });

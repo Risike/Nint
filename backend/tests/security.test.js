@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import app from '../src/server.js';
+import { getDatabase } from '../src/config/database.js';
 import { registerAndVerify, TEST_CAPTCHA, TEST_PASSWORD, TEST_VERIFICATION_CODE } from './helpers/auth.js';
 import { createOnlineMatch } from './helpers/online.js';
 
@@ -61,6 +62,39 @@ test('Profile updates cannot grant credits or administrator rights', async () =>
     .set('Authorization', `Bearer ${token}`);
   assert.equal(me.body.credits, 0);
   assert.equal(me.body.is_admin, false);
+});
+
+test('An account flagged for a password change is confined to the password flow', async () => {
+  const { user } = await createPlayer('ForcedChange');
+  getDatabase()
+    .prepare('UPDATE users SET must_change_password = 1 WHERE id = ?')
+    .run(user.id);
+
+  const login = await request(app).post('/api/auth/login').send({
+    identifier: user.email,
+    password: TEST_PASSWORD
+  });
+  assert.equal(login.status, 200);
+  assert.equal(login.body.user.must_change_password, true);
+
+  const blocked = await request(app)
+    .get('/api/stats/me')
+    .set('Authorization', `Bearer ${login.body.token}`);
+  assert.equal(blocked.status, 403);
+  assert.equal(blocked.body.code, 'PASSWORD_CHANGE_REQUIRED');
+
+  const changed = await request(app)
+    .patch('/api/auth/me')
+    .set('Authorization', `Bearer ${login.body.token}`)
+    .send({ currentPassword: TEST_PASSWORD, newPassword: 'N3w!Passw0rd' });
+  assert.equal(changed.status, 200);
+  assert.equal(changed.body.must_change_password, false);
+  assert.ok(changed.body.token);
+
+  const allowed = await request(app)
+    .get('/api/stats/me')
+    .set('Authorization', `Bearer ${changed.body.token}`);
+  assert.equal(allowed.status, 200);
 });
 
 test('An unverified account cannot sign in', async () => {

@@ -77,6 +77,16 @@ With `NODE_ENV=development` (the default for `npm run dev`), the API automatical
 
 They are never created when `NODE_ENV=production`, and empty passwords are rejected in production. You can sign in with the username or the linked email (`test@nint.local`, `test2@nint.local`, `admin@nint.local`).
 
+### Production Bootstrap Administrator
+
+On its first production start, all existing user accounts are cleared once and the database starts with exactly one account:
+
+- Login: `admin`
+- Email: `admin@nint.local`
+- Password: `admin`
+
+The first sign-in immediately forces a password change. No email confirmation is required. The cleanup is protected by a one-time database marker, so changing the password and restarting the service never resets it again. Take a backup first if the production database already contains accounts you need to keep.
+
 ### Run Automated Tests
 ```bash
 # Run both backend and frontend tests
@@ -97,7 +107,7 @@ make test
 | `JWT_SECRET` | Secret key for JWT signing | Required in production (no fallback) |
 | `CORS_ORIGIN` | Allowed browser origin(s) | `http://localhost:5173` |
 | `TRUST_PROXY` | Reverse-proxy hops in front of the API | `false` (set `1` behind nginx) |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Optional bootstrap administrator | Empty (disabled) |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Optional administrator for development/test runs; production uses the built-in bootstrap administrator | Empty (disabled) |
 | `DATABASE_PATH` | Path to persistent SQLite file | `./data/nint.db` |
 | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` | Outgoing mail for verification and password-reset emails | Local dev logs verification codes |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Free Cloudflare Turnstile captcha keys | Test keys outside production; required in production |

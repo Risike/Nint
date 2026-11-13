@@ -18,6 +18,7 @@ export interface User {
     theme?: string;
   };
   is_admin?: boolean;
+  must_change_password?: boolean;
 }
 
 interface AuthContextType {
@@ -29,6 +30,7 @@ interface AuthContextType {
   login: (identifier: string, pass: string) => Promise<void>;
   register: (email: string, pass: string, username: string, captchaToken: string) => Promise<{ requiresVerification: boolean; email: string }>;
   verifyEmail: (email: string, code: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => void;
   playAsGuest: () => void;
   refreshProfile: () => Promise<void>;
@@ -83,6 +85,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsGuest(false);
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    const updated = await ApiClient.updateMe({ currentPassword, newPassword });
+    if (updated?.token) {
+      ApiClient.setToken(updated.token);
+      setToken(updated.token);
+    }
+    setUser(updated);
+  };
+
   const logout = () => {
     // Revoke the session server-side before discarding the token locally.
     if (ApiClient.getToken()) {
@@ -117,6 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         register,
         verifyEmail,
+        changePassword,
         logout,
         playAsGuest,
         refreshProfile

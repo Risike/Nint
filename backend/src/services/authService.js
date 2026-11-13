@@ -90,7 +90,8 @@ function authResponse(db, user) {
       rating: stats?.rating ?? 1000,
       credits: user.credits ?? 0,
       cosmetics: getUserCosmetics(db, user.id),
-      is_admin: user.is_admin === 1
+      is_admin: user.is_admin === 1,
+      must_change_password: user.must_change_password === 1
     },
     token: signToken(user)
   };
@@ -289,7 +290,7 @@ export class AuthService {
     const db = getDatabase();
     const user = db.prepare(`
       SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, u.created_at, u.is_admin, u.email_verified,
-             COALESCE(u.credits, 0) as credits, COALESCE(s.rating, 1000) as rating
+             u.must_change_password, COALESCE(u.credits, 0) as credits, COALESCE(s.rating, 1000) as rating
       FROM users u
       LEFT JOIN user_statistics s ON s.user_id = u.id
       WHERE u.id = ?
@@ -300,7 +301,8 @@ export class AuthService {
     return {
       ...user,
       cosmetics: getUserCosmetics(db, userId),
-      is_admin: user.is_admin === 1
+      is_admin: user.is_admin === 1,
+      must_change_password: user.must_change_password === 1
     };
   }
 
@@ -320,7 +322,7 @@ export class AuthService {
       }
       const salt = bcrypt.genSaltSync(10);
       const newHash = bcrypt.hashSync(newPassword, salt);
-      db.prepare('UPDATE users SET password_hash = ?, token_version = token_version + 1, updated_at = ? WHERE id = ?')
+      db.prepare('UPDATE users SET password_hash = ?, must_change_password = 0, token_version = token_version + 1, updated_at = ? WHERE id = ?')
         .run(newHash, Date.now(), userId);
       tokenVersion += 1;
     }

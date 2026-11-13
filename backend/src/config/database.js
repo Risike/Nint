@@ -32,9 +32,12 @@ export function getDatabase() {
     dbInstance.pragma('journal_mode = WAL');
     dbInstance.pragma('foreign_keys = ON');
     initSchema(dbInstance);
-    purgeLegacyProductionUsers(dbInstance);
-    ensureAdminAccount(dbInstance);
-    ensureDevAccounts(dbInstance);
+    if (config.isProduction) {
+      bootstrapProductionAccount(dbInstance);
+    } else {
+      ensureAdminAccount(dbInstance);
+      ensureDevAccounts(dbInstance);
+    }
   }
   return dbInstance;
 }
@@ -57,6 +60,7 @@ export function initSchema(db = getDatabase()) {
   try {
     ensureColumn(db, 'user_settings', 'language', "TEXT DEFAULT 'en'");
     ensureColumn(db, 'users', 'is_admin', 'INTEGER DEFAULT 0');
+    ensureColumn(db, 'users', 'must_change_password', 'INTEGER NOT NULL DEFAULT 0');
     ensureColumn(db, 'users', 'token_version', 'INTEGER DEFAULT 0');
     ensureColumn(db, 'users', 'credits', 'INTEGER NOT NULL DEFAULT 0');
     ensureColumn(db, 'users', 'username', 'TEXT');
@@ -723,9 +727,9 @@ function seedShopItems(db) {
 }
 
 /**
- * Creates (or promotes) the administrator account.
+ * Creates (or promotes) an administrator for development and test runs.
  * Credentials must be provided explicitly through ADMIN_EMAIL / ADMIN_PASSWORD.
- * There is no hard-coded default account.
+ * Production uses bootstrapProductionAccount instead.
  */
 export function ensureAdminAccount(db = getDatabase()) {
   if (!config.adminEmail) {
@@ -1199,41 +1203,40 @@ function seedDemoAccounts(db) {
 }
 
 /**
- * A database that was first initialized in development can still contain the
- * demo/test accounts after being promoted to production. Detect that legacy
- * state once and clear it so a production instance never exposes fake users.
- * A clean database is left untouched, including databases upgraded by schema
- * migrations that only contain real registrations.
+ * A new production database starts with exactly one account. On the first
+ * production boot, clear any development data that may have been copied into
+ * the database and create the bootstrap administrator.
+ *
+ * The marker makes this a one-time migration: it runs only once, so later
+ * registrations and password changes are never reset on restart.
  */
-function purgeLegacyProductionUsers(db) {
+function bootstrapProductionAccount(db) {
   if (!config.isProduction) return;
 
-  const markerKey = 'production_clean_start_v1';
+  const markerKey = 'production_bootstrap_admin_v2';
   const marker = db.prepare('SELECT value FROM site_config WHERE key = ?').get(markerKey);
   if (marker) return;
 
-  const legacySeedCount = db.prepare(`
-    SELECT COUNT(*) AS count FROM users
-    WHERE email LIKE 'demo%@nint.local'
-       OR email IN ('test@nint.local', 'test2@nint.local', 'admin@nint.local')
-  `).get().count;
+  const now = Date.now();
+  const id = crypto.randomUUID();
+  const passwordHash = bcrypt.hashSync('admin', bcrypt.genSaltSync(10));
 
-  if (legacySeedCount > 0) {
-    const totalUsers = db.prepare('SELECT COUNT(*) AS count FROM users').get().count;
-    const clean = db.transaction(() => {
-      db.prepare('DELETE FROM users WHERE 1 = 1').run();
-      db.prepare(`
-        INSERT OR REPLACE INTO site_config (key, value, updated_at) VALUES (?, '1', ?)
-      `).run(markerKey, Date.now());
-    });
-    clean();
-    console.log(`[PROD] Removed ${totalUsers} legacy account(s) from the development seed.`);
-    return;
-  }
-
-  db.prepare(`
-    INSERT OR REPLACE INTO site_config (key, value, updated_at) VALUES (?, '1', ?)
-  `).run(markerKey, Date.now());
+  const bootstrap = db.transaction(() => {
+    db.prepare('DELETE FROM users WHERE 1 = 1').run();
+    db.prepare(`
+      INSERT INTO users (
+        id, email, username, password_hash, display_name, email_verified,
+        is_admin, must_change_password, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, 1, 1, 1, ?, ?)
+    `).run(id, 'admin@nint.local', 'admin', passwordHash, 'Admin', now, now);
+    db.prepare('INSERT INTO user_settings (user_id, updated_at) VALUES (?, ?)').run(id, now);
+    db.prepare('INSERT INTO user_statistics (user_id, updated_at) VALUES (?, ?)').run(id, now);
+    db.prepare(`
+      INSERT OR REPLACE INTO site_config (key, value, updated_at) VALUES (?, '1', ?)
+    `).run(markerKey, now);
+  });
+  bootstrap();
+  console.log('[PROD] Created the default administrator "admin"; a password change is required.');
 }
 
 /**

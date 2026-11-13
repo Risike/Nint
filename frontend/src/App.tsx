@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, X } from 'lucide-react';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { GamepadNavProvider } from './context/GamepadNavContext';
 import { Navbar } from './components/layout/Navbar';
@@ -16,6 +16,7 @@ import { StatsPage } from './pages/StatsPage';
 import { PlayerPage } from './pages/PlayerPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
+import { ForcePasswordChangePage } from './pages/ForcePasswordChangePage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
@@ -28,6 +29,7 @@ import { toggleFullscreen } from './utils/fullscreen';
 import './styles/main.css';
 
 export const AppContent: React.FC = () => {
+  const { user } = useAuth();
   const { toggleMute, previewTheme, setPreviewTheme } = useSettings();
   const { themes } = useThemeCatalog();
   const { t, language } = useI18n();
@@ -132,6 +134,10 @@ export const AppContent: React.FC = () => {
         return <HomePage onNavigate={handleNavigate} />;
     }
   };
+
+  if (user?.must_change_password) {
+    return <ForcePasswordChangePage onNavigate={handleNavigate} />;
+  }
 
   return (
     <GamepadNavProvider
