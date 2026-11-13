@@ -8,6 +8,9 @@ yarn-error.log*
 dist/
 build/
 
+# Local visual-test screenshots
+/*.png
+
 # Environment variables & virtual environments (private info)
 .env
 .env.*
