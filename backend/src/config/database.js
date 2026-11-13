@@ -32,6 +32,7 @@ export function getDatabase() {
     dbInstance.pragma('journal_mode = WAL');
     dbInstance.pragma('foreign_keys = ON');
     initSchema(dbInstance);
+    purgeLegacyProductionUsers(dbInstance);
     ensureAdminAccount(dbInstance);
     ensureDevAccounts(dbInstance);
   }
@@ -1195,6 +1196,44 @@ function seedDemoAccounts(db) {
   if (created > 0 || seeded > 0) {
     console.log(`[DEV] Demo accounts ready: demo0-demo${DEMO_LAST_INDEX} (${created} created, ${seeded} seeded)`);
   }
+}
+
+/**
+ * A database that was first initialized in development can still contain the
+ * demo/test accounts after being promoted to production. Detect that legacy
+ * state once and clear it so a production instance never exposes fake users.
+ * A clean database is left untouched, including databases upgraded by schema
+ * migrations that only contain real registrations.
+ */
+function purgeLegacyProductionUsers(db) {
+  if (!config.isProduction) return;
+
+  const markerKey = 'production_clean_start_v1';
+  const marker = db.prepare('SELECT value FROM site_config WHERE key = ?').get(markerKey);
+  if (marker) return;
+
+  const legacySeedCount = db.prepare(`
+    SELECT COUNT(*) AS count FROM users
+    WHERE email LIKE 'demo%@nint.local'
+       OR email IN ('test@nint.local', 'test2@nint.local', 'admin@nint.local')
+  `).get().count;
+
+  if (legacySeedCount > 0) {
+    const totalUsers = db.prepare('SELECT COUNT(*) AS count FROM users').get().count;
+    const clean = db.transaction(() => {
+      db.prepare('DELETE FROM users WHERE 1 = 1').run();
+      db.prepare(`
+        INSERT OR REPLACE INTO site_config (key, value, updated_at) VALUES (?, '1', ?)
+      `).run(markerKey, Date.now());
+    });
+    clean();
+    console.log(`[PROD] Removed ${totalUsers} legacy account(s) from the development seed.`);
+    return;
+  }
+
+  db.prepare(`
+    INSERT OR REPLACE INTO site_config (key, value, updated_at) VALUES (?, '1', ?)
+  `).run(markerKey, Date.now());
 }
 
 /**

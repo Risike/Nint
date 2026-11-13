@@ -136,11 +136,3 @@ The offline 1v1 battle AI operates strictly under the same rules as human player
 - **Level 9–10 (Master / Grandmaster)**: Sub-100ms piece placement, lookahead optimization, deep well management, and aggressive B2B/T-Spin setups.
 
 ---
-
-## 7. Working Demo Flow Walkthrough
-
-1. **Solo Marathon**: Navigate to **Solo** -> **Marathon**. Place pieces using Arrow keys and Space. Listen to sound effects as lines clear.
-2. **Speedrun Sprint (40 Lines)**: Select **Sprint (40L)** tab. Complete 40 lines as fast as possible to register your personal best time.
-3. **1v1 Versus AI**: Navigate to **1v1 AI**. Pick difficulty (Lv 1 to Lv 10). Attack the AI by clearing Doubles, Triples, and Tetrises to push red garbage lines into its board.
-4. **Online 1v1 Multiplayer**: Navigate to **Online 1v1**. Click **Create Private Room** to generate a 6-character room code. Open a second browser window/tab, enter the code, click **Join**, and battle in real-time. Quick Search and private rooms are casual and never change ELO; **Ranked Match** uses the same quick matchmaking but updates ratings after both players confirm the result.
-5. **Account & Leaderboards**: Click **Sign In** -> **Create Account**. Save your score and view your verified rank on the global **Leaderboards** page.

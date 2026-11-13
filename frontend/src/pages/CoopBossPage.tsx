@@ -12,7 +12,7 @@ import { UserName } from '../components/user/UserName';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
-import { useDevBossKill } from '../hooks/useDevBossKill';
+import { useDevKill } from '../hooks/useDevBossKill';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
 import { useI18n } from '../i18n/useI18n';
 import { ApiClient } from '../services/api';
@@ -185,7 +185,7 @@ export const CoopBossPage: React.FC<CoopBossPageProps> = ({ initialEntry, onExit
     && (playerEngine.state === 'playing' || isCountingDown);
   useGamepadActive(isPlaying);
 
-  useDevBossKill(phase === 'in_game' && !isResultOpen, () => {
+  useDevKill(phase === 'in_game' && !isResultOpen, () => {
     const activeMatchId = matchIdRef.current;
     bossHpWasPositiveRef.current = true;
     setBossHp(0);

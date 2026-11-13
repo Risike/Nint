@@ -1,11 +1,5 @@
 import { BOARD_TOTAL_HEIGHT, BOARD_WIDTH } from './constants';
 
-export interface GarbageAttack {
-  id: string;
-  amount: number;
-  timestamp: number;
-}
-
 export class GarbageManager {
   private pendingQueue: number[] = [];
   private holeColumn: number = Math.floor(Math.random() * BOARD_WIDTH);

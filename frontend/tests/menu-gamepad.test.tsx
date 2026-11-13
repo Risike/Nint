@@ -19,6 +19,20 @@ function TestHarness({ active }: { active: boolean }) {
   );
 }
 
+function SelectHarness() {
+  useGamepadActive(false);
+  return (
+    <main className="main-content">
+      <select defaultValue="1">
+        <option value="1">Stage 1</option>
+        <option value="2">Stage 2</option>
+        <option value="3">Stage 3</option>
+      </select>
+      <button type="button">Start</button>
+    </main>
+  );
+}
+
 describe('menu gamepad system actions', () => {
   let root: Root | null = null;
   let container: HTMLDivElement | null = null;
@@ -163,6 +177,48 @@ describe('menu gamepad system actions', () => {
     await renderProvider(true);
     await scrollWithStick(0.9);
     expect(verticalDeltas().some((delta) => delta > 0)).toBe(true);
+  });
+
+  it('changes a focused select with the D-pad left/right', async () => {
+    // jsdom reports every element as zero-sized, which the focus filter treats
+    // as hidden.
+    const widthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
+    const heightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, value: 100 });
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, value: 40 });
+
+    await act(async () => {
+      root!.render(
+        <GamepadNavProvider activeTab="home" setActiveTab={() => {}}>
+          <SelectHarness />
+        </GamepadNavProvider>
+      );
+    });
+    await settle(400);
+
+    const select = container!.querySelector('select')!;
+
+    // The first press may only move focus onto the select; once focused,
+    // left/right must change its value.
+    for (let press = 0; press < 2; press += 1) {
+      gamepad.buttons[15].pressed = true; // D-pad right
+      await settle(40);
+      gamepad.buttons[15].pressed = false;
+      await settle(40);
+    }
+    const changedValue = Number(select.value);
+    expect(changedValue).toBeGreaterThan(1);
+
+    gamepad.buttons[14].pressed = true; // D-pad left
+    await settle(40);
+    gamepad.buttons[14].pressed = false;
+    await settle(40);
+    expect(Number(select.value)).toBe(changedValue - 1);
+
+    if (widthDescriptor) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', widthDescriptor);
+    else delete (HTMLElement.prototype as { offsetWidth?: unknown }).offsetWidth;
+    if (heightDescriptor) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', heightDescriptor);
+    else delete (HTMLElement.prototype as { offsetHeight?: unknown }).offsetHeight;
   });
 
   it('wraps LB/RB between Home and Settings without profile or login', async () => {

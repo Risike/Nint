@@ -350,3 +350,59 @@ test('Forfeit never awards credits and ignores client opponent values', async ()
   assert.equal(await getCredits(loser.token), 0);
   assert.equal(await getCredits(winner.token), 0);
 });
+
+test('Blast Contest and Fight results reach their leaderboards without line credits', async () => {
+  const { token } = await register('credits_blast');
+
+  const contest = await request(app)
+    .post('/api/results')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      mode: 'blast_contest',
+      score: 12345,
+      lines: 500,
+      level: 12,
+      duration: 120000,
+      piecesPlaced: 40
+    });
+  assert.equal(contest.status, 201);
+  assert.equal(contest.body.verified, true);
+  assert.equal(contest.body.creditsAwarded, 0);
+
+  const fight = await request(app)
+    .post('/api/results')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      mode: 'blast_fight',
+      score: 6789,
+      lines: 120,
+      level: 4,
+      duration: 60000,
+      piecesPlaced: 25
+    });
+  assert.equal(fight.status, 201);
+  assert.equal(fight.body.verified, true);
+  assert.equal(fight.body.creditsAwarded, 0);
+  assert.equal(await getCredits(token), 0);
+
+  const contestBoard = await request(app).get('/api/leaderboards/blast_contest');
+  assert.equal(contestBoard.status, 200);
+  assert.equal(contestBoard.body.entries[0].score, 12345);
+  assert.equal(contestBoard.body.entries[0].level, 12);
+
+  const fightBoard = await request(app).get('/api/leaderboards/blast_fight');
+  assert.equal(fightBoard.status, 200);
+  assert.equal(fightBoard.body.entries[0].score, 6789);
+  assert.equal(fightBoard.body.entries[0].level, 4);
+
+  const stats = await request(app)
+    .get('/api/stats/me')
+    .set('Authorization', `Bearer ${token}`);
+  assert.equal(stats.status, 200);
+  assert.equal(stats.body.rankings.blast_contest.rank, 1);
+  assert.equal(stats.body.rankings.blast_fight.rank, 1);
+  assert.equal(
+    stats.body.personalBests.find((best) => best.mode === 'blast_contest').value,
+    12345
+  );
+});

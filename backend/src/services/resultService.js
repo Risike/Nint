@@ -2,7 +2,8 @@ import crypto from 'crypto';
 import { getDatabase } from '../config/database.js';
 import { awardLineCredits } from '../utils/credits.js';
 
-const ALLOWED_MODES = new Set(['marathon_150', 'sprint_40', 'ultra_3m', 'boss_attack', 'zen']);
+const ALLOWED_MODES = new Set(['marathon_150', 'sprint_40', 'ultra_3m', 'boss_attack', 'blast_contest', 'blast_fight', 'zen']);
+const BLAST_MODES = new Set(['blast_contest', 'blast_fight']);
 const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
 const MAX_SESSION_MS = 6 * 60 * 60 * 1000;
 
@@ -33,11 +34,13 @@ export class ResultService {
   static validateSubmission({ mode, score, lines, duration, piecesPlaced, level, tetrises, perfectClears }) {
     const durationSec = duration / 1000;
     const computedPPS = durationSec > 0 ? piecesPlaced / durationSec : 0;
+    const isBlast = BLAST_MODES.has(mode);
 
     if (computedPPS > 12) {
       return { valid: false, reason: 'Unrealistic pieces per second' };
     }
-    if (lines > piecesPlaced * 2) {
+    // Blast "lines" count destroyed blocks, which can exceed the piece count.
+    if (!isBlast && lines > piecesPlaced * 2) {
       return { valid: false, reason: 'Implausible line count for pieces placed' };
     }
     if (tetrises * 4 > lines) {
@@ -49,8 +52,28 @@ export class ResultService {
     if (score > 5_000_000) {
       return { valid: false, reason: 'Score exceeds the supported maximum' };
     }
-    if (level > 30) {
+    if (!isBlast && level > 30) {
       return { valid: false, reason: 'Implausible level' };
+    }
+
+    if (mode === 'blast_contest') {
+      if (level < 1 || level > 50) {
+        return { valid: false, reason: 'Implausible Blast Contest stage' };
+      }
+      if (lines > 100_000) {
+        return { valid: false, reason: 'Implausible destroyed block count' };
+      }
+      return { valid: true };
+    }
+
+    if (mode === 'blast_fight') {
+      if (level < 1 || level > 8) {
+        return { valid: false, reason: 'Implausible Blast Fight round' };
+      }
+      if (lines > 100_000) {
+        return { valid: false, reason: 'Implausible destroyed block count' };
+      }
+      return { valid: true };
     }
 
     if (mode === 'zen') {
@@ -155,6 +178,7 @@ export class ResultService {
 
     const id = crypto.randomUUID();
     const now = Date.now();
+    const isBlast = BLAST_MODES.has(mode);
     let creditsAwarded = 0;
 
     const tx = db.transaction(() => {
@@ -218,11 +242,13 @@ export class ResultService {
           updated_at = ?
         WHERE user_id = ?
       `).run(
-        lines, piecesPlaced, duration, tetrises, tSpins,
+        isBlast ? 0 : lines, piecesPlaced, duration, tetrises, tSpins,
         perfectClears, maxCombo, maxB2B, now, userId
       );
 
-      if (verified) {
+      // Blast ranks on score, not cleared guideline lines, so it does not award
+      // line credits or inflate the line totals.
+      if (verified && !isBlast) {
         creditsAwarded = awardLineCredits(db, userId, lines, now);
       }
     });

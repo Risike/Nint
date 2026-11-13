@@ -1,7 +1,12 @@
 import React from 'react';
 import { Bomb, Flame, Swords, Target } from 'lucide-react';
 import { useI18n } from '../../i18n/useI18n';
-import type { BlastMode } from '../../game/engine/blast';
+import {
+  BLAST_CONTEST_STAGES,
+  BLAST_FIGHT_ENEMIES,
+  BLAST_FIGHT_ROUNDS,
+  type BlastMode
+} from '../../game/engine/blast';
 
 interface BlastHUDProps {
   mode: BlastMode;
@@ -38,6 +43,9 @@ export const BlastHUD: React.FC<BlastHUDProps> = ({
   const seconds = totalSec % 60;
   const Icon = mode === 'contest' ? Target : mode === 'training' ? Flame : Swords;
   const hpPercent = enemyMaxHp > 0 ? Math.max(0, Math.min(100, (enemyHp / enemyMaxHp) * 100)) : 0;
+  const enemy = mode === 'fight'
+    ? BLAST_FIGHT_ENEMIES[Math.max(0, Math.min(BLAST_FIGHT_ROUNDS - 1, round - 1))]
+    : null;
 
   return (
     <div className="panel-card" style={{ gap: '0.6rem', textAlign: 'left', alignItems: 'stretch' }}>
@@ -61,7 +69,7 @@ export const BlastHUD: React.FC<BlastHUDProps> = ({
         <>
           <div>
             <div className="stat-label">{t('Stage')}</div>
-            <div className="stat-value">{stage}<span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}> / 50</span></div>
+            <div className="stat-value">{stage}<span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}> / {BLAST_CONTEST_STAGES}</span></div>
           </div>
           <div>
             <div className="stat-label">{t('Pieces Left')}</div>
@@ -75,8 +83,12 @@ export const BlastHUD: React.FC<BlastHUDProps> = ({
       {mode === 'fight' && (
         <>
           <div>
+            <div className="stat-label">{t('Opponent')}</div>
+            <div className="stat-value" style={{ fontSize: '0.95rem' }}>{enemy?.name}</div>
+          </div>
+          <div>
             <div className="stat-label">{t('Round')}</div>
-            <div className="stat-value">{round}<span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}> / 8</span></div>
+            <div className="stat-value">{round}<span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}> / {BLAST_FIGHT_ROUNDS}</span></div>
           </div>
           <div>
             <div className="stat-label">{t('Enemy HP')}</div>
@@ -125,6 +137,15 @@ export const BlastHUD: React.FC<BlastHUDProps> = ({
           {minutes}:{seconds.toString().padStart(2, '0')}
         </div>
       </div>
+
+      {mode === 'fight' && enemy && (
+        <div style={{ paddingTop: '0.55rem', borderTop: '1px solid var(--border-color)' }}>
+          <div className="stat-label">{t('Enemy ability')}</div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+            {t(enemy.ability)}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

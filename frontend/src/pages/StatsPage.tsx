@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { LocalStorageManager } from '../services/storage';
-import { BarChart2, Trophy, Zap, Target, Swords, Flame, Timer, Bot, Users, ArrowLeft, Skull } from 'lucide-react';
+import { BarChart2, Trophy, Zap, Target, Swords, Flame, Timer, Bot, Users, ArrowLeft, Skull, Bomb } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 import { UserName } from '../components/user/UserName';
 
@@ -173,6 +173,18 @@ export const StatsPage: React.FC<StatsPageProps> = ({ userId, onBack }) => {
       color: 'var(--accent-red)'
     },
     {
+      id: 'blast_contest',
+      title: `Blast ${t('Adventure')}`,
+      icon: <Bomb size={18} color="var(--accent-orange)" />,
+      color: 'var(--accent-orange)'
+    },
+    {
+      id: 'blast_fight',
+      title: `Blast ${t('Fight')}`,
+      icon: <Bomb size={18} color="var(--accent-red)" />,
+      color: 'var(--accent-red)'
+    },
+    {
       id: 'elo',
       title: t('Online PvP (ELO)'),
       icon: <Swords size={18} color="var(--accent-blue)" />,
@@ -213,6 +225,24 @@ export const StatsPage: React.FC<StatsPageProps> = ({ userId, onBack }) => {
       title: t('Boss Battle'),
       description: t('Damage the boss with line clears and survive its attacks'),
       icon: <Skull size={20} color="var(--accent-red)" />,
+      badgeBg: 'rgba(239, 68, 68, 0.15)',
+      primaryMetric: 'score' as const,
+      color: 'var(--accent-red)'
+    },
+    {
+      id: 'blast_contest',
+      title: `Blast ${t('Adventure')}`,
+      description: t('Clear every stage to climb the adventure'),
+      icon: <Bomb size={20} color="var(--accent-orange)" />,
+      badgeBg: 'rgba(249, 115, 22, 0.15)',
+      primaryMetric: 'score' as const,
+      color: 'var(--accent-orange)'
+    },
+    {
+      id: 'blast_fight',
+      title: `Blast ${t('Fight')}`,
+      description: t('Blast through enemy fortresses and defeat eight opponents.'),
+      icon: <Bomb size={20} color="var(--accent-red)" />,
       badgeBg: 'rgba(239, 68, 68, 0.15)',
       primaryMetric: 'score' as const,
       color: 'var(--accent-red)'
@@ -354,7 +384,7 @@ export const StatsPage: React.FC<StatsPageProps> = ({ userId, onBack }) => {
 
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: m.id === 'boss_attack' ? '1fr' : '1fr 1fr',
+                  gridTemplateColumns: m.id === 'boss_attack' || m.id.startsWith('blast') ? '1fr' : '1fr 1fr',
                   gap: '0.75rem',
                   background: 'var(--bg-tertiary)',
                   padding: '0.85rem',
@@ -368,7 +398,7 @@ export const StatsPage: React.FC<StatsPageProps> = ({ userId, onBack }) => {
                     </div>
                   </div>
 
-                  {m.id !== 'boss_attack' && (
+                  {m.id !== 'boss_attack' && !m.id.startsWith('blast') && (
                     <div>
                       <div className="stat-label" style={{ fontSize: '0.7rem' }}>{t('Best Time')}</div>
                       <div style={{ fontWeight: 800, fontSize: '1.25rem', color: m.primaryMetric === 'time' ? m.color : 'var(--text-primary)' }}>

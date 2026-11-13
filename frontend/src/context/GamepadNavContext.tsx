@@ -289,6 +289,24 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
       return;
     }
 
+    // Selects need explicit left/right changes: clicking one only opens the
+    // native popup, which a gamepad cannot navigate.
+    if (current.tagName === 'SELECT' && (direction === 'left' || direction === 'right')) {
+      const select = current as HTMLSelectElement;
+      const nextIndex = select.selectedIndex + (direction === 'right' ? 1 : -1);
+      if (nextIndex >= 0 && nextIndex < select.options.length) {
+        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+        if (nativeSetter) {
+          nativeSetter.call(select, select.options[nextIndex].value);
+        } else {
+          select.value = select.options[nextIndex].value;
+        }
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        soundManager.playMove();
+        return;
+      }
+    }
+
     // Special handling for sliders when moving left / right
     if (current.tagName === 'INPUT' && (current as HTMLInputElement).type === 'range') {
       const slider = current as HTMLInputElement;
@@ -424,7 +442,7 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
       return;
     }
 
-    if (current.tagName === 'INPUT' || current.tagName === 'TEXTAREA') {
+    if (current.tagName === 'INPUT' || current.tagName === 'TEXTAREA' || current.tagName === 'SELECT') {
       current.focus();
       return;
     }

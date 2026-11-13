@@ -220,6 +220,40 @@ export class CanvasRenderer {
       );
     }
 
+    // Fight mode enemy: a one-cell creature moving over the stack.
+    if (engine.blastMode === 'fight' && engine.blastEnemy) {
+      const enemy = engine.blastEnemy;
+      const colors = ['#f59e0b', '#22c55e', '#a855f7', '#84cc16', '#38bdf8', '#f97316', '#64748b', '#ef4444'];
+      const cx = enemy.x * this.cellSize + this.cellSize / 2;
+      const cy = enemy.y * this.cellSize + this.cellSize / 2;
+      const radius = this.cellSize * 0.36;
+      if (enemy.abilityTimer < 1000) {
+        const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 110);
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius + this.cellSize * (0.12 + pulse * 0.1), 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(248, 113, 113, ${0.45 + pulse * 0.45})`;
+        ctx.lineWidth = Math.max(1.5, this.cellSize * 0.08);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fillStyle = colors[enemy.kind % colors.length];
+      ctx.fill();
+      ctx.lineWidth = Math.max(1, this.cellSize * 0.07);
+      ctx.strokeStyle = 'rgba(15, 23, 42, 0.9)';
+      ctx.stroke();
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.arc(cx - radius * 0.35, cy - radius * 0.2, radius * 0.24, 0, Math.PI * 2);
+      ctx.arc(cx + radius * 0.35, cy - radius * 0.2, radius * 0.24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(cx - radius * 0.35, cy - radius * 0.2, radius * 0.1, 0, Math.PI * 2);
+      ctx.arc(cx + radius * 0.35, cy - radius * 0.2, radius * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     // Draw horizontal flash beam across clearing rows
     if (engine.clearingRows.length > 0) {
       const isFlash = Math.floor(engine.lineClearTimer / 50) % 2 === 0;
@@ -256,6 +290,20 @@ export class CanvasRenderer {
           this.cellSize * 0.84,
           this.cellSize * 0.84
         );
+      }
+
+      // Mark each completed row with a bright horizontal line so the player can
+      // read which lines triggered the pending explosion.
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.7 + 0.3 * pulse})`;
+      ctx.lineWidth = Math.max(2, this.cellSize * 0.1);
+      for (const row of engine.blastTelegraphRows) {
+        const visibleRow = row - BOARD_BUFFER_HEIGHT;
+        if (visibleRow < 0 || visibleRow >= BOARD_VISIBLE_HEIGHT) continue;
+        const y = visibleRow * this.cellSize + this.cellSize / 2;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
       }
 
       for (const effect of engine.blastTelegraphEffects) {

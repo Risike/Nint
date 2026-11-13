@@ -1,6 +1,7 @@
 import {
   BOARD_BUFFER_HEIGHT,
   BOARD_TOTAL_HEIGHT,
+  BOARD_VISIBLE_HEIGHT,
   BOARD_WIDTH,
   DEFAULT_TIMING,
   PIECES,
@@ -10,7 +11,12 @@ import {
   TetrominoType
 } from './constants';
 import {
+  BLAST_CONTEST_STAGES,
+  BLAST_CRUSH_DAMAGE,
   BLAST_EFFECT_DURATION_MS,
+  BLAST_ENEMY_HEAL,
+  BLAST_FIGHT_ENEMIES,
+  BLAST_FIGHT_ROUNDS,
   BLAST_TELEGRAPH_DURATION_MS,
   BlastEffect,
   BlastMode,
@@ -19,8 +25,9 @@ import {
   bombColor,
   chooseBombLocal,
   encodeBombCell,
-  getBlastDimensions,
-  getFightEnemyMaxHp,
+      getBlastDimensions,
+    getBlastEnemyDamage,
+    getFightEnemyMaxHp,
   isBombCell,
   isMegaBombCell,
   rotateBombLocal
@@ -55,6 +62,31 @@ export interface GameEngineOptions {
 
 export type GameState = 'ready' | 'playing' | 'paused' | 'gameover' | 'completed';
 
+// Blast stops between stages until the player explicitly continues.
+export interface BlastIntermission {
+  kind: 'stage' | 'enemy';
+  current: number;
+  next: number;
+}
+
+export interface BlastEnemyState {
+  kind: number;
+  name: string;
+  x: number;
+  y: number;
+  homeX: number;
+  moveTimer: number;
+  abilityTimer: number;
+  stunTimer: number;
+}
+
+export interface BlastEnemyAction {
+  id: number;
+  type: 'attack' | 'damage' | 'defeat';
+  enemyKind: number;
+  amount: number;
+}
+
 export interface GameEvents {
   onStateChange?: (state: GameState) => void;
   onPieceSpawn?: (piece: TetrominoType) => void;
@@ -71,7 +103,9 @@ export interface GameEvents {
   onScoreUpdate?: (score: number, lines: number, level: number) => void;
   onBlast?: (result: BlastResult) => void;
   onBlastRunComplete?: () => void;
+  onBlastIntermission?: (info: BlastIntermission | null) => void;
   onBlastStageChange?: (info: { stage: number; round: number; piecesLeft: number; enemyHp: number; enemyMaxHp: number }) => void;
+  onBlastEnemyAction?: (action: BlastEnemyAction) => void;
 }
 
 export class GameEngine {
@@ -126,6 +160,8 @@ export class GameEngine {
   public blastPiecesLeft: number = 0;
   public blastEnemyHp: number = 0;
   public blastEnemyMaxHp: number = 0;
+  public blastEnemy: BlastEnemyState | null = null;
+  public blastControlFreeze: number = 0;
   public blastBlocksDestroyed: number = 0;
   public blastBestChain: number = 0;
   public blastLastChain: number = 0;
@@ -133,11 +169,14 @@ export class GameEngine {
   public blastExplosionTimer: number = 0;
   public blastTelegraphEffects: BlastEffect[] = [];
   public blastTelegraphCells: Point[] = [];
+  public blastTelegraphRows: number[] = [];
   public blastTelegraphTimer: number = 0;
+  public blastIntermission: BlastIntermission | null = null;
   private blastPendingRows: number[] = [];
   public activeBombLocal: Point[] = [];
   public activeMegaBomb: boolean = false;
   private blastBombQueue: Point[][] = [];
+  private blastEnemyActionId: number = 0;
   private blastRng: () => number;
   private blastTransition: 'stage' | 'enemy' | 'complete' | null = null;
   private gravityCurve: (level: number) => number;
@@ -219,6 +258,7 @@ export class GameEngine {
   public start() {
     this.state = 'playing';
     this.startTime = Date.now();
+    this.blastIntermission = null;
     if (this.blast) {
       if (this.blastMode === 'contest') {
         this.blastPiecesLeft = 100;
@@ -388,7 +428,7 @@ export class GameEngine {
   }
 
   private moveHorizontal(dx: number): boolean {
-    if (this.state !== 'playing' || !this.activePiece) return false;
+    if (this.state !== 'playing' || !this.activePiece || this.blastControlFreeze > 0) return false;
     if (this.isValidPosition(this.activePiece, this.activeRotation, this.activeX + dx, this.activeY)) {
       this.activeX += dx;
       this.lastActionWasRotation = false;
@@ -399,7 +439,7 @@ export class GameEngine {
   }
 
   public softDrop(): boolean {
-    if (this.state !== 'playing' || !this.activePiece) return false;
+    if (this.state !== 'playing' || !this.activePiece || this.blastControlFreeze > 0) return false;
     if (this.isValidPosition(this.activePiece, this.activeRotation, this.activeX, this.activeY + 1)) {
       this.activeY++;
       this.lastActionWasRotation = false;
@@ -412,7 +452,7 @@ export class GameEngine {
   }
 
   public hardDrop(): number {
-    if (this.state !== 'playing' || !this.activePiece) return 0;
+    if (this.state !== 'playing' || !this.activePiece || this.blastControlFreeze > 0) return 0;
     const ghostY = this.getGhostY();
     const droppedDistance = ghostY - this.activeY;
     if (droppedDistance > 0) {
@@ -433,7 +473,7 @@ export class GameEngine {
   }
 
   private attemptRotate(newRotation: RotationState): boolean {
-    if (this.state !== 'playing' || !this.activePiece || this.rotationLocked) return false;
+    if (this.state !== 'playing' || !this.activePiece || this.rotationLocked || this.blastControlFreeze > 0) return false;
 
     const fromState = this.activeRotation;
     const kickOffsets = SRS.getKickOffsets(this.activePiece, fromState, newRotation);
@@ -470,7 +510,7 @@ export class GameEngine {
   }
 
   public hold(): boolean {
-    if (this.state !== 'playing' || !this.activePiece || !this.canHold) return false;
+    if (this.state !== 'playing' || !this.activePiece || !this.canHold || this.blastControlFreeze > 0) return false;
 
     const current = this.activePiece;
     const currentBombs = this.activeBombLocal;
@@ -669,20 +709,27 @@ export class GameEngine {
     if (!this.blast || !this.blastMode) return;
     this.blastTelegraphEffects = [];
     this.blastTelegraphCells = [];
+    this.blastTelegraphRows = [];
     this.blastTelegraphTimer = 0;
     this.blastPendingRows = [];
     this.board = buildBlastStageBoard(
       this.blastMode,
       this.blastStage,
-      this.blastRound,
-      this.blastRng
+      this.blastRound
     );
+    // Pre-placed 2x2 bomb groups are already complete at stage start, so fuse
+    // them before the first piece spawns instead of waiting for a detonation.
+    this.promoteMegaBombs();
+    this.blastControlFreeze = 0;
+    this.horizontalInverted = false;
     if (this.blastMode === 'fight') {
       this.blastEnemyMaxHp = getFightEnemyMaxHp(this.blastRound);
       this.blastEnemyHp = this.blastEnemyMaxHp;
+      this.blastEnemy = this.createBlastEnemy();
     } else {
       this.blastEnemyHp = 0;
       this.blastEnemyMaxHp = 0;
+      this.blastEnemy = null;
     }
     this.events.onBlastStageChange?.({
       stage: this.blastStage,
@@ -710,6 +757,304 @@ export class GameEngine {
 
   private isBoardEmpty(): boolean {
     return this.board.every(row => row.every(cell => cell === null));
+  }
+
+  private createBlastEnemy(): BlastEnemyState {
+    const spec = BLAST_FIGHT_ENEMIES[
+      Math.max(0, Math.min(BLAST_FIGHT_ROUNDS - 1, this.blastRound - 1))
+    ];
+    const homeX = 5;
+    return {
+      kind: Math.max(0, Math.min(BLAST_FIGHT_ROUNDS - 1, this.blastRound - 1)),
+      name: spec.name,
+      x: homeX,
+      y: this.getEnemySurfaceY(homeX),
+      homeX,
+      moveTimer: 900,
+      abilityTimer: 3200,
+      stunTimer: 0
+    };
+  }
+
+  /** Row of the empty cell directly above the stack in a column. */
+  private getEnemySurfaceY(column: number): number {
+    for (let row = 0; row < BOARD_VISIBLE_HEIGHT; row += 1) {
+      if (this.board[BOARD_BUFFER_HEIGHT + row][column] !== null) {
+        return Math.max(0, row - 1);
+      }
+    }
+    return BOARD_VISIBLE_HEIGHT - 1;
+  }
+
+  private updateBlastEnemy(deltaMs: number) {
+    const enemy = this.blastEnemy;
+    if (!enemy) return;
+
+    if (this.blastControlFreeze > 0) {
+      this.blastControlFreeze = Math.max(0, this.blastControlFreeze - deltaMs);
+    }
+
+    if (enemy.stunTimer > 0) {
+      enemy.stunTimer = Math.max(0, enemy.stunTimer - deltaMs);
+      return;
+    }
+
+    enemy.moveTimer -= deltaMs;
+    if (enemy.moveTimer <= 0) {
+      this.moveBlastEnemy(enemy);
+      enemy.moveTimer = 650 + Math.floor(this.blastRng() * 450);
+    }
+
+    enemy.abilityTimer -= deltaMs;
+    if (enemy.abilityTimer <= 0) {
+      this.triggerBlastEnemyAbility(enemy);
+      enemy.abilityTimer = 4500 + Math.floor(this.blastRng() * 1800);
+    }
+  }
+
+  private moveBlastEnemy(enemy: BlastEnemyState) {
+    const direction = this.blastRng() < 0.5 ? -1 : 1;
+    let targetX = enemy.x + direction;
+
+    if (enemy.kind === 1 || enemy.kind === 5) {
+      // Snaptor and Dug Grub seek bombs and large bombs.
+      const targets: number[] = [];
+      for (let row = 0; row < BOARD_BUFFER_HEIGHT; row += 1) {
+        for (let column = 0; column < BOARD_WIDTH; column += 1) {
+          const cell = this.board[BOARD_BUFFER_HEIGHT + row][column];
+          const wanted = enemy.kind === 5 ? isMegaBombCell(cell) : isBombCell(cell);
+          if (wanted) targets.push(column);
+        }
+      }
+      if (targets.length > 0) {
+        targetX = targets.sort((a, b) =>
+          Math.abs(a - enemy.x) - Math.abs(b - enemy.x)
+        )[0];
+      }
+    } else if (enemy.kind === 3) {
+      // Creepa heads for the highest stack.
+      let highest = enemy.x;
+      let bestY = this.getEnemySurfaceY(enemy.x);
+      for (let column = 0; column < BOARD_WIDTH; column += 1) {
+        const y = this.getEnemySurfaceY(column);
+        if (y < bestY) {
+          bestY = y;
+          highest = column;
+        }
+      }
+      targetX = highest;
+    } else if (enemy.kind === 4) {
+      targetX = enemy.homeX;
+    } else if (enemy.kind === 6 || enemy.kind === 7) {
+      // Shadow and B-Boy drop towards the lowest open area.
+      let lowest = enemy.x;
+      let bestY = -1;
+      for (let column = 0; column < BOARD_WIDTH; column += 1) {
+        const y = this.getEnemySurfaceY(column);
+        if (y > bestY) {
+          bestY = y;
+          lowest = column;
+        }
+      }
+      targetX = lowest;
+    }
+
+    enemy.x = Math.max(0, Math.min(BOARD_WIDTH - 1, targetX));
+    if (enemy.kind === 2) {
+      // Gloop flies through blocks instead of walking on the surface.
+      enemy.y = Math.max(0, Math.min(BOARD_VISIBLE_HEIGHT - 1,
+        enemy.y + (this.blastRng() < 0.5 ? -1 : 1)));
+    } else {
+      enemy.y = this.getEnemySurfaceY(enemy.x);
+    }
+  }
+
+  private triggerBlastEnemyAbility(enemy: BlastEnemyState) {
+    switch (enemy.kind) {
+      case 0: // Cubit: builds a rising column.
+        this.addEnemyBlock(enemy.x);
+        break;
+      case 1: { // Snaptor: eats a bomb and heals.
+        const bomb = this.findEnemyTarget(isBombCell);
+        if (bomb) {
+          this.board[BOARD_BUFFER_HEIGHT + bomb.y][bomb.x] = '#94a3b8';
+        }
+        break;
+      }
+      case 2: // Gloop: forces the current piece to drop and lock.
+        if (this.activePiece) this.hardDrop();
+        break;
+      case 3: { // Creepa: adds a block on the highest stack.
+        let highest = 0;
+        let bestY = BOARD_BUFFER_HEIGHT;
+        for (let column = 0; column < BOARD_WIDTH; column += 1) {
+          const y = this.getEnemySurfaceY(column);
+          if (y < bestY) {
+            bestY = y;
+            highest = column;
+          }
+        }
+        this.addEnemyBlock(highest);
+        break;
+      }
+      case 4: // Squidly: raises a garbage row with one hole.
+        this.addEnemyGarbageRow();
+        break;
+      case 5: { // Dug Grub: eats a large bomb or a 3x3 cluster.
+        let foundMega = false;
+        for (let row = 0; row < BOARD_BUFFER_HEIGHT - 1 && !foundMega; row += 1) {
+          for (let column = 0; column < BOARD_WIDTH - 1; column += 1) {
+            if (isMegaBombCell(this.board[BOARD_BUFFER_HEIGHT + row][column])) {
+              this.removeBlastArea(column, BOARD_BUFFER_HEIGHT + row, 2, 2);
+              foundMega = true;
+              break;
+            }
+          }
+        }
+        if (!foundMega) {
+          this.removeBlastArea(enemy.x - 1, BOARD_BUFFER_HEIGHT + enemy.y - 1, 3, 3);
+        }
+        break;
+      }
+      case 6: // Shadow: inverts the playfield and briefly freezes controls.
+        this.blastControlFreeze = 1900;
+        break;
+      case 7: // B-Boy: explodes a 7x1 row around itself.
+        this.removeBlastArea(enemy.x - 3, BOARD_BUFFER_HEIGHT + enemy.y, 7, 1);
+        break;
+    }
+    // Every special move restores a little health in the original game.
+    const hpBeforeHeal = this.blastEnemyHp;
+    this.blastEnemyHp = Math.min(this.blastEnemyMaxHp, this.blastEnemyHp + BLAST_ENEMY_HEAL);
+    this.emitBlastEnemyAction('attack', this.blastEnemyHp - hpBeforeHeal, enemy.kind);
+  }
+
+  private emitBlastEnemyAction(type: BlastEnemyAction['type'], amount: number, enemyKind?: number) {
+    const kind = enemyKind ?? this.blastEnemy?.kind;
+    if (kind === undefined) return;
+    this.blastEnemyActionId += 1;
+    this.events.onBlastEnemyAction?.({
+      id: this.blastEnemyActionId,
+      type,
+      enemyKind: kind,
+      amount
+    });
+  }
+
+  private findEnemyTarget(predicate: (cell: string | null) => boolean): Point | null {
+    for (let row = 0; row < BOARD_BUFFER_HEIGHT; row += 1) {
+      for (let column = 0; column < BOARD_WIDTH; column += 1) {
+        if (predicate(this.board[BOARD_BUFFER_HEIGHT + row][column])) {
+          return { x: column, y: row };
+        }
+      }
+    }
+    return null;
+  }
+
+  private addEnemyBlock(column: number) {
+    const y = this.getEnemySurfaceY(column);
+    const row = BOARD_BUFFER_HEIGHT + y;
+    if (this.board[row][column] !== null) return;
+
+    // An enemy block must never be the move that completes a line. The
+    // player alone is responsible for triggering explosions.
+    const emptyCells = this.board[row].filter(cell => cell === null).length;
+    if (emptyCells <= 1) return;
+
+    this.board[row][column] = '#94a3b8';
+  }
+
+  private addEnemyGarbageRow() {
+    const row = new Array<string | null>(BOARD_WIDTH).fill('#94a3b8');
+    row[Math.floor(this.blastRng() * BOARD_WIDTH)] = null;
+    this.board.shift();
+    this.board.push(row);
+    if (this.blastEnemy) this.blastEnemy.y = this.getEnemySurfaceY(this.blastEnemy.x);
+  }
+
+  private damageBlastEnemy(amount: number, canDefeat: boolean = true) {
+    if (!this.blastEnemy) return;
+    const hpBefore = this.blastEnemyHp;
+    const requested = Math.max(0, Math.floor(amount));
+    const applied = canDefeat
+      ? Math.min(requested, hpBefore)
+      : Math.min(requested, Math.max(0, hpBefore - 1));
+    this.blastEnemyHp = Math.max(0, hpBefore - applied);
+    this.blastEnemy.stunTimer = Math.max(this.blastEnemy.stunTimer, 850);
+    if (applied > 0) {
+      this.emitBlastEnemyAction('damage', applied);
+    }
+    if (canDefeat && this.blastEnemyHp <= 0) {
+      this.emitBlastEnemyAction('defeat', 0);
+    }
+  }
+
+  /** Development-only shortcut: instantly defeats the current Fight enemy. */
+  public debugDefeatBlastEnemy(): boolean {
+    if (!import.meta.env.DEV) return false;
+    if (
+      this.blastMode !== 'fight'
+      || !this.blastEnemy
+      || this.state !== 'playing'
+      || this.blastIntermission
+    ) {
+      return false;
+    }
+
+    this.damageBlastEnemy(this.blastEnemyHp);
+    this.activePiece = null;
+    this.blastTransition = this.blastRound >= BLAST_FIGHT_ROUNDS ? 'complete' : 'enemy';
+
+    // Let an explosion or warning already in progress finish its animation;
+    // otherwise move to the intermission or victory screen immediately.
+    if (this.blastTelegraphTimer <= 0 && this.blastExplosionTimer <= 0) {
+      this.finishBlastTransition();
+    }
+    return true;
+  }
+
+  /** Crush damage only applies when a locked block actually covers the enemy. */
+  private tryCrushBlastEnemy(blocks: Point[]) {
+    const enemy = this.blastEnemy;
+    if (!enemy || enemy.kind === 2) return false;
+
+    const enemyRow = BOARD_BUFFER_HEIGHT + enemy.y;
+    if (!blocks.some(block => block.x === enemy.x && block.y === enemyRow)) {
+      return false;
+    }
+
+    this.damageBlastEnemy(BLAST_CRUSH_DAMAGE, false);
+    this.floatBlastEnemy(enemy);
+    return true;
+  }
+
+  /** Move a crushed enemy to the nearest free cell above it. */
+  private floatBlastEnemy(enemy: BlastEnemyState) {
+    const columnOffsets = [0, -1, 1, -2, 2, -3, 3, -4, 4];
+
+    for (let y = enemy.y - 1; y >= 0; y -= 1) {
+      for (const offset of columnOffsets) {
+        const x = enemy.x + offset;
+        if (x < 0 || x >= BOARD_WIDTH) continue;
+        if (this.board[BOARD_BUFFER_HEIGHT + y][x] === null) {
+          enemy.x = x;
+          enemy.y = y;
+          return;
+        }
+      }
+    }
+
+    // The stack can reach the ceiling: use any remaining open cell.
+    for (let y = 0; y < BOARD_VISIBLE_HEIGHT; y += 1) {
+      for (let x = 0; x < BOARD_WIDTH; x += 1) {
+        if (this.board[BOARD_BUFFER_HEIGHT + y][x] === null) {
+          enemy.x = x;
+          enemy.y = y;
+          return;
+        }
+      }
+    }
   }
 
   /** Four bombs arranged in a 2x2 square become one super bomb. */
@@ -759,12 +1104,10 @@ export class GameEngine {
       }
     }
 
-    if (this.blast) {
-      this.promoteMegaBombs();
-    }
-
     this.piecesPlaced += 1;
     this.events.onPieceLock?.();
+
+    this.tryCrushBlastEnemy(blocks);
 
     if (allAboveVisible) {
       this.gameOver('lock_out');
@@ -779,6 +1122,7 @@ export class GameEngine {
       // also what makes long chains readable when several bombs overlap.
       this.blastTelegraphEffects = preview;
       this.blastTelegraphCells = preview.flatMap(effect => effect.cells);
+      this.blastTelegraphRows = [...fullRows];
       this.blastPendingRows = [...fullRows];
       this.blastTelegraphTimer = BLAST_TELEGRAPH_DURATION_MS;
       this.blastEffects = [];
@@ -800,10 +1144,11 @@ export class GameEngine {
   }
 
   private finishBlastLock(result: BlastResult) {
+    // The Game Boy fuses a 2x2 bomb square only once every detonation and
+    // gravity step has settled.
+    this.promoteMegaBombs();
     const boardCleared = this.isBoardEmpty();
-    const stageCleared = this.blastMode === 'contest' || this.blastMode === 'fight'
-      ? boardCleared
-      : false;
+    const stageCleared = this.blastMode === 'contest' ? boardCleared : false;
 
     this.blastLastChain = result.chain;
     if (result.chain > this.blastBestChain) this.blastBestChain = result.chain;
@@ -816,13 +1161,9 @@ export class GameEngine {
       if (result.chain >= 6 || result.mega) this.blastPiecesLeft += 1;
     }
 
-    if (this.blastMode === 'fight') {
-      const damage = result.destroyedBlocks * 12 * Math.max(1, result.chain);
-      this.blastEnemyHp = Math.max(0, this.blastEnemyHp - damage);
-    }
-
-    const enemyDefeated = this.blastMode === 'fight' &&
-      (this.blastEnemyHp <= 0 || boardCleared);
+    // The round is won by draining the opponent's HP, not merely by
+    // clearing every block from the board.
+    const enemyDefeated = this.blastMode === 'fight' && this.blastEnemyHp <= 0;
 
     if (result.chain > 0) {
       this.blastEffects = result.effects;
@@ -855,9 +1196,9 @@ export class GameEngine {
     this.blastTransition = null;
 
     if (this.blastMode === 'contest' && stageCleared) {
-      this.blastTransition = this.blastStage >= 50 ? 'complete' : 'stage';
+      this.blastTransition = this.blastStage >= BLAST_CONTEST_STAGES ? 'complete' : 'stage';
     } else if (this.blastMode === 'fight' && enemyDefeated) {
-      this.blastTransition = this.blastRound >= 8 ? 'complete' : 'enemy';
+      this.blastTransition = this.blastRound >= BLAST_FIGHT_ROUNDS ? 'complete' : 'enemy';
     }
 
     if (this.blastTransition) {
@@ -882,6 +1223,7 @@ export class GameEngine {
     this.blastPendingRows = [];
     this.blastTelegraphEffects = [];
     this.blastTelegraphCells = [];
+    this.blastTelegraphRows = [];
     this.blastTelegraphTimer = 0;
     this.finishBlastLock(this.detonateBlast(rows));
   }
@@ -947,6 +1289,11 @@ export class GameEngine {
     let destroyedBlocks = 0;
     let bombs = 0;
     let mega = false;
+    let enemyHit = false;
+
+    // The Game Boy keeps a cumulative line counter through chain reactions.
+    // It is not reset when gravity creates a fresh set of completed rows.
+    let chainLevel = 0;
 
     while (rows.length > 0) {
       const targets: Array<{ x: number; y: number; color: string; mega: boolean }> = [];
@@ -965,11 +1312,12 @@ export class GameEngine {
 
       if (targets.length === 0) break;
       chain += 1;
-      bombs += targets.length;
-      const chainLevel = rows.length + chain - 1;
+      chainLevel += rows.length;
       const megaSeen: Array<{ x: number; y: number }> = [];
+      const scheduled = new Set(targets.map(target => `${target.x},${target.y}`));
 
-      for (const target of targets) {
+      for (let index = 0; index < targets.length; index += 1) {
+        const target = targets[index];
         if (target.mega) {
           const alreadyExploded = megaSeen.some(seen =>
             Math.abs(seen.x - target.x) <= 1 && Math.abs(seen.y - target.y) <= 1
@@ -983,7 +1331,37 @@ export class GameEngine {
         const megaAnchor = target.mega ? 1 : 0;
         const startX = target.x - Math.floor(width / 2) + megaAnchor;
         const startY = target.y - Math.floor(height / 2) + megaAnchor;
+
+        // A bomb caught in a blast detonates too, even when it is not in a
+        // completed row. Queue it before the area removes its cell.
+        for (let row = startY; row < startY + height; row += 1) {
+          if (row < 0 || row >= BOARD_TOTAL_HEIGHT) continue;
+          for (let column = startX; column < startX + width; column += 1) {
+            if (column < 0 || column >= BOARD_WIDTH) continue;
+            const cell = this.board[row][column];
+            if (!isBombCell(cell)) continue;
+            const key = `${column},${row}`;
+            if (scheduled.has(key)) continue;
+            scheduled.add(key);
+            targets.push({
+              x: column,
+              y: row,
+              color: bombColor(cell),
+              mega: isMegaBombCell(cell)
+            });
+          }
+        }
+
         const destroyedCells = this.removeBlastArea(startX, startY, width, height);
+        if (!enemyHit && this.blastEnemy) {
+          const enemyRow = BOARD_BUFFER_HEIGHT + this.blastEnemy.y;
+          if (
+            this.blastEnemy.x >= startX && this.blastEnemy.x < startX + width &&
+            enemyRow >= startY && enemyRow < startY + height
+          ) {
+            enemyHit = true;
+          }
+        }
         destroyedBlocks += destroyedCells.length;
         effects.push({
           x: target.x + megaAnchor,
@@ -997,8 +1375,15 @@ export class GameEngine {
         });
       }
 
+      bombs += targets.length;
       this.applyBlastGravity();
       rows = this.getFullBoardRows();
+    }
+
+    // Damage is resolved once the whole chain has settled, so multi-row
+    // explosions and chain reactions are worth more than isolated blasts.
+    if (enemyHit) {
+      this.damageBlastEnemy(getBlastEnemyDamage(chainLevel, chain));
     }
 
     return {
@@ -1028,20 +1413,89 @@ export class GameEngine {
     return destroyed;
   }
 
+  /**
+   * Tetris Blast uses sticky gravity: orthogonally connected blocks fall as a
+   * single group. A support under any cell stops the whole group, which lets
+   * disconnected structures drop and create the classic chain reactions.
+   */
   private applyBlastGravity() {
-    for (let column = 0; column < BOARD_WIDTH; column += 1) {
-      let writeRow = BOARD_TOTAL_HEIGHT - 1;
-      for (let row = BOARD_TOTAL_HEIGHT - 1; row >= 0; row -= 1) {
-        const cell = this.board[row][column];
-        if (cell === null) continue;
-        this.board[writeRow][column] = cell;
-        if (writeRow !== row) this.board[row][column] = null;
-        writeRow -= 1;
+    // Segments are fixed once, immediately after the explosion. Recomputing
+    // them during the fall would merge a falling segment with a supported one
+    // as soon as they become side-by-side, stopping it in mid-air.
+    const groups = this.getStickyGroups();
+    if (groups.length === 0) return;
+
+    while (true) {
+      // Settle the lowest groups first so upper groups can follow them.
+      groups.sort((a, b) =>
+        Math.max(...b.map(cell => cell.y)) - Math.max(...a.map(cell => cell.y))
+      );
+
+      let moved = false;
+      for (const group of groups) {
+        if (this.dropStickyGroup(group)) {
+          moved = true;
+          break;
+        }
       }
-      for (let row = writeRow; row >= 0; row -= 1) {
-        this.board[row][column] = null;
+      if (!moved) return;
+    }
+  }
+
+  private getStickyGroups(): Array<Array<{ x: number; y: number; cell: string }>> {
+    const visited = Array.from({ length: BOARD_TOTAL_HEIGHT }, () =>
+      new Array<boolean>(BOARD_WIDTH).fill(false)
+    );
+    const groups: Array<Array<{ x: number; y: number; cell: string }>> = [];
+
+    for (let row = 0; row < BOARD_TOTAL_HEIGHT; row += 1) {
+      for (let column = 0; column < BOARD_WIDTH; column += 1) {
+        const cell = this.board[row][column];
+        if (cell === null || visited[row][column]) continue;
+
+        const group: Array<{ x: number; y: number; cell: string }> = [];
+        const queue: Point[] = [{ x: column, y: row }];
+        visited[row][column] = true;
+
+        while (queue.length > 0) {
+          const point = queue.shift()!;
+          group.push({ ...point, cell: this.board[point.y][point.x]! });
+
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+            const nx = point.x + dx;
+            const ny = point.y + dy;
+            if (nx < 0 || nx >= BOARD_WIDTH || ny < 0 || ny >= BOARD_TOTAL_HEIGHT) continue;
+            if (visited[ny][nx] || this.board[ny][nx] === null) continue;
+            visited[ny][nx] = true;
+            queue.push({ x: nx, y: ny });
+          }
+        }
+
+        groups.push(group);
       }
     }
+
+    return groups;
+  }
+
+  private dropStickyGroup(group: Array<{ x: number; y: number; cell: string }>): boolean {
+    const keys = new Set(group.map(cell => `${cell.x},${cell.y}`));
+
+    for (const cell of group) {
+      const nextRow = cell.y + 1;
+      if (nextRow >= BOARD_TOTAL_HEIGHT) return false;
+      const below = this.board[nextRow][cell.x];
+      if (below !== null && !keys.has(`${cell.x},${nextRow}`)) return false;
+    }
+
+    for (const cell of group) {
+      this.board[cell.y][cell.x] = null;
+    }
+    for (const cell of group) {
+      cell.y += 1;
+      this.board[cell.y][cell.x] = cell.cell;
+    }
+    return true;
   }
 
   private finishBlastTransition() {
@@ -1051,6 +1505,7 @@ export class GameEngine {
     this.blastExplosionTimer = 0;
     this.blastTelegraphEffects = [];
     this.blastTelegraphCells = [];
+    this.blastTelegraphRows = [];
     this.blastTelegraphTimer = 0;
     if (!transition) {
       if (this.blastMode === 'contest' && this.blastPiecesLeft <= 0) {
@@ -1070,11 +1525,28 @@ export class GameEngine {
       return;
     }
 
-    if (transition === 'stage') {
-      this.blastStage += 1;
+    const current = transition === 'stage' ? this.blastStage : this.blastRound;
+    this.blastIntermission = {
+      kind: transition,
+      current,
+      next: current + 1
+    };
+    this.events.onBlastIntermission?.(this.blastIntermission);
+  }
+
+  /** Start the next Contest stage or Fight round after the player validates. */
+  public continueBlast(): boolean {
+    const intermission = this.blastIntermission;
+    if (!intermission || this.state !== 'playing') return false;
+
+    this.blastIntermission = null;
+    this.events.onBlastIntermission?.(null);
+
+    if (intermission.kind === 'stage') {
+      this.blastStage = intermission.next;
       this.blastPiecesLeft = 100;
-    } else if (transition === 'enemy') {
-      this.blastRound += 1;
+    } else {
+      this.blastRound = intermission.next;
     }
 
     this.level = this.getBlastSpeedLevel();
@@ -1082,6 +1554,7 @@ export class GameEngine {
     this.setupBlastStage();
     this.canHold = true;
     this.spawnPiece();
+    return true;
   }
 
   public finishLineClear() {
@@ -1131,6 +1604,7 @@ export class GameEngine {
 
   public update(deltaMs: number) {
     if (this.state !== 'playing') return;
+    if (this.blastIntermission) return;
 
     this.totalPlayTimeMs += deltaMs;
 
@@ -1161,6 +1635,10 @@ export class GameEngine {
         this.finishLineClear();
       }
       return;
+    }
+
+    if (this.blastMode === 'fight') {
+      this.updateBlastEnemy(deltaMs);
     }
 
     if (!this.activePiece) return;

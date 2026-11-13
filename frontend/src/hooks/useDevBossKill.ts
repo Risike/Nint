@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Development-only shortcut: pressing K defeats the current boss.
+ * Development-only shortcut: pressing K triggers the current kill action.
  * It is compiled out of production builds through import.meta.env.DEV.
  */
-export function useDevBossKill(enabled: boolean, onKill: () => void): void {
+export function useDevKill(enabled: boolean, onKill: () => void): void {
   const onKillRef = useRef(onKill);
   onKillRef.current = onKill;
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../services/api';
-import { Timer, Flame, Zap, RefreshCw, Swords, Skull } from 'lucide-react';
+import { Timer, Flame, Zap, RefreshCw, Swords, Skull, Bomb } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 import { UserName } from '../components/user/UserName';
 
@@ -63,7 +63,7 @@ export const LeaderboardsPage: React.FC<LeaderboardsPageProps> = ({ onSelectPlay
 
       {/* Mode Filters */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
             className={`btn-secondary ${mode === 'marathon_150' ? 'btn-primary' : ''}`}
             onClick={() => setMode('marathon_150')}
@@ -91,6 +91,20 @@ export const LeaderboardsPage: React.FC<LeaderboardsPageProps> = ({ onSelectPlay
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem' }}
           >
             <Skull size={16} /> {t('Boss Battle')}
+          </button>
+          <button
+            className={`btn-secondary ${mode === 'blast_contest' ? 'btn-primary' : ''}`}
+            onClick={() => setMode('blast_contest')}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem' }}
+          >
+            <Bomb size={16} /> Blast {t('Adventure')}
+          </button>
+          <button
+            className={`btn-secondary ${mode === 'blast_fight' ? 'btn-primary' : ''}`}
+            onClick={() => setMode('blast_fight')}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem' }}
+          >
+            <Bomb size={16} /> Blast {t('Fight')}
           </button>
           <button
             className={`btn-secondary ${mode === 'elo' ? 'btn-primary' : ''}`}
@@ -154,7 +168,13 @@ export const LeaderboardsPage: React.FC<LeaderboardsPageProps> = ({ onSelectPlay
                   </>
                 ) : (
                   <>
-                    <th style={{ padding: '0.75rem 1rem' }}>{t('Lines / Level')}</th>
+                    <th style={{ padding: '0.75rem 1rem' }}>
+                      {mode === 'blast_contest'
+                        ? t('Stage')
+                        : mode === 'blast_fight'
+                          ? t('Round')
+                          : t('Lines / Level')}
+                    </th>
                     <th style={{ padding: '0.75rem 1rem' }}>PPS</th>
                   </>
                 )}
@@ -204,7 +224,11 @@ export const LeaderboardsPage: React.FC<LeaderboardsPageProps> = ({ onSelectPlay
                   ) : (
                     <>
                       <td style={{ padding: '0.75rem 1rem' }}>
-                        {t('{lines} lines (Lvl {level})', { lines: entry.lines, level: entry.level })}
+                        {mode === 'blast_contest'
+                          ? `${t('Stage')} ${entry.level}`
+                          : mode === 'blast_fight'
+                            ? `${t('Round')} ${entry.level}`
+                            : t('{lines} lines (Lvl {level})', { lines: entry.lines, level: entry.level })}
                       </td>
                       <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace' }}>
                         {entry.pps ? entry.pps.toFixed(2) : '-'}

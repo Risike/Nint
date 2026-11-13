@@ -2,14 +2,14 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useDevBossKill } from '../src/hooks/useDevBossKill';
+import { useDevKill } from '../src/hooks/useDevBossKill';
 
 const Harness: React.FC<{ enabled: boolean; onKill: () => void }> = ({ enabled, onKill }) => {
-  useDevBossKill(enabled, onKill);
+  useDevKill(enabled, onKill);
   return <input data-testid="text-input" />;
 };
 
-describe('useDevBossKill', () => {
+describe('useDevKill', () => {
   let root: Root | null = null;
   let container: HTMLDivElement | null = null;
 
@@ -36,7 +36,7 @@ describe('useDevBossKill', () => {
     });
   };
 
-  it('defeats the boss when K is pressed', () => {
+  it('runs the kill action when K is pressed', () => {
     const onKill = vi.fn();
     renderHarness(true, onKill);
 
