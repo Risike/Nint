@@ -9,6 +9,22 @@ import {
   SCORING,
   TetrominoType
 } from './constants';
+import {
+  BLAST_EFFECT_DURATION_MS,
+  BLAST_TELEGRAPH_DURATION_MS,
+  BlastEffect,
+  BlastMode,
+  BlastResult,
+  buildBlastStageBoard,
+  bombColor,
+  chooseBombLocal,
+  encodeBombCell,
+  getBlastDimensions,
+  getFightEnemyMaxHp,
+  isBombCell,
+  isMegaBombCell,
+  rotateBombLocal
+} from './blast';
 import { GarbageManager } from './garbage';
 import { Randomizer } from './randomizer';
 import { ClearResult, ScoringSystem } from './scoring';
@@ -30,6 +46,11 @@ export interface GameEngineOptions {
   startingGarbageLines?: number; // Pre-fill with downstack practice lines
   enableGarbage?: boolean;
   lineClearDelay?: number; // Duration of line clear flash in ms (default 240ms)
+  blast?: boolean;
+  blastMode?: BlastMode;
+  blastStage?: number;
+  blastRound?: number;
+  blastBudget?: number;
 }
 
 export type GameState = 'ready' | 'playing' | 'paused' | 'gameover' | 'completed';
@@ -48,6 +69,9 @@ export interface GameEvents {
   onGarbageReceived?: (amount: number) => void;
   onGameOver?: (reason: string) => void;
   onScoreUpdate?: (score: number, lines: number, level: number) => void;
+  onBlast?: (result: BlastResult) => void;
+  onBlastRunComplete?: () => void;
+  onBlastStageChange?: (info: { stage: number; round: number; piecesLeft: number; enemyHp: number; enemyMaxHp: number }) => void;
 }
 
 export class GameEngine {
@@ -57,6 +81,8 @@ export class GameEngine {
   public activeY: number = 0;
   public activeRotation: RotationState = 0;
   public holdPiece: TetrominoType | null = null;
+  public holdBombs: Point[] = [];
+  public holdMegaBomb: boolean = false;
   public canHold: boolean = true;
 
   public state: GameState = 'ready';
@@ -93,6 +119,27 @@ export class GameEngine {
   public lineClearDelay: number = 240;
   public clearingRows: number[] = [];
   public lineClearTimer: number = 0;
+  public blast: boolean = false;
+  public blastMode: BlastMode | null = null;
+  public blastStage: number = 1;
+  public blastRound: number = 1;
+  public blastPiecesLeft: number = 0;
+  public blastEnemyHp: number = 0;
+  public blastEnemyMaxHp: number = 0;
+  public blastBlocksDestroyed: number = 0;
+  public blastBestChain: number = 0;
+  public blastLastChain: number = 0;
+  public blastEffects: BlastEffect[] = [];
+  public blastExplosionTimer: number = 0;
+  public blastTelegraphEffects: BlastEffect[] = [];
+  public blastTelegraphCells: Point[] = [];
+  public blastTelegraphTimer: number = 0;
+  private blastPendingRows: number[] = [];
+  public activeBombLocal: Point[] = [];
+  public activeMegaBomb: boolean = false;
+  private blastBombQueue: Point[][] = [];
+  private blastRng: () => number;
+  private blastTransition: 'stage' | 'enemy' | 'complete' | null = null;
   private gravityCurve: (level: number) => number;
 
   private dropInterval: number = 1000;
@@ -127,6 +174,12 @@ export class GameEngine {
     this.lineLevelProgression = options.lineLevelProgression !== false;
     this.immortal = Boolean(options.immortal);
     this.lineClearDelay = options.lineClearDelay ?? DEFAULT_TIMING.LINE_CLEAR_DELAY;
+    this.blast = Boolean(options.blast);
+    this.blastMode = this.blast ? (options.blastMode ?? 'contest') : null;
+    this.blastStage = Math.max(1, options.blastStage ?? 1);
+    this.blastRound = Math.max(1, options.blastRound ?? 1);
+    this.blastPiecesLeft = Math.max(0, options.blastBudget ?? (this.blastMode === 'contest' ? 100 : 0));
+    this.blastRng = Randomizer.createMulberry32((options.seed ?? Date.now()) + 0x9e3779b9);
 
     this.gravityCurve = options.gravityCurve ?? GameEngine.defaultGravityCurve;
     this.dropInterval = this.gravityCurve(this.level);
@@ -166,6 +219,14 @@ export class GameEngine {
   public start() {
     this.state = 'playing';
     this.startTime = Date.now();
+    if (this.blast) {
+      if (this.blastMode === 'contest') {
+        this.blastPiecesLeft = 100;
+      }
+      this.setupBlastStage();
+      this.level = this.getBlastSpeedLevel();
+      this.setGravityLevel(this.level);
+    }
     this.spawnPiece();
     this.events.onStateChange?.(this.state);
   }
@@ -184,7 +245,29 @@ export class GameEngine {
     }
   }
 
-  public spawnPiece(pieceType?: TetrominoType) {
+  private syncBlastBombQueue() {
+    if (!this.blast) return;
+    const upcoming = this.randomizer.peek(14);
+    while (this.blastBombQueue.length < upcoming.length) {
+      const index = this.blastBombQueue.length;
+      this.blastBombQueue.push(chooseBombLocal(upcoming[index], this.blastRng));
+    }
+  }
+
+  /** Bomb layouts for the visible queue, in the same order as the pieces. */
+  public getBlastBombPreview(count: number = 6): Point[][] {
+    if (!this.blast) return [];
+    this.syncBlastBombQueue();
+    return this.blastBombQueue.slice(0, count).map(bombs =>
+      bombs.map(point => ({ x: point.x, y: point.y }))
+    );
+  }
+
+  public spawnPiece(
+    pieceType?: TetrominoType,
+    bombLocal?: Point[],
+    megaBomb?: boolean
+  ) {
     const nextType = pieceType || this.randomizer.next();
     this.activePiece = nextType;
     this.activeRotation = 0;
@@ -198,6 +281,22 @@ export class GameEngine {
     this.dropTimer = 0;
     this.lastActionWasRotation = false;
     this.lastKickIndex = 0;
+
+    if (this.blast) {
+      if (bombLocal) {
+        this.activeBombLocal = bombLocal.map(point => ({ x: point.x, y: point.y }));
+      } else if (pieceType) {
+        this.activeBombLocal = chooseBombLocal(nextType, this.blastRng);
+      } else {
+        this.syncBlastBombQueue();
+        this.activeBombLocal = this.blastBombQueue.shift() ?? chooseBombLocal(nextType, this.blastRng);
+        this.syncBlastBombQueue();
+      }
+      this.activeMegaBomb = megaBomb ?? (nextType === 'O' && this.activeBombLocal.length === 4);
+    } else {
+      this.activeBombLocal = [];
+      this.activeMegaBomb = false;
+    }
 
     // Check for block out at the Guideline generation position.
     if (!this.isValidPosition(this.activePiece, this.activeRotation, this.activeX, this.activeY)) {
@@ -227,6 +326,14 @@ export class GameEngine {
     return PIECES[type].shapes[rotation].map(pt => ({
       x: pt.x + offsetX,
       y: pt.y + offsetY
+    }));
+  }
+
+  public getActiveBombs(): Point[] {
+    if (!this.blast || !this.activePiece || this.activeBombLocal.length === 0) return [];
+    return rotateBombLocal(this.activePiece, this.activeBombLocal, this.activeRotation).map(point => ({
+      x: point.x + this.activeX,
+      y: point.y + this.activeY
     }));
   }
 
@@ -366,13 +473,21 @@ export class GameEngine {
     if (this.state !== 'playing' || !this.activePiece || !this.canHold) return false;
 
     const current = this.activePiece;
+    const currentBombs = this.activeBombLocal;
+    const currentMega = this.activeMegaBomb;
     if (this.holdPiece === null) {
       this.holdPiece = current;
+      this.holdBombs = currentBombs;
+      this.holdMegaBomb = currentMega;
       this.spawnPiece();
     } else {
       const swapped = this.holdPiece;
+      const swappedBombs = this.holdBombs;
+      const swappedMega = this.holdMegaBomb;
       this.holdPiece = current;
-      this.spawnPiece(swapped);
+      this.holdBombs = currentBombs;
+      this.holdMegaBomb = currentMega;
+      this.spawnPiece(swapped, swappedBombs, swappedMega);
     }
 
     this.canHold = false;
@@ -408,6 +523,10 @@ export class GameEngine {
 
   public lockPiece() {
     if (!this.activePiece) return;
+    if (this.blast) {
+      this.lockBlastPiece();
+      return;
+    }
 
     const blocks = this.getActiveBlocks();
     const color = PIECES[this.activePiece].color;
@@ -546,6 +665,425 @@ export class GameEngine {
     }
   }
 
+  public setupBlastStage() {
+    if (!this.blast || !this.blastMode) return;
+    this.blastTelegraphEffects = [];
+    this.blastTelegraphCells = [];
+    this.blastTelegraphTimer = 0;
+    this.blastPendingRows = [];
+    this.board = buildBlastStageBoard(
+      this.blastMode,
+      this.blastStage,
+      this.blastRound,
+      this.blastRng
+    );
+    if (this.blastMode === 'fight') {
+      this.blastEnemyMaxHp = getFightEnemyMaxHp(this.blastRound);
+      this.blastEnemyHp = this.blastEnemyMaxHp;
+    } else {
+      this.blastEnemyHp = 0;
+      this.blastEnemyMaxHp = 0;
+    }
+    this.events.onBlastStageChange?.({
+      stage: this.blastStage,
+      round: this.blastRound,
+      piecesLeft: this.blastPiecesLeft,
+      enemyHp: this.blastEnemyHp,
+      enemyMaxHp: this.blastEnemyMaxHp
+    });
+  }
+
+  public getBlastSpeedLevel(): number {
+    if (!this.blast) return this.startingLevel;
+    if (this.blastMode === 'training') return this.startingLevel;
+    if (this.blastMode === 'fight') return 1 + Math.floor((this.blastRound - 1) / 2);
+    return 1 + Math.floor((this.blastStage - 1) / 5);
+  }
+
+  private getFullBoardRows(): number[] {
+    const rows: number[] = [];
+    for (let row = 0; row < BOARD_TOTAL_HEIGHT; row += 1) {
+      if (this.board[row].every(cell => cell !== null)) rows.push(row);
+    }
+    return rows;
+  }
+
+  private isBoardEmpty(): boolean {
+    return this.board.every(row => row.every(cell => cell === null));
+  }
+
+  /** Four bombs arranged in a 2x2 square become one super bomb. */
+  private promoteMegaBombs() {
+    const covered = new Set<string>();
+    for (let row = 0; row < BOARD_TOTAL_HEIGHT - 1; row += 1) {
+      for (let column = 0; column < BOARD_WIDTH - 1; column += 1) {
+        if (covered.has(`${column},${row}`)) continue;
+        const square = [
+          this.board[row][column],
+          this.board[row][column + 1],
+          this.board[row + 1][column],
+          this.board[row + 1][column + 1]
+        ];
+        if (!square.every(cell => isBombCell(cell))) continue;
+        if (square.some(cell => !isMegaBombCell(cell))) {
+          const color = bombColor(square[0] as string);
+          for (let dy = 0; dy < 2; dy += 1) {
+            for (let dx = 0; dx < 2; dx += 1) {
+              this.board[row + dy][column + dx] = encodeBombCell(color, true);
+            }
+          }
+        }
+        covered.add(`${column},${row}`);
+        covered.add(`${column + 1},${row}`);
+        covered.add(`${column},${row + 1}`);
+        covered.add(`${column + 1},${row + 1}`);
+      }
+    }
+  }
+
+  private lockBlastPiece() {
+    if (!this.activePiece) return;
+
+    const blocks = this.getActiveBlocks();
+    const color = PIECES[this.activePiece].color;
+    const bombKeys = new Set(this.getActiveBombs().map(point => `${point.x},${point.y}`));
+
+    let allAboveVisible = true;
+    for (const block of blocks) {
+      if (block.y >= BOARD_BUFFER_HEIGHT) allAboveVisible = false;
+      if (block.y >= 0 && block.y < BOARD_TOTAL_HEIGHT && block.x >= 0 && block.x < BOARD_WIDTH) {
+        const key = `${block.x},${block.y}`;
+        this.board[block.y][block.x] = bombKeys.has(key)
+          ? encodeBombCell(color, this.activeMegaBomb)
+          : color;
+      }
+    }
+
+    if (this.blast) {
+      this.promoteMegaBombs();
+    }
+
+    this.piecesPlaced += 1;
+    this.events.onPieceLock?.();
+
+    if (allAboveVisible) {
+      this.gameOver('lock_out');
+      return;
+    }
+
+    const fullRows = this.getFullBoardRows();
+    const preview = fullRows.length > 0 ? this.buildBlastPreview(fullRows) : [];
+
+    if (preview.length > 0) {
+      // Show the doomed blocks before removing them. This telegraph phase is
+      // also what makes long chains readable when several bombs overlap.
+      this.blastTelegraphEffects = preview;
+      this.blastTelegraphCells = preview.flatMap(effect => effect.cells);
+      this.blastPendingRows = [...fullRows];
+      this.blastTelegraphTimer = BLAST_TELEGRAPH_DURATION_MS;
+      this.blastEffects = [];
+      this.blastExplosionTimer = 0;
+      this.activePiece = null;
+      return;
+    }
+
+    this.finishBlastLock({
+      chain: 0,
+      destroyedBlocks: 0,
+      bombs: 0,
+      scoreGained: 0,
+      effects: [],
+      triggerRows: fullRows.length,
+      stageCleared: false,
+      mega: false
+    });
+  }
+
+  private finishBlastLock(result: BlastResult) {
+    const boardCleared = this.isBoardEmpty();
+    const stageCleared = this.blastMode === 'contest' || this.blastMode === 'fight'
+      ? boardCleared
+      : false;
+
+    this.blastLastChain = result.chain;
+    if (result.chain > this.blastBestChain) this.blastBestChain = result.chain;
+    this.blastBlocksDestroyed += result.destroyedBlocks;
+    this.score += result.scoreGained;
+    this.lines += result.destroyedBlocks;
+
+    if (this.blastMode === 'contest') {
+      this.blastPiecesLeft = Math.max(0, this.blastPiecesLeft - 1);
+      if (result.chain >= 6 || result.mega) this.blastPiecesLeft += 1;
+    }
+
+    if (this.blastMode === 'fight') {
+      const damage = result.destroyedBlocks * 12 * Math.max(1, result.chain);
+      this.blastEnemyHp = Math.max(0, this.blastEnemyHp - damage);
+    }
+
+    const enemyDefeated = this.blastMode === 'fight' &&
+      (this.blastEnemyHp <= 0 || boardCleared);
+
+    if (result.chain > 0) {
+      this.blastEffects = result.effects;
+      this.blastExplosionTimer = BLAST_EFFECT_DURATION_MS;
+      const clearResult: ClearResult = {
+        linesCleared: Math.min(4, result.triggerRows),
+        scoreGained: result.scoreGained,
+        garbageSent: 0,
+        text: result.chain > 1 ? `BLAST x${result.chain}` : 'BLAST',
+        isB2B: false,
+        b2bChain: 0,
+        comboCount: result.chain - 1,
+        isPerfectClear: false,
+        tSpin: 'none'
+      };
+      this.events.onLineClear?.(clearResult);
+      this.events.onBlast?.(result);
+    }
+
+    this.events.onScoreUpdate?.(this.score, this.lines, this.level);
+    this.events.onPieceLocked?.({
+      linesCleared: result.triggerRows,
+      scoreGained: result.scoreGained,
+      tSpin: 'none',
+      tetris: false,
+      clearedRows: []
+    });
+
+    this.activePiece = null;
+    this.blastTransition = null;
+
+    if (this.blastMode === 'contest' && stageCleared) {
+      this.blastTransition = this.blastStage >= 50 ? 'complete' : 'stage';
+    } else if (this.blastMode === 'fight' && enemyDefeated) {
+      this.blastTransition = this.blastRound >= 8 ? 'complete' : 'enemy';
+    }
+
+    if (this.blastTransition) {
+      if (this.blastExplosionTimer === 0) this.finishBlastTransition();
+      return;
+    }
+
+    if (this.blastExplosionTimer > 0) return;
+
+    if (this.blastMode === 'contest' && this.blastPiecesLeft <= 0) {
+      this.gameOver('blast_budget');
+      return;
+    }
+
+    this.canHold = true;
+    this.spawnPiece();
+  }
+
+  private resolvePendingBlast() {
+    if (this.blastPendingRows.length === 0) return;
+    const rows = this.blastPendingRows;
+    this.blastPendingRows = [];
+    this.blastTelegraphEffects = [];
+    this.blastTelegraphCells = [];
+    this.blastTelegraphTimer = 0;
+    this.finishBlastLock(this.detonateBlast(rows));
+  }
+
+  private buildBlastPreview(rows: number[]): BlastEffect[] {
+    const targets: Array<{ x: number; y: number; color: string; mega: boolean }> = [];
+    for (const row of rows) {
+      for (let column = 0; column < BOARD_WIDTH; column += 1) {
+        const cell = this.board[row][column];
+        if (!isBombCell(cell)) continue;
+        targets.push({
+          x: column,
+          y: row,
+          color: bombColor(cell),
+          mega: isMegaBombCell(cell)
+        });
+      }
+    }
+
+    const effects: BlastEffect[] = [];
+    const megaSeen: Array<{ x: number; y: number }> = [];
+    for (const target of targets) {
+      if (target.mega) {
+        const alreadyExploded = megaSeen.some(seen =>
+          Math.abs(seen.x - target.x) <= 1 && Math.abs(seen.y - target.y) <= 1
+        );
+        megaSeen.push({ x: target.x, y: target.y });
+        if (alreadyExploded) continue;
+      }
+
+      const { width, height } = getBlastDimensions(rows.length, target.mega);
+      // The first mega cell is the top-left of a 2x2 group; shift the area by
+      // one cell so the explosion is centred on the whole group.
+      const megaAnchor = target.mega ? 1 : 0;
+      const startX = target.x - Math.floor(width / 2) + megaAnchor;
+      const startY = target.y - Math.floor(height / 2) + megaAnchor;
+      const cells: Point[] = [];
+      for (let row = startY; row < startY + height; row += 1) {
+        if (row < 0 || row >= BOARD_TOTAL_HEIGHT) continue;
+        for (let column = startX; column < startX + width; column += 1) {
+          if (column < 0 || column >= BOARD_WIDTH) continue;
+          if (this.board[row][column] !== null) cells.push({ x: column, y: row });
+        }
+      }
+      effects.push({
+        x: target.x + megaAnchor,
+        y: target.y + megaAnchor,
+        width,
+        height,
+        chain: 1,
+        color: target.color,
+        mega: target.mega,
+        cells
+      });
+    }
+    return effects;
+  }
+
+  private detonateBlast(initialRows: number[]): BlastResult {
+    const effects: BlastEffect[] = [];
+    let rows = initialRows;
+    let chain = 0;
+    let destroyedBlocks = 0;
+    let bombs = 0;
+    let mega = false;
+
+    while (rows.length > 0) {
+      const targets: Array<{ x: number; y: number; color: string; mega: boolean }> = [];
+      for (const row of rows) {
+        for (let column = 0; column < BOARD_WIDTH; column += 1) {
+          const cell = this.board[row][column];
+          if (!isBombCell(cell)) continue;
+          targets.push({
+            x: column,
+            y: row,
+            color: bombColor(cell),
+            mega: isMegaBombCell(cell)
+          });
+        }
+      }
+
+      if (targets.length === 0) break;
+      chain += 1;
+      bombs += targets.length;
+      const chainLevel = rows.length + chain - 1;
+      const megaSeen: Array<{ x: number; y: number }> = [];
+
+      for (const target of targets) {
+        if (target.mega) {
+          const alreadyExploded = megaSeen.some(seen =>
+            Math.abs(seen.x - target.x) <= 1 && Math.abs(seen.y - target.y) <= 1
+          );
+          megaSeen.push({ x: target.x, y: target.y });
+          if (alreadyExploded) continue;
+          mega = true;
+        }
+
+        const { width, height } = getBlastDimensions(chainLevel, target.mega);
+        const megaAnchor = target.mega ? 1 : 0;
+        const startX = target.x - Math.floor(width / 2) + megaAnchor;
+        const startY = target.y - Math.floor(height / 2) + megaAnchor;
+        const destroyedCells = this.removeBlastArea(startX, startY, width, height);
+        destroyedBlocks += destroyedCells.length;
+        effects.push({
+          x: target.x + megaAnchor,
+          y: target.y + megaAnchor,
+          width,
+          height,
+          chain,
+          color: target.color,
+          mega: target.mega,
+          cells: destroyedCells
+        });
+      }
+
+      this.applyBlastGravity();
+      rows = this.getFullBoardRows();
+    }
+
+    return {
+      chain,
+      destroyedBlocks,
+      bombs,
+      scoreGained: destroyedBlocks * 10 * Math.max(1, chain) + bombs * 25 * Math.max(1, chain),
+      effects,
+      triggerRows: initialRows.length,
+      stageCleared: this.isBoardEmpty(),
+      mega
+    };
+  }
+
+  private removeBlastArea(startX: number, startY: number, width: number, height: number): Point[] {
+    const destroyed: Point[] = [];
+    for (let row = startY; row < startY + height; row += 1) {
+      if (row < 0 || row >= BOARD_TOTAL_HEIGHT) continue;
+      for (let column = startX; column < startX + width; column += 1) {
+        if (column < 0 || column >= BOARD_WIDTH) continue;
+        if (this.board[row][column] !== null) {
+          this.board[row][column] = null;
+          destroyed.push({ x: column, y: row });
+        }
+      }
+    }
+    return destroyed;
+  }
+
+  private applyBlastGravity() {
+    for (let column = 0; column < BOARD_WIDTH; column += 1) {
+      let writeRow = BOARD_TOTAL_HEIGHT - 1;
+      for (let row = BOARD_TOTAL_HEIGHT - 1; row >= 0; row -= 1) {
+        const cell = this.board[row][column];
+        if (cell === null) continue;
+        this.board[writeRow][column] = cell;
+        if (writeRow !== row) this.board[row][column] = null;
+        writeRow -= 1;
+      }
+      for (let row = writeRow; row >= 0; row -= 1) {
+        this.board[row][column] = null;
+      }
+    }
+  }
+
+  private finishBlastTransition() {
+    const transition = this.blastTransition;
+    this.blastTransition = null;
+    this.blastEffects = [];
+    this.blastExplosionTimer = 0;
+    this.blastTelegraphEffects = [];
+    this.blastTelegraphCells = [];
+    this.blastTelegraphTimer = 0;
+    if (!transition) {
+      if (this.blastMode === 'contest' && this.blastPiecesLeft <= 0) {
+        this.gameOver('blast_budget');
+        return;
+      }
+      this.canHold = true;
+      this.spawnPiece();
+      return;
+    }
+
+    if (transition === 'complete') {
+      this.state = 'completed';
+      this.endTime = Date.now();
+      this.events.onStateChange?.(this.state);
+      this.events.onBlastRunComplete?.();
+      return;
+    }
+
+    if (transition === 'stage') {
+      this.blastStage += 1;
+      this.blastPiecesLeft = 100;
+    } else if (transition === 'enemy') {
+      this.blastRound += 1;
+    }
+
+    this.level = this.getBlastSpeedLevel();
+    this.setGravityLevel(this.level);
+    this.setupBlastStage();
+    this.canHold = true;
+    this.spawnPiece();
+  }
+
   public finishLineClear() {
     if (this.clearingRows.length === 0) return;
 
@@ -596,6 +1134,26 @@ export class GameEngine {
 
     this.totalPlayTimeMs += deltaMs;
 
+    // Blast warning phase: the doomed cells stay on the board and pulse so
+    // the player can read the explosion before the blocks disappear.
+    if (this.blastTelegraphTimer > 0) {
+      this.blastTelegraphTimer -= deltaMs;
+      if (this.blastTelegraphTimer <= 0) {
+        this.resolvePendingBlast();
+      }
+      return;
+    }
+
+    // Blast explosion animation: the board is already resolved, then a flash
+    // shows every removed block before the next piece or stage transition.
+    if (this.blastExplosionTimer > 0) {
+      this.blastExplosionTimer -= deltaMs;
+      if (this.blastExplosionTimer <= 0) {
+        this.finishBlastTransition();
+      }
+      return;
+    }
+
     // Line clear animation in progress: blink and pause piece spawning
     if (this.clearingRows.length > 0) {
       this.lineClearTimer -= deltaMs;
@@ -633,6 +1191,13 @@ export class GameEngine {
   }
 
   public gameOver(reason: string = 'top_out') {
+    if (this.blast && this.blastMode === 'training') {
+      this.board = this.createEmptyBoard();
+      this.canHold = true;
+      this.spawnPiece();
+      return;
+    }
+
     if (this.immortal) {
       // Zen mode: soft reset board on top-out, preserve stats and continue seamlessly
       this.board = this.createEmptyBoard();

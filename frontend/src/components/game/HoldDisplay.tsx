@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { TetrominoType } from '../../game/engine/constants';
+import { Point, TetrominoType } from '../../game/engine/constants';
 import { CanvasRenderer } from '../../game/rendering/canvasRenderer';
 import { useI18n } from '../../i18n/useI18n';
 import { useAuth } from '../../context/AuthContext';
@@ -8,9 +8,11 @@ import { normalizePieceSkin } from '../../game/rendering/pieceSkins';
 interface HoldDisplayProps {
   piece: TetrominoType | null;
   canHold?: boolean;
+  showBomb?: boolean;
+  bombs?: Point[];
 }
 
-export const HoldDisplay: React.FC<HoldDisplayProps> = ({ piece, canHold = true }) => {
+export const HoldDisplay: React.FC<HoldDisplayProps> = ({ piece, canHold = true, showBomb = false, bombs = [] }) => {
   const { t } = useI18n();
   const { user } = useAuth();
   const pieceSkin = normalizePieceSkin(user?.cosmetics?.piece_skin);
@@ -18,9 +20,9 @@ export const HoldDisplay: React.FC<HoldDisplayProps> = ({ piece, canHold = true 
 
   useEffect(() => {
     if (canvasRef.current) {
-      CanvasRenderer.renderPreview(canvasRef.current, piece, 18, pieceSkin);
+      CanvasRenderer.renderPreview(canvasRef.current, piece, 18, pieceSkin, showBomb, bombs);
     }
-  }, [piece, pieceSkin]);
+  }, [piece, pieceSkin, showBomb, bombs]);
 
   return (
     <div className="panel-card" style={{ opacity: canHold ? 1 : 0.5 }}>

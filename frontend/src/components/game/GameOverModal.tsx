@@ -106,6 +106,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 
   const isOnline = mode === 'online_1v1';
   const isCoop = mode === 'coop_boss';
+  const isBlast = mode.startsWith('blast');
 
   // Determine button state and label for online rematch
   let restartButtonLabel = restartLabel || t('Play Again');
@@ -195,7 +196,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
 
           <div>
-            <div className="stat-label">{t('Lines')}</div>
+            <div className="stat-label">{isBlast ? t('Blocks Destroyed') : t('Lines')}</div>
             <div style={{ fontWeight: 800, fontSize: '1.2rem' }}>
               {stats.lines}
             </div>
@@ -215,19 +216,23 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
             </div>
           </div>
 
-          <div>
-            <div className="stat-label">{t('Tetrises / T-Spins')}</div>
-            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-              {stats.tetrises} / {stats.tSpins}
+          {!isBlast && (
+            <div>
+              <div className="stat-label">{t('Tetrises / T-Spins')}</div>
+              <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                {stats.tetrises} / {stats.tSpins}
+              </div>
             </div>
-          </div>
+          )}
 
-          <div>
-            <div className="stat-label">{t('Max Combo / B2B')}</div>
-            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-              x{stats.maxCombo > 0 ? stats.maxCombo : 0} / {stats.maxB2B}
+          {!isBlast && (
+            <div>
+              <div className="stat-label">{t('Max Combo / B2B')}</div>
+              <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                x{stats.maxCombo > 0 ? stats.maxCombo : 0} / {stats.maxB2B}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {!hideSaveNote && (isSaved ? (

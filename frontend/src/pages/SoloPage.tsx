@@ -7,11 +7,12 @@ import { PlayfieldCanvas } from '../components/game/PlayfieldCanvas';
 import { HoldDisplay } from '../components/game/HoldDisplay';
 import { QueueDisplay } from '../components/game/QueueDisplay';
 import { HUD } from '../components/game/HUD';
+import { BlastHUD } from '../components/game/BlastHUD';
 import { GameOverModal } from '../components/game/GameOverModal';
 import { CountdownOverlay } from '../components/game/CountdownOverlay';
 import { BossHUD, type BossEffectBadge } from '../components/game/BossHUD';
 import { BossDamageTrail, type BossDamageSpark } from '../components/game/BossDamageTrail';
-import { BOARD_BUFFER_HEIGHT, BOARD_VISIBLE_HEIGHT } from '../game/engine/constants';
+import { BOARD_BUFFER_HEIGHT, BOARD_VISIBLE_HEIGHT, Point } from '../game/engine/constants';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { ApiClient } from '../services/api';
@@ -38,10 +39,20 @@ import { useDevBossKill } from '../hooks/useDevBossKill';
 import { emptySoloRunStats, mergeSoloRunStats, type SoloRunStats } from '../game/soloRunStats';
 import { useGamepadActive, useGamepadBack, scrollElementIntoViewSmart } from '../context/GamepadNavContext';
 import { useI18n } from '../i18n/useI18n';
+import type { BlastMode } from '../game/engine/blast';
 import { SoloModeMenu } from './SoloModeMenu';
-import { Play, Pause, RotateCcw, ArrowLeft, Flame, Smile, Sliders } from 'lucide-react';
+import { Play, Pause, RotateCcw, ArrowLeft, Bomb, Flame, Smile, Sliders } from 'lucide-react';
 
-type SoloMode = 'marathon' | 'sprint' | 'ultra' | 'zen' | 'boss' | 'custom';
+type SoloMode =
+  | 'marathon'
+  | 'sprint'
+  | 'ultra'
+  | 'zen'
+  | 'boss'
+  | 'custom'
+  | 'blast-contest'
+  | 'blast-training'
+  | 'blast-fight';
 
 interface SoloInitOptions {
   bossCarryScore?: number;
@@ -70,13 +81,20 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   }, [user?.id]);
 
   const [mode, setMode] = useState<SoloMode>('marathon');
-  const cellSize = useDynamicCellSize(false, undefined, mode === 'boss' ? BOSS_HUD_RESERVED_HEIGHT : 0);
+  const isBlastMode = mode.startsWith('blast');
+  const cellSize = useDynamicCellSize(
+    false,
+    undefined,
+    mode === 'boss' ? BOSS_HUD_RESERVED_HEIGHT : isBlastMode ? 80 : 0
+  );
   const [isSelectingMode, setIsSelectingMode] = useState<boolean>(true);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
 
   // Zen Custom Options
   const [isConfiguringZen, setIsConfiguringZen] = useState<boolean>(false);
   const [isConfiguringMarathon, setIsConfiguringMarathon] = useState<boolean>(false);
+  const [isConfiguringBlast, setIsConfiguringBlast] = useState<boolean>(false);
+  const [blastTrainingLevel, setBlastTrainingLevel] = useState<number>(1);
   const [zenLevel, setZenLevel] = useState<number>(1);
   const [zenFixedGravity, setZenFixedGravity] = useState<boolean>(true);
   const [zenImmortal, setZenImmortal] = useState<boolean>(true);
@@ -100,6 +118,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   const [holdPiece, setHoldPiece] = useState<any>(null);
   const [canHold, setCanHold] = useState<boolean>(true);
   const [nextQueue, setNextQueue] = useState<any[]>([]);
+  const [nextBombs, setNextBombs] = useState<Point[][]>([]);
+  const [holdBombs, setHoldBombs] = useState<Point[]>([]);
   const [combo, setCombo] = useState<number>(-1);
   const [b2b, setB2B] = useState<boolean>(false);
   const [isGameOverModalOpen, setIsGameOverModalOpen] = useState<boolean>(false);
@@ -122,8 +142,8 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   const [bossDamageSparks, setBossDamageSparks] = useState<BossDamageSpark[]>([]);
   const [bossImpactKey, setBossImpactKey] = useState<number>(0);
 
-  const isPlaying = !isSelectingMode && !isConfiguringZen && !isGameOverModalOpen && (gameState === 'playing' || isCountingDown);
-  // Also suppress global gamepad nav during zen config (we handle it ourselves)
+  const isPlaying = !isSelectingMode && !isConfiguringZen && !isConfiguringBlast && !isGameOverModalOpen && (gameState === 'playing' || isCountingDown);
+  // Also suppress global gamepad nav during config screens (we handle it ourselves)
   useGamepadActive(isPlaying || isConfiguringZen);
 
   useGamepadBack(() => {
@@ -141,6 +161,11 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       setIsSelectingMode(true);
       return true;
     }
+    if (isConfiguringBlast) {
+      setIsConfiguringBlast(false);
+      setIsSelectingMode(true);
+      return true;
+    }
     if (!isSelectingMode) {
       if (gameState === 'paused' || gameState === 'ready') {
         saveZenSessionTime();
@@ -153,7 +178,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       }
     }
     return false;
-  }, [isGameOverModalOpen, isConfiguringZen, isConfiguringMarathon, isSelectingMode, gameState, engine]);
+  }, [isGameOverModalOpen, isConfiguringZen, isConfiguringMarathon, isConfiguringBlast, isSelectingMode, gameState, engine]);
 
   const keyboardManagerRef = useRef<KeyboardManager | null>(null);
   const gamepadManagerRef = useRef<GamepadManager | null>(null);
@@ -612,11 +637,24 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       setIsSelectingMode(false);
       setIsConfiguringZen(false);
       setIsConfiguringMarathon(false);
+      setIsConfiguringBlast(false);
       onClearInitialMode?.();
       // Use a microtask to ensure state is set before initGame reads it
       setTimeout(() => {
         initGame(validMode);
       }, 0);
+    } else if (m === 'blast-contest' || m === 'blast-training' || m === 'blast-fight') {
+      setMode(m);
+      setIsSelectingMode(false);
+      setIsConfiguringZen(false);
+      setIsConfiguringMarathon(false);
+      onClearInitialMode?.();
+      if (m === 'blast-training') {
+        setIsConfiguringBlast(true);
+      } else {
+        setIsConfiguringBlast(false);
+        setTimeout(() => initGame(m), 0);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialMode]);
@@ -627,16 +665,29 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       setIsSelectingMode(false);
       setIsConfiguringZen(true);
       setIsConfiguringMarathon(false);
+      setIsConfiguringBlast(false);
     } else if (selectedMode === 'marathon') {
       setIsSelectingMode(false);
       setIsConfiguringZen(false);
       setIsConfiguringMarathon(true);
+      setIsConfiguringBlast(false);
+    } else if (selectedMode === 'blast-training') {
+      setIsSelectingMode(false);
+      setIsConfiguringZen(false);
+      setIsConfiguringMarathon(false);
+      setIsConfiguringBlast(true);
     } else {
       setIsSelectingMode(false);
       setIsConfiguringZen(false);
       setIsConfiguringMarathon(false);
+      setIsConfiguringBlast(false);
       initGame(selectedMode);
     }
+  };
+
+  const startBlastTraining = () => {
+    setIsConfiguringBlast(false);
+    initGame('blast-training');
   };
 
   const startZenGame = () => {
@@ -673,11 +724,25 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       bossDefinition?.startingSpeedLevel ?? 1
     );
     const isZen = activeMode === 'zen';
+    const isBlast = activeMode.startsWith('blast');
+    const blastMode: BlastMode | null = activeMode === 'blast-contest'
+      ? 'contest'
+      : activeMode === 'blast-training'
+        ? 'training'
+        : activeMode === 'blast-fight'
+          ? 'fight'
+          : null;
     const startingLevel = bossDefinition
       ? bossDefinition.startingSpeedLevel
-      : isZen ? zenLevel : activeMode === 'marathon' ? marathonStartLevel : 1;
-    const fixedGravity = isZen ? zenFixedGravity : Boolean(bossDefinition);
-    const lineLevelProgression = !bossDefinition;
+      : isZen
+        ? zenLevel
+        : activeMode === 'marathon'
+          ? marathonStartLevel
+          : activeMode === 'blast-training'
+            ? blastTrainingLevel
+            : 1;
+    const fixedGravity = isZen ? zenFixedGravity : isBlast ? true : Boolean(bossDefinition);
+    const lineLevelProgression = !bossDefinition && !isBlast;
     const immortal = isZen ? zenImmortal : false;
     const startingGarbageLines = isZen ? zenGarbageLines : 0;
     const lockDelay = isZen ? zenLockDelay : settings.lockDelay;
@@ -691,11 +756,16 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       fixedGravity,
       lineLevelProgression,
       immortal,
-      startingGarbageLines
+      startingGarbageLines,
+      blast: isBlast,
+      blastMode: blastMode ?? undefined,
+      blastBudget: 100
     }, {
       onPieceSpawn: () => {
         setNextQueue([...newEngine.randomizer.peek(6)]);
+        setNextBombs(newEngine.getBlastBombPreview(6));
         setHoldPiece(newEngine.holdPiece);
+        setHoldBombs(newEngine.holdBombs);
         setCanHold(newEngine.canHold);
       },
       onPieceMove: () => soundManager.playMove(),
@@ -712,6 +782,13 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
         setScore(bossCarryScore + s);
         setLines(l);
         setLevel(lvl);
+      },
+      onBlast: (result) => {
+        if (result.chain > 1) soundManager.playCombo(result.chain);
+        setCombo(result.chain - 1);
+      },
+      onBlastRunComplete: () => {
+        handleGameOver(true, newEngine, activeMode);
       },
       onPieceLocked: (info) => {
         if (activeMode !== 'boss') return;
@@ -762,11 +839,15 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       onGameOver: () => handleGameOver(false, newEngine, activeMode)
     });
 
+    if (isBlast) {
+      newEngine.setupBlastStage();
+    }
+
     setEngine(newEngine);
     setGameState('ready');
     setScore(bossCarryScore);
     setLines(0);
-    setLevel(startingLevel);
+    setLevel(newEngine.getBlastSpeedLevel());
     setTimeMs(0);
     setCombo(-1);
     setB2B(false);
@@ -776,7 +857,9 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     // Next queue before countdown: show exact upcoming pieces with the 1st falling piece on top
     newEngine.activePiece = null;
     setNextQueue([...newEngine.randomizer.peek(6)]);
+    setNextBombs(newEngine.getBlastBombPreview(6));
     setHoldPiece(null);
+    setHoldBombs([]);
     setCanHold(true);
 
     if (keyboardManagerRef.current) {
@@ -815,6 +898,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     engine.startTime = Date.now();
     engine.spawnPiece();
     setNextQueue([...engine.randomizer.peek(6)]);
+    setNextBombs(engine.getBlastBombPreview(6));
     setGameState('playing');
     soundManager.startBgm();
   };
@@ -956,6 +1040,13 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       soundManager.playClear(4);
     }
 
+    // Blast is a local mode: its score and stage results are not part of the
+    // guideline leaderboards.
+    if (sourceMode.startsWith('blast')) {
+      setIsSaved(false);
+      return;
+    }
+
     // Zen Mode: no leaderboard or competitive statistics, but cleared lines
     // still earn credits for the account.
     if (sourceMode === 'zen') {
@@ -1015,6 +1106,18 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     ? mergeSoloRunStats(bossRunStatsRef.current, engine.getStats())
     : engine.getStats();
   const isBossMode = mode === 'boss';
+  const blastMode: BlastMode | null = mode === 'blast-contest'
+    ? 'contest'
+    : mode === 'blast-training'
+      ? 'training'
+      : mode === 'blast-fight'
+        ? 'fight'
+        : null;
+  const blastModeLabel = mode === 'blast-contest'
+    ? t('Contest')
+    : mode === 'blast-training'
+      ? t('Training')
+      : t('Fight');
   const bossEffectBadges: BossEffectBadge[] = activeBossEffects.map((attack) => {
     const meta = BOSS_ATTACK_META[attack];
     return { label: t(meta.label), color: meta.color, background: meta.background };
@@ -1346,6 +1449,90 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   }
 
 
+  // Blast Training setup (the only Blast mode with a pre-game choice)
+  if (isConfiguringBlast) {
+    return (
+      <div style={{ width: '100%', maxWidth: '680px', marginTop: '1rem' }}>
+        <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
+          <div style={{ display: 'inline-flex', padding: '0.75rem', borderRadius: '50%', background: 'rgba(249, 115, 22, 0.16)', color: 'var(--accent-orange)', marginBottom: '0.5rem' }}>
+            <Bomb size={32} />
+          </div>
+          <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: '0.3rem' }}>Blast · {t('Training')}</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+            {t('Choose a starting speed for your endless bomb practice.')}
+          </p>
+        </div>
+
+        <div className="panel-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '0.65rem' }}>
+              <label htmlFor="blast-training-level" style={{ fontWeight: 700, fontSize: '0.95rem' }}>
+                {t('Starting Speed / Level')}
+              </label>
+              <span style={{ color: 'var(--accent-orange)', fontWeight: 800, fontSize: '0.95rem' }}>
+                {t('Level {level} ({ms}ms)', { level: blastTrainingLevel, ms: GameEngine.defaultGravityCurve(blastTrainingLevel) })}
+              </span>
+            </div>
+            <input
+              id="blast-training-level"
+              type="range"
+              min="1"
+              max="20"
+              step="1"
+              value={blastTrainingLevel}
+              onChange={(event) => setBlastTrainingLevel(parseInt(event.target.value, 10))}
+              style={{ width: '100%', accentColor: 'var(--accent-orange)' }}
+            />
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.8rem' }}>
+              {[1, 5, 10, 15, 20].map(levelOption => (
+                <button
+                  key={levelOption}
+                  type="button"
+                  onClick={() => setBlastTrainingLevel(levelOption)}
+                  style={{
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-color)',
+                    background: blastTrainingLevel === levelOption ? 'var(--accent-orange)' : 'var(--bg-tertiary)',
+                    color: blastTrainingLevel === levelOption ? '#111827' : 'var(--text-primary)',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  {t('Level')} {levelOption}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.6rem' }}>
+              {t('Training never ends: topping out simply resets the board.')}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button
+              className="btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              onClick={() => {
+                setIsConfiguringBlast(false);
+                setIsSelectingMode(true);
+              }}
+            >
+              <ArrowLeft size={16} /> {t('Back')}
+            </button>
+            <button
+              className="btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'linear-gradient(135deg, #f97316, #ef4444)' }}
+              onClick={startBlastTraining}
+            >
+              <Play size={16} /> {t('Start Training')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Active Game Screen
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
@@ -1388,7 +1575,9 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
           textTransform: 'uppercase',
           letterSpacing: '0.05em'
         }}>
-          {t('Mode: {mode}', { mode: t(mode === 'marathon' ? 'Marathon' : mode === 'sprint' ? 'Sprint (40 Lines)' : mode === 'ultra' ? 'Ultra' : mode === 'boss' ? 'Boss Battle' : 'Practice') })}{mode === 'sprint' ? ` (${sprintGoal}L)` : mode === 'ultra' ? ' (3m)' : mode === 'zen' ? ` (${t('Level')} ${zenLevel}${zenFixedGravity ? ` • ${t('Fixed')}` : ''}${zenImmortal ? ` • ${t('Immortal')}` : ''})` : mode === 'boss' ? ` (${t('Level')} ${bossLevel} • ${t('Speed')} ${level})` : ''}
+          {isBlastMode
+            ? `Blast • ${blastModeLabel}`
+            : t('Mode: {mode}', { mode: t(mode === 'marathon' ? 'Marathon' : mode === 'sprint' ? 'Sprint (40 Lines)' : mode === 'ultra' ? 'Ultra' : mode === 'boss' ? 'Boss Battle' : 'Practice') })}{mode === 'sprint' ? ` (${sprintGoal}L)` : mode === 'ultra' ? ' (3m)' : mode === 'zen' ? ` (${t('Level')} ${zenLevel}${zenFixedGravity ? ` • ${t('Fixed')}` : ''}${zenImmortal ? ` • ${t('Immortal')}` : ''})` : mode === 'boss' ? ` (${t('Level')} ${bossLevel} • ${t('Speed')} ${level})` : ''}
         </div>
       </div>
 
@@ -1409,18 +1598,35 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       <div className="game-layout">
         {/* Left Side: Hold & HUD */}
         <div className="side-panel">
-          <HoldDisplay piece={holdPiece} canHold={canHold} />
-          <HUD
-            score={score}
-            lines={lines}
-            level={level}
-            timeMs={timeMs}
-            combo={combo}
-            b2b={b2b}
-            b2bChain={engine.b2bChain}
-            pps={currentStats.pps}
-            apm={currentStats.apm}
-          />
+          <HoldDisplay piece={holdPiece} canHold={canHold} showBomb={isBlastMode} bombs={holdBombs} />
+          {isBlastMode && blastMode ? (
+            <BlastHUD
+              mode={blastMode}
+              score={score}
+              blocks={engine.blastBlocksDestroyed}
+              chain={engine.blastLastChain}
+              bestChain={engine.blastBestChain}
+              level={level}
+              stage={engine.blastStage}
+              round={engine.blastRound}
+              piecesLeft={engine.blastPiecesLeft}
+              enemyHp={engine.blastEnemyHp}
+              enemyMaxHp={engine.blastEnemyMaxHp}
+              timeMs={timeMs}
+            />
+          ) : (
+            <HUD
+              score={score}
+              lines={lines}
+              level={level}
+              timeMs={timeMs}
+              combo={combo}
+              b2b={b2b}
+              b2bChain={engine.b2bChain}
+              pps={currentStats.pps}
+              apm={currentStats.apm}
+            />
+          )}
         </div>
 
         {/* Center: Playfield */}
@@ -1501,8 +1707,10 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
         <div className="side-panel">
           <QueueDisplay
             queue={nextQueue}
-            count={6}
-            previewSize={isBossMode ? Math.max(26, Math.min(44, Math.round(cellSize * 1.5))) : 64}
+            count={mode === 'blast-training' ? 4 : isBlastMode ? 5 : 6}
+            previewSize={isBossMode ? Math.max(26, Math.min(44, Math.round(cellSize * 1.5))) : isBlastMode ? 52 : 64}
+            showBombs={isBlastMode}
+            bombs={nextBombs}
           />
           <div className="panel-card" style={{ gap: '0.5rem' }}>
             <button
@@ -1535,7 +1743,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
         mode={mode}
         stats={currentStats}
         isSaved={isSaved}
-        hideSaveNote={mode === 'boss' && isVictory && bossLevel < MAX_BOSS_LEVEL}
+        hideSaveNote={isBlastMode || (mode === 'boss' && isVictory && bossLevel < MAX_BOSS_LEVEL)}
         restartLabel={mode === 'boss' && isVictory && bossLevel < MAX_BOSS_LEVEL ? t('Next Boss') : undefined}
         onRestart={handleModalRestart}
         onExit={exitToMenu}

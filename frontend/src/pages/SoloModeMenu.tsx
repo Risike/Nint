@@ -1,10 +1,18 @@
 import React from 'react';
-import { Bot, Flame, Skull, Smile, Timer, Zap } from 'lucide-react';
+import { Bomb, Bot, Crosshair, Flame, Skull, Smile, Swords, Timer, Zap } from 'lucide-react';
 import { BossLevelGrid } from '../components/game/BossLevelGrid';
 import { CpuLevelGrid } from '../components/game/CpuLevelGrid';
 import { useI18n } from '../i18n/useI18n';
 
-export type SoloMenuMode = 'marathon' | 'sprint' | 'ultra' | 'zen' | 'boss';
+export type SoloMenuMode =
+  | 'marathon'
+  | 'sprint'
+  | 'ultra'
+  | 'zen'
+  | 'boss'
+  | 'blast-contest'
+  | 'blast-training'
+  | 'blast-fight';
 
 interface SoloModeMenuProps {
   onSelectMode: (mode: SoloMenuMode) => void;
@@ -162,6 +170,86 @@ export const SoloModeMenu: React.FC<SoloModeMenuProps> = ({
               </div>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                 {t('Configure gravity, immortal recovery, lock delays, and starting downstack lines to practice freely.')}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section style={sectionStyle} aria-labelledby="blast-heading">
+          <div>
+            <h2 id="blast-heading" style={sectionTitleStyle}>
+              <Bomb size={20} color="var(--accent-orange)" />
+              Blast
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '0.25rem' }}>
+              {t('Complete rows to detonate bombs, chain explosions and clear the board.')}
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.85rem' }}>
+            <div
+              className="panel-card"
+              role="button"
+              tabIndex={0}
+              style={cardStyle}
+              onClick={() => onSelectMode('blast-contest')}
+              onKeyDown={handleCardKey(() => onSelectMode('blast-contest'))}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.55rem' }}>
+                <div style={{ background: 'rgba(249, 115, 22, 0.2)', color: 'var(--accent-orange)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                  <Crosshair size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('Contest')}</h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('50 Stages • 100 Pieces')}</span>
+                </div>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                {t('Clear each stage with a limited stock of bomb pieces. Explosions refill your stock.')}
+              </p>
+            </div>
+
+            <div
+              className="panel-card"
+              role="button"
+              tabIndex={0}
+              style={cardStyle}
+              onClick={() => onSelectMode('blast-training')}
+              onKeyDown={handleCardKey(() => onSelectMode('blast-training'))}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.55rem' }}>
+                <div style={{ background: 'rgba(234, 179, 8, 0.2)', color: 'var(--accent-yellow)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                  <Flame size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('Training')}</h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('Endless Practice')}</span>
+                </div>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                {t('Practice explosions endlessly with four upcoming pieces and your choice of speed.')}
+              </p>
+            </div>
+
+            <div
+              className="panel-card"
+              role="button"
+              tabIndex={0}
+              style={cardStyle}
+              onClick={() => onSelectMode('blast-fight')}
+              onKeyDown={handleCardKey(() => onSelectMode('blast-fight'))}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.55rem' }}>
+                <div style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--accent-red)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                  <Swords size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('Fight')}</h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('8 Opponents')}</span>
+                </div>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                {t('Blast through enemy fortresses and defeat eight opponents.')}
               </p>
             </div>
           </div>
