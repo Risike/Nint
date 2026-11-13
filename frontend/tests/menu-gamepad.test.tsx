@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { act } from 'react';
+import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GamepadNavProvider, useGamepadActive } from '../src/context/GamepadNavContext';
+import { GamepadNavProvider, useGamepadActive, useGamepadNav } from '../src/context/GamepadNavContext';
 
 const settle = async (ms: number) => {
   await act(async () => {
@@ -17,6 +17,23 @@ function TestHarness({ active }: { active: boolean }) {
       <button type="button">Test</button>
     </main>
   );
+}
+
+function LayeredBackHarness({ onBack }: { onBack: (layer: string) => void }) {
+  const { registerBackHandler, triggerBack } = useGamepadNav();
+
+  useEffect(() => {
+    registerBackHandler('lower', () => {
+      onBack('lower');
+      return true;
+    });
+    registerBackHandler('upper', () => {
+      onBack('upper');
+      return false;
+    });
+  }, [onBack, registerBackHandler]);
+
+  return <button type="button" onClick={triggerBack}>Back</button>;
 }
 
 function SelectHarness() {
@@ -131,6 +148,26 @@ describe('menu gamepad system actions', () => {
 
     expect(onMenuMute).toHaveBeenCalledTimes(1);
     expect(onMenuFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it('walks layered back handlers from newest to oldest before falling back home', async () => {
+    const onBack = vi.fn();
+    const setActiveTab = vi.fn();
+
+    await act(async () => {
+      root!.render(
+        <GamepadNavProvider activeTab="solo" setActiveTab={setActiveTab}>
+          <LayeredBackHarness onBack={onBack} />
+        </GamepadNavProvider>
+      );
+    });
+
+    await act(async () => {
+      container!.querySelector('button')!.click();
+    });
+
+    expect(onBack.mock.calls.map(([layer]) => layer)).toEqual(['upper', 'lower']);
+    expect(setActiveTab).not.toHaveBeenCalled();
   });
 
   it('scrolls vertically with the right stick on menu and gameplay pages', async () => {

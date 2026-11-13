@@ -11,10 +11,12 @@ import { getShopItemDisplayName } from '../i18n/shopItems';
 import { getProfileIconEmoji } from '../i18n/profileIcons';
 import { getThemePreview, type ThemePreview as ThemePreviewPalette } from '../i18n/themes';
 import { useSettings } from '../context/SettingsContext';
+import { useGamepadBack } from '../context/GamepadNavContext';
 
 interface ShopPageProps {
   onNavigate: (tab: string) => void;
   mode?: 'shop' | 'player';
+  onBack?: () => void;
 }
 
 type ShopKind = 'piece_skin' | 'name_color' | 'name_decoration' | 'profile_icon' | 'title' | 'theme';
@@ -227,7 +229,7 @@ const ItemPreview: React.FC<{
   );
 };
 
-export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate, mode = 'shop' }) => {
+export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate, mode = 'shop', onBack }) => {
   const { user, isAuthenticated, refreshProfile } = useAuth();
   const { updateSettings, setPreviewTheme } = useSettings();
   const { t, language } = useI18n();
@@ -243,6 +245,18 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onNavigate, mode = 'shop' })
   const [nameMessage, setNameMessage] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const isPlayerMode = mode === 'player';
+
+  useGamepadBack(() => {
+    if (activeCategory !== null) {
+      setActiveCategory(null);
+      return true;
+    }
+    if (onBack) {
+      onBack();
+      return true;
+    }
+    return false;
+  }, [activeCategory, onBack]);
 
   const loadShop = async () => {
     setLoading(true);

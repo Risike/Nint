@@ -4,6 +4,16 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SoloModeMenu } from '../src/pages/SoloModeMenu';
 
+const gamepad = vi.hoisted(() => ({
+  back: null as null | (() => boolean | void)
+}));
+
+vi.mock('../src/context/GamepadNavContext', () => ({
+  useGamepadBack: (handler: () => boolean | void) => {
+    gamepad.back = handler;
+  }
+}));
+
 vi.mock('../src/i18n/useI18n', () => ({
   useI18n: () => ({ t: (key: string) => key })
 }));
@@ -13,6 +23,7 @@ describe('Solo mode menu', () => {
   let container: HTMLDivElement | null = null;
 
   beforeEach(() => {
+    gamepad.back = null;
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -70,6 +81,23 @@ describe('Solo mode menu', () => {
     await act(async () => {
       (container!.querySelector('[data-solo-back]') as HTMLElement).click();
     });
+    expect(container!.querySelectorAll('[data-solo-category]')).toHaveLength(4);
+  });
+
+  it('starts directly in the Blast menu and returns to Solo with B', async () => {
+    await renderMenu({ onSelectMode: () => {}, initialCategory: 'blast' });
+
+    expect(Array.from(container!.querySelectorAll('[data-solo-mode]')).map((card) => card.getAttribute('data-solo-mode'))).toEqual([
+      'blast-contest',
+      'blast-training',
+      'blast-fight'
+    ]);
+
+    expect(gamepad.back).toBeTypeOf('function');
+    await act(async () => {
+      expect(gamepad.back?.()).toBe(true);
+    });
+
     expect(container!.querySelectorAll('[data-solo-category]')).toHaveLength(4);
   });
 

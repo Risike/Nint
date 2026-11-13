@@ -48,7 +48,7 @@ import {
   unlockBlastRoundAfterClear,
   unlockBlastStageAfterClear
 } from '../game/blastProgress';
-import { SoloModeMenu } from './SoloModeMenu';
+import { SoloModeMenu, type SoloMenuCategory } from './SoloModeMenu';
 import { Play, Pause, RotateCcw, ArrowLeft, Bomb, Flame, Smile, Sliders } from 'lucide-react';
 
 type SoloMode =
@@ -102,6 +102,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
     mode === 'boss' ? BOSS_HUD_RESERVED_HEIGHT : isBlastMode ? 80 : 0
   );
   const [isSelectingMode, setIsSelectingMode] = useState<boolean>(true);
+  const [returnCategory, setReturnCategory] = useState<SoloMenuCategory | null>(null);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
 
   // Zen Custom Options
@@ -677,6 +678,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   useEffect(() => {
     const m = pendingInitialModeRef.current;
     if (!m) return;
+    setReturnCategory(m.startsWith('blast') ? 'blast' : null);
     if (m === 'zen') {
       setMode('zen');
       setIsSelectingMode(false);
@@ -719,6 +721,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   }, [initialMode]);
 
   const launchSelectedMode = (selectedMode: SoloMode) => {
+    setReturnCategory(selectedMode.startsWith('blast') ? 'blast' : null);
     setMode(selectedMode);
     if (selectedMode === 'zen') {
       setIsSelectingMode(false);
@@ -751,11 +754,13 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   };
 
   const startBlastTraining = () => {
+    setReturnCategory('blast');
     setBlastSetup(null);
     initGame('blast-training');
   };
 
   const startBlastContest = () => {
+    setReturnCategory('blast');
     const stage = clampBlastStage(Math.min(blastContestStartStage, unlockedBlastStage));
     setBlastContestStartStage(stage);
     setBlastSetup(null);
@@ -764,6 +769,7 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   };
 
   const startBlastFight = () => {
+    setReturnCategory('blast');
     const round = clampBlastRound(Math.min(blastFightStartRound, unlockedBlastRound));
     setBlastFightStartRound(round);
     setBlastSetup(null);
@@ -772,11 +778,13 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
   };
 
   const startZenGame = () => {
+    setReturnCategory(null);
     setIsConfiguringZen(false);
     initGame('zen');
   };
 
   const startMarathonGame = () => {
+    setReturnCategory(null);
     setIsConfiguringMarathon(false);
     initGame('marathon');
   };
@@ -1241,11 +1249,16 @@ export const SoloPage: React.FC<SoloPageProps> = ({ initialMode, onClearInitialM
       <SoloModeMenu
         onSelectMode={launchSelectedMode}
         onStartCpu={(level) => {
-          if (level <= unlockedCpuLevel) onStartCpu?.(level);
+          if (level <= unlockedCpuLevel) {
+            setReturnCategory(null);
+            onStartCpu?.(level);
+          }
         }}
         unlockedCpuLevel={unlockedCpuLevel}
+        initialCategory={returnCategory}
         onStartBoss={(level) => {
           if (level <= unlockedBossLevel) {
+            setReturnCategory(null);
             setMode('boss');
             setIsSelectingMode(false);
             setIsConfiguringZen(false);

@@ -189,12 +189,12 @@ export const GamepadNavProvider: React.FC<GamepadNavProviderProps> = ({
     }
   }, []);
 
-  // B button action
+  // B button action. Walk from the most recently registered screen back to
+  // the oldest so nested views can handle Back before their parent page.
   const triggerBack = useCallback(() => {
     const handlers = backHandlersRef.current;
-    if (handlers.length > 0) {
-      const top = handlers[handlers.length - 1];
-      const handled = top.handler();
+    for (let index = handlers.length - 1; index >= 0; index -= 1) {
+      const handled = handlers[index].handler();
       if (handled !== false) {
         soundManager.playMove();
         return;

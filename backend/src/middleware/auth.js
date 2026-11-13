@@ -83,15 +83,6 @@ export function authenticateTokenOrBody(req, res, next) {
   authenticateToken(req, res, next);
 }
 
-export function optionalAuth(req, res, next) {
-  try {
-    req.user = authenticateRequest(req);
-  } catch {
-    req.user = null;
-  }
-  next();
-}
-
 export function requireAdmin(req, res, next) {
   authenticateToken(req, res, () => {
     if (!req.user?.isAdmin) {

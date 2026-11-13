@@ -3,6 +3,7 @@ import { ArrowLeft, Bomb, Bot, Crosshair, Flame, Skull, Smile, Swords, Timer, Za
 import { BossLevelGrid } from '../components/game/BossLevelGrid';
 import { CpuLevelGrid } from '../components/game/CpuLevelGrid';
 import { useI18n } from '../i18n/useI18n';
+import { useGamepadBack } from '../context/GamepadNavContext';
 
 export type SoloMenuMode =
   | 'marathon'
@@ -14,7 +15,7 @@ export type SoloMenuMode =
   | 'blast-training'
   | 'blast-fight';
 
-type SoloMenuCategory = 'classic' | 'blast' | 'cpu' | 'boss';
+export type SoloMenuCategory = 'classic' | 'blast' | 'cpu' | 'boss';
 
 interface SoloModeMenuProps {
   onSelectMode: (mode: SoloMenuMode) => void;
@@ -22,6 +23,7 @@ interface SoloModeMenuProps {
   onStartBoss?: (level: number) => void;
   unlockedCpuLevel?: number;
   unlockedBossLevel?: number;
+  initialCategory?: SoloMenuCategory | null;
 }
 
 interface ModeCardDefinition {
@@ -177,10 +179,17 @@ export const SoloModeMenu: React.FC<SoloModeMenuProps> = ({
   onStartCpu,
   onStartBoss,
   unlockedCpuLevel = 1,
-  unlockedBossLevel = 1
+  unlockedBossLevel = 1,
+  initialCategory = null
 }) => {
   const { t } = useI18n();
-  const [activeCategory, setActiveCategory] = useState<SoloMenuCategory | null>(null);
+  const [activeCategory, setActiveCategory] = useState<SoloMenuCategory | null>(initialCategory);
+
+  useGamepadBack(() => {
+    if (activeCategory === null) return false;
+    setActiveCategory(null);
+    return true;
+  }, [activeCategory]);
 
   const handleCardKey = (action: () => void) => (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {

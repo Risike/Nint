@@ -9,6 +9,7 @@ export const de: Record<string, string> = {
   'Classic': 'Klassisch',
   'Versus CPU': 'Gegen den Computer',
   'Boss Battle': 'Boss-Kampf',
+  'Blast': 'Blast',
   'Defeat the boss before its attacks overwhelm you.': 'Besiege den Boss, bevor seine Angriffe dich überwältigen.',
   'Practice': 'Training',
   'Play alone or challenge a CPU opponent.': 'Spiele allein oder fordere einen CPU-Gegner heraus.',

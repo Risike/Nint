@@ -3,6 +3,7 @@ import { ArrowLeft, BarChart3, UserRound } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 import { StatsPage } from './StatsPage';
 import { ShopPage } from './ShopPage';
+import { useGamepadBack } from '../context/GamepadNavContext';
 
 interface PlayerPageProps {
   onNavigate: (tab: string) => void;
@@ -32,6 +33,12 @@ const PLAYER_LINKS = [
 export const PlayerPage: React.FC<PlayerPageProps> = ({ onNavigate }) => {
   const { t } = useI18n();
   const [view, setView] = useState<PlayerView>('menu');
+
+  useGamepadBack(() => {
+    if (view !== 'stats') return false;
+    setView('menu');
+    return true;
+  }, [view]);
 
   const handleCardKey = (action: () => void) => (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -65,7 +72,7 @@ export const PlayerPage: React.FC<PlayerPageProps> = ({ onNavigate }) => {
         >
           <ArrowLeft size={16} /> {t('Back to player menu')}
         </button>
-        <ShopPage onNavigate={onNavigate} mode="player" />
+        <ShopPage onNavigate={onNavigate} mode="player" onBack={() => setView('menu')} />
       </div>
     );
   }

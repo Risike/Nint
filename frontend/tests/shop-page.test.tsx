@@ -5,6 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShopPage } from '../src/pages/ShopPage';
 
 const { mockSetPreviewTheme } = vi.hoisted(() => ({ mockSetPreviewTheme: vi.fn() }));
+const gamepad = vi.hoisted(() => ({
+  back: null as null | (() => boolean | void)
+}));
+
+vi.mock('../src/context/GamepadNavContext', () => ({
+  useGamepadBack: (handler: () => boolean | void) => {
+    gamepad.back = handler;
+  }
+}));
 
 vi.mock('../src/i18n/useI18n', () => ({
   useI18n: () => ({
@@ -134,6 +143,7 @@ describe('Shop categories', () => {
 
   beforeEach(() => {
     mockSetPreviewTheme.mockClear();
+    gamepad.back = null;
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -192,6 +202,33 @@ describe('Shop categories', () => {
     });
 
     expect(categoryCards()).toHaveLength(6);
+  });
+
+  it('returns from a category to the shop with B, then leaves through the parent back handler', async () => {
+    const onBack = vi.fn();
+    await act(async () => {
+      root!.render(<ShopPage onNavigate={() => {}} mode="player" onBack={onBack} />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const titleCard = categoryCards().find((card) => card.textContent?.includes('Titles'));
+    expect(titleCard).toBeTruthy();
+    await act(async () => {
+      titleCard!.click();
+    });
+
+    expect(gamepad.back).toBeTypeOf('function');
+    await act(async () => {
+      expect(gamepad.back?.()).toBe(true);
+    });
+    expect(categoryCards()).toHaveLength(6);
+    expect(onBack).not.toHaveBeenCalled();
+
+    await act(async () => {
+      expect(gamepad.back?.()).toBe(true);
+    });
+    expect(onBack).toHaveBeenCalledTimes(1);
   });
 
   it('opens themes and renders a theme preview', async () => {
