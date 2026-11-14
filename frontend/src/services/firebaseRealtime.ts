@@ -80,6 +80,16 @@ export function resolveFirebaseConfig(
 
 export const firebaseConfig = resolveFirebaseConfig();
 
+// A failed read or write is not the same as a missing configuration; saying so
+// avoids sending a working deployment after an .env that is already correct.
+export function describeFirebaseRequestError(reason: string): string {
+  const detail = reason.trim() || 'unknown error';
+  const hint = /permission|denied|unauthor|401|403/i.test(detail)
+    ? ' Check that Anonymous sign-in is enabled for this Firebase project and that the Realtime Database rules allow this user.'
+    : '';
+  return `Firebase Realtime Database request failed: ${detail}.${hint}`;
+}
+
 export interface PlayerCosmetics {
   name_color?: string;
   name_decoration?: string;
@@ -184,6 +194,11 @@ export class FirebaseRealtimeService {
   // Matches and rooms this browser created or joined, so old nodes can be
   // deleted later instead of piling up in the database forever.
   private static janitorScheduled = false;
+
+  private static requestFailedError(cause: unknown): Error {
+    const reason = cause instanceof Error ? cause.message : String(cause ?? '');
+    return new Error(describeFirebaseRequestError(reason));
+  }
 
   private static unavailableError(): Error {
     if (import.meta.env.DEV) {
@@ -316,8 +331,8 @@ export class FirebaseRealtimeService {
     let existingRoom;
     try {
       existingRoom = await get(ref(this.db, `rooms/${roomCode}`));
-    } catch {
-      throw this.unavailableError();
+    } catch (e) {
+      throw this.requestFailedError(e);
     }
     if (existingRoom.exists()) {
       throw new Error(`Room code "${roomCode}" is already in use. Please try again.`);
@@ -372,10 +387,10 @@ export class FirebaseRealtimeService {
         alive: false,
         lastSeen: Date.now()
       }).catch(() => {});
-    } catch {
+    } catch (e) {
       // Do not leave a server-owned match waiting forever when Firebase is down.
       await ApiClient.cancelOnlineMatch(matchId).catch(() => {});
-      throw this.unavailableError();
+      throw this.requestFailedError(e);
     }
 
     this.rememberNode('matches', matchId);
@@ -396,8 +411,8 @@ export class FirebaseRealtimeService {
     let snapshot;
     try {
       snapshot = await get(roomRef);
-    } catch {
-      throw this.unavailableError();
+    } catch (e) {
+      throw this.requestFailedError(e);
     }
     if (!snapshot.exists()) {
       throw new Error(`Room "${roomCode}" not found. Verify the code.`);

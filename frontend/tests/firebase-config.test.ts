@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveFirebaseConfig, type RuntimeFirebaseConfig } from '../src/services/firebaseRealtime';
+import { describeFirebaseRequestError, resolveFirebaseConfig, type RuntimeFirebaseConfig } from '../src/services/firebaseRealtime';
 
 describe('resolveFirebaseConfig', () => {
   it('lets the runtime config override the build-time values', () => {
@@ -36,6 +36,18 @@ describe('resolveFirebaseConfig', () => {
 
   it('keeps an emulator opt-in from the runtime environment', () => {
     expect(resolveFirebaseConfig({ useEmulator: 'true' }).useEmulator).toBe('true');
+  });
+
+  it('reports a failed request as a request failure, not a missing configuration', () => {
+    const message = describeFirebaseRequestError('PERMISSION_DENIED');
+
+    expect(message).toContain('PERMISSION_DENIED');
+    expect(message).not.toContain('not configured');
+    expect(message).toContain('Anonymous sign-in');
+  });
+
+  it('does not mention permissions for unrelated failures', () => {
+    expect(describeFirebaseRequestError('network error')).not.toContain('Anonymous sign-in');
   });
 
   it('reads the config that the web container writes into config.js', () => {
