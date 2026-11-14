@@ -6,7 +6,7 @@
     "matches": {
       "$matchId": {
         ".read": "auth != null && (data.child('players').child(auth.uid).exists() || data.child('status').val() === 'waiting' || data.child('createdAt').val() < now - 7200000)",
-        ".write": "auth != null && ((!data.exists() && newData.child('players').child(auth.uid).exists()) || (!newData.exists() && ((data.child('players').child(auth.uid).exists() && data.child('status').val() === 'waiting') || (data.child('createdAt').val() < now - 7200000 && data.child('status').val() != 'active') || data.child('createdAt').val() < now - 86400000)))
+        ".write": "auth != null && ((!data.exists() && newData.child('players').child(auth.uid).exists()) || (!newData.exists() && ((data.child('players').child(auth.uid).exists() && data.child('status').val() === 'waiting') || (data.child('createdAt').val() < now - 7200000 && data.child('status').val() != 'active') || data.child('createdAt').val() < now - 86400000)))",
 
         "status": {
           ".write": "auth != null && (!data.exists() || root.child('matches').child($matchId).child('players').child(auth.uid).exists())",
@@ -90,7 +90,7 @@
             ".write": "auth != null && auth.uid == $uid",
             ".validate": "newData.isBoolean()"
           }
-        },
+        }
       }
     },
 
