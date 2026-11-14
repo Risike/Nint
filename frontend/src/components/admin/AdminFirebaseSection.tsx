@@ -16,6 +16,8 @@ interface Row {
   players: number;
 }
 
+const ROW_COLUMNS = '76px minmax(120px, 1fr) 56px 64px minmax(132px, max-content)';
+
 const statCardStyle: React.CSSProperties = {
   padding: '0.9rem 1rem',
   borderRadius: 'var(--radius-md)',
@@ -35,7 +37,8 @@ const badgeStyle = (tone: 'ready' | 'kept' | 'gone'): React.CSSProperties => {
     borderRadius: '999px',
     border: `1px solid ${colors.border}`,
     fontSize: '0.72rem',
-    fontWeight: 700
+    fontWeight: 700,
+    whiteSpace: 'nowrap'
   };
 };
 
@@ -162,20 +165,19 @@ export const AdminFirebaseSection: React.FC = () => {
         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('No old matches left in Firebase.')}</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', maxHeight: '420px', overflowY: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 90px 70px 80px 110px', gap: '0.5rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', padding: '0 0.65rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: ROW_COLUMNS, gap: '0.5rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', padding: '0 0.65rem' }}>
             <span>{t('Match')}</span>
             <span>{t('Status')}</span>
             <span>{t('Age')}</span>
             <span>{t('Players')}</span>
             <span>{t('Database')}</span>
-            <span />
           </div>
           {rows.map((row) => (
             <div
               key={row.matchId}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '90px 1fr 90px 70px 80px 110px',
+                gridTemplateColumns: ROW_COLUMNS,
                 gap: '0.5rem',
                 alignItems: 'center',
                 padding: '0.55rem 0.65rem',
@@ -188,6 +190,9 @@ export const AdminFirebaseSection: React.FC = () => {
               <code style={{ color: 'var(--text-secondary)' }}>{row.matchId.slice(0, 8)}</code>
               <span style={{ color: 'var(--text-secondary)' }}>
                 {row.mode} · {row.status ?? t('Unknown')}
+                {row.unreadable && (
+                  <span style={{ color: 'var(--accent-red)', marginLeft: '0.4rem' }}>{t('Some matches could not be read.')}</span>
+                )}
               </span>
               <span style={{ color: 'var(--text-muted)' }}>{formatAge(row.ageMs)}</span>
               <span style={{ color: 'var(--text-muted)' }}>{row.players}</span>
@@ -197,9 +202,6 @@ export const AdminFirebaseSection: React.FC = () => {
                   : row.stale
                     ? <span style={badgeStyle('ready')}>{t('Ready to delete')}</span>
                     : <span style={badgeStyle('kept')}>{t('Kept')}</span>}
-              </span>
-              <span style={{ fontSize: '0.72rem', color: 'var(--accent-red)' }}>
-                {row.unreadable ? t('Some matches could not be read.') : ''}
               </span>
             </div>
           ))}
