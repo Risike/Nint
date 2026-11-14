@@ -116,6 +116,8 @@ make test
 | `VITE_FIREBASE_DATABASE_URL` | Firebase Realtime DB URL | `https://nint-demo-default-rtdb.firebaseio.com` |
 | `VITE_FIREBASE_PROJECT_ID` | Firebase Project ID | `nint-demo` |
 
+The `VITE_FIREBASE_*` values are written into `config.js` when the `web` container starts, so changing them in `.env` only needs `docker compose up -d` — no image rebuild.
+
 ---
 
 ## 5. Controls

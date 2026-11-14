@@ -20,15 +20,65 @@ import { normalizeNameColor } from '../utils/nameColor';
 import { ApiClient } from './api';
 import { LocalStorageManager } from './storage';
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'nint-demo.firebaseapp.com',
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || 'https://nint-demo-default-rtdb.firebaseio.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'nint-demo',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'nint-demo.appspot.com',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1234567890',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:1234567890:web:abcdef123456'
+// Firebase web settings are public. They are baked in at build time, and a
+// production container can override them in public/config.js at start-up, so a
+// docker compose deployment filled from .env works without rebuilding the image.
+export interface RuntimeFirebaseConfig {
+  apiKey?: string;
+  authDomain?: string;
+  databaseURL?: string;
+  projectId?: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  appId?: string;
+  useEmulator?: string;
+}
+
+export interface FirebaseWebConfig {
+  apiKey: string;
+  authDomain: string;
+  databaseURL: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
+  useEmulator: string;
+}
+
+const FIREBASE_DEFAULTS: FirebaseWebConfig = {
+  apiKey: 'demo-api-key',
+  authDomain: 'nint-demo.firebaseapp.com',
+  databaseURL: 'https://nint-demo-default-rtdb.firebaseio.com',
+  projectId: 'nint-demo',
+  storageBucket: 'nint-demo.appspot.com',
+  messagingSenderId: '1234567890',
+  appId: '1:1234567890:web:abcdef123456',
+  useEmulator: 'false'
 };
+
+export function resolveFirebaseConfig(
+  runtime: RuntimeFirebaseConfig = (globalThis as { __NINT_CONFIG__?: RuntimeFirebaseConfig }).__NINT_CONFIG__ ?? {}
+): FirebaseWebConfig {
+  // An empty runtime value falls back to the build-time one, so an image built
+  // with real settings keeps working when the container starts without any.
+  const read = (runtimeValue: string | undefined, builtValue: string | undefined, fallback: string) => {
+    const value = (runtimeValue ?? '').trim() || (builtValue ?? '').trim();
+    return value || fallback;
+  };
+
+  return {
+    apiKey: read(runtime.apiKey, import.meta.env.VITE_FIREBASE_API_KEY, FIREBASE_DEFAULTS.apiKey),
+    authDomain: read(runtime.authDomain, import.meta.env.VITE_FIREBASE_AUTH_DOMAIN, FIREBASE_DEFAULTS.authDomain),
+    databaseURL: read(runtime.databaseURL, import.meta.env.VITE_FIREBASE_DATABASE_URL, FIREBASE_DEFAULTS.databaseURL),
+    projectId: read(runtime.projectId, import.meta.env.VITE_FIREBASE_PROJECT_ID, FIREBASE_DEFAULTS.projectId),
+    storageBucket: read(runtime.storageBucket, import.meta.env.VITE_FIREBASE_STORAGE_BUCKET, FIREBASE_DEFAULTS.storageBucket),
+    messagingSenderId: read(runtime.messagingSenderId, import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID, FIREBASE_DEFAULTS.messagingSenderId),
+    appId: read(runtime.appId, import.meta.env.VITE_FIREBASE_APP_ID, FIREBASE_DEFAULTS.appId),
+    useEmulator: read(runtime.useEmulator, import.meta.env.VITE_USE_FIREBASE_EMULATOR, FIREBASE_DEFAULTS.useEmulator)
+  };
+}
+
+export const firebaseConfig = resolveFirebaseConfig();
 
 export interface PlayerCosmetics {
   name_color?: string;
@@ -138,7 +188,7 @@ export class FirebaseRealtimeService {
     return new Error(
       import.meta.env.DEV
         ? 'Firebase Realtime Database is unavailable. Start the full development stack with "npm run dev" so the local Firebase emulator runs.'
-        : 'Firebase is not configured. Please check your .env settings.'
+        : 'Firebase is not configured. Set the VITE_FIREBASE_* values for the web container and restart it.'
     );
   }
 
@@ -146,10 +196,10 @@ export class FirebaseRealtimeService {
     if (this.app) return this.isConfigured;
 
     try {
-      const isDemoConfig = !import.meta.env.VITE_FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY === 'demo-api-key';
+      const isDemoConfig = !firebaseConfig.apiKey || firebaseConfig.apiKey === FIREBASE_DEFAULTS.apiKey;
       // Local development works out of the box with the demo config; a real
       // Firebase project can still opt into the emulator explicitly.
-      const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true'
+      const useEmulator = firebaseConfig.useEmulator === 'true'
         || (import.meta.env.DEV && isDemoConfig);
 
       if (!isDemoConfig || useEmulator) {
@@ -179,8 +229,19 @@ export class FirebaseRealtimeService {
         }
 
         this.isConfigured = true;
+
+        // A production deployment that only fills a few variables would
+        // silently keep talking to the demo project for the rest.
+        if (!import.meta.env.DEV) {
+          const demoDefaults = (Object.keys(FIREBASE_DEFAULTS) as Array<keyof FirebaseWebConfig>)
+            .filter((key) => key !== 'useEmulator' && firebaseConfig[key] === FIREBASE_DEFAULTS[key]);
+          if (demoDefaults.length > 0) {
+            console.warn('Firebase is using demo defaults for:', demoDefaults.join(', '));
+          }
+        }
       } else {
         this.isConfigured = false;
+        console.warn('Firebase disabled: no real VITE_FIREBASE_API_KEY was provided at build time or in the web container environment.');
       }
     } catch (e) {
       console.warn('Firebase initialization notice:', e);
