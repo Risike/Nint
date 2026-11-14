@@ -1,6 +1,37 @@
 import { getDatabase } from '../config/database.js';
 
+const FIREBASE_CLEANUP_MIN_AGE_MS = 2 * 60 * 60 * 1000;
+
 export class AdminService {
+  /**
+   * Lists the server's online matches that are old enough for the Firebase
+   * copy to be disposable. The admin page then checks each one in the realtime
+   * database and deletes the leftovers.
+   */
+  static listOldOnlineMatches({ limit = 300 } = {}) {
+    const db = getDatabase();
+    const cutoff = Date.now() - FIREBASE_CLEANUP_MIN_AGE_MS;
+    const safeLimit = Number.isInteger(limit) ? Math.min(Math.max(limit, 1), 1000) : 300;
+    const matches = db.prepare(`
+      SELECT id, mode, ranked, status, created_at
+      FROM online_matches
+      WHERE created_at < ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `).all(cutoff, safeLimit).map((row) => ({
+      matchId: row.id,
+      mode: row.mode || 'versus',
+      ranked: row.ranked === 1,
+      serverStatus: row.status,
+      createdAt: row.created_at
+    }));
+    const total = db.prepare(
+      'SELECT COUNT(*) AS count FROM online_matches WHERE created_at < ?'
+    ).get(cutoff).count;
+
+    return { total, matches };
+  }
+
   static clearLeaderboards() {
     const db = getDatabase();
     const tx = db.transaction(() => {

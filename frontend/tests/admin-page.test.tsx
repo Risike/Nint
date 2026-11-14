@@ -207,14 +207,15 @@ describe('Admin page', () => {
     });
   };
 
-  it('opens the four admin categories and the five shop categories', async () => {
+  it('opens the five admin categories and the six shop categories', async () => {
     await renderPage();
 
     expect(Array.from(container!.querySelectorAll('h3')).map((heading) => heading.textContent)).toEqual([
       'Announcements',
       'Leaderboards',
       'Shop',
-      'Users'
+      'Users',
+      'Firebase'
     ]);
 
     await clickCard('Shop');

@@ -55,6 +55,17 @@ export interface CoopAttackState {
   count: number;
 }
 
+export interface FirebaseMatchInspection {
+  matchId: string;
+  exists: boolean;
+  stale: boolean;
+  unreadable?: boolean;
+  status: string | null;
+  createdAt: number | null;
+  ageMs: number | null;
+  players: number;
+}
+
 export interface CoopVotes {
   retry?: Record<string, boolean>;
   next?: Record<string, boolean>;
@@ -1050,6 +1061,73 @@ export class FirebaseRealtimeService {
       }
     }
     LocalStorageManager.setItem('rtdb_rooms', remainingRooms);
+  }
+
+  private static matchTtl(status: string | null): number {
+    return status === 'active' ? 24 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000;
+  }
+
+  /**
+   * Reads the given matches to report whether they are still stored and
+   * whether they are old enough to be removed. The rules allow reading an old
+   * match from any signed-in client, so the admin page does not need the
+   * players' accounts to check the leftovers.
+   */
+  public static async inspectMatches(matchIds: string[]): Promise<FirebaseMatchInspection[]> {
+    // Authenticate first: it is what initializes Firebase on a page that has
+    // not opened the lobby yet (the admin page, for instance).
+    await this.authenticate('Admin');
+    if (!this.isConfigured || !this.db) return [];
+    const db = this.db;
+    const results: FirebaseMatchInspection[] = [];
+
+    for (let index = 0; index < matchIds.length; index += 20) {
+      const chunk = matchIds.slice(index, index + 20);
+      const inspected = await Promise.all(chunk.map(async (matchId) => {
+        try {
+          const snapshot = await get(ref(db, `matches/${matchId}`));
+          if (!snapshot.exists()) {
+            return { matchId, exists: false, stale: false, status: null, createdAt: null, ageMs: null, players: 0 };
+          }
+          const data = snapshot.val();
+          const createdAt = this.nodeTimestamp(data) || null;
+          const status = typeof data?.status === 'string' ? data.status : null;
+          const ageMs = createdAt ? Date.now() - createdAt : null;
+          return {
+            matchId,
+            exists: true,
+            stale: ageMs !== null && ageMs >= this.matchTtl(status),
+            status,
+            createdAt,
+            ageMs,
+            players: Object.keys(data?.players || {}).length
+          };
+        } catch {
+          return { matchId, exists: false, stale: false, unreadable: true, status: null, createdAt: null, ageMs: null, players: 0 };
+        }
+      }));
+      results.push(...inspected);
+    }
+
+    return results;
+  }
+
+  public static async deleteMatches(matchIds: string[]): Promise<number> {
+    if (matchIds.length === 0) return 0;
+    await this.authenticate('Admin');
+    if (!this.isConfigured || !this.db) return 0;
+    const db = this.db;
+    let deleted = 0;
+    for (const matchId of matchIds) {
+      try {
+        await remove(ref(db, `matches/${matchId}`));
+        this.forgetNode('matches', matchId);
+        deleted += 1;
+      } catch {
+        // A match still in use is left untouched.
+      }
+    }
+    return deleted;
   }
 
   public static async leaveRoom(roomCode: string, matchId: string, isHost: boolean = false) {

@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   BarChart3,
   Boxes,
+  Database,
   Megaphone,
   Palette,
   Shield,
@@ -19,12 +20,13 @@ import { AdminAnnouncementsSection } from '../components/admin/AdminAnnouncement
 import { AdminLeaderboardsSection } from '../components/admin/AdminLeaderboardsSection';
 import { AdminShopSection, type ShopKind } from '../components/admin/AdminShopSection';
 import { AdminUsersSection } from '../components/admin/AdminUsersSection';
+import { AdminFirebaseSection } from '../components/admin/AdminFirebaseSection';
 
 interface AdminPageProps {
   onNavigate?: (tab: string) => void;
 }
 
-type AdminView = 'menu' | 'announcements' | 'leaderboards' | 'shop' | 'shop-category' | 'users';
+type AdminView = 'menu' | 'announcements' | 'leaderboards' | 'shop' | 'shop-category' | 'users' | 'firebase';
 
 interface AdminCategoryCard {
   id: Exclude<AdminView, 'menu' | 'shop-category'>;
@@ -138,6 +140,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
       icon: <Users size={22} />,
       color: 'var(--accent-blue)',
       background: 'rgba(59, 130, 246, 0.2)'
+    },
+    {
+      id: 'firebase',
+      title: t('Firebase'),
+      description: t('Inspect and clean up old multiplayer matches left in the realtime database.'),
+      icon: <Database size={22} />,
+      color: 'var(--accent-green)',
+      background: 'rgba(34, 197, 94, 0.2)'
     }
   ];
 
@@ -340,6 +350,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
     } else if (isShopCategory) {
       title = selectedShopCategory.title;
       description = selectedShopCategory.description;
+    } else if (view === 'firebase') {
+      title = t('Firebase');
+      description = t('Inspect and clean up old multiplayer matches left in the realtime database.');
     }
 
     return (
@@ -368,6 +381,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
         {view === 'announcements' && <AdminAnnouncementsSection />}
         {view === 'leaderboards' && <AdminLeaderboardsSection />}
         {view === 'users' && <AdminUsersSection />}
+        {view === 'firebase' && <AdminFirebaseSection />}
         {isShopCategory && <AdminShopSection key={shopKind} kind={shopKind} />}
       </>
     );

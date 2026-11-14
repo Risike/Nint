@@ -1,6 +1,15 @@
 import { AdminService } from '../services/adminService.js';
 
 export class AdminController {
+  static getOldFirebaseMatches(req, res, next) {
+    try {
+      const limit = Number.parseInt(req.query.limit, 10);
+      res.json(AdminService.listOldOnlineMatches({ limit }));
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static clearLeaderboards(req, res, next) {
     try {
       const result = AdminService.clearLeaderboards();

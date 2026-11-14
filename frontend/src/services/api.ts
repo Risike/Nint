@@ -316,6 +316,13 @@ export class ApiClient {
     return this.request<any[]>('/admin/shop');
   }
 
+  public static adminGetFirebaseMatches() {
+    return this.request<{
+      total: number;
+      matches: { matchId: string; mode: string; ranked: boolean; serverStatus: string; createdAt: number }[];
+    }>('/admin/firebase/matches');
+  }
+
   public static adminCreateShopItem(data: any) {
     return this.request<any>('/admin/shop', {
       method: 'POST',
