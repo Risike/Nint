@@ -899,7 +899,7 @@ export const BlastBattlePage: React.FC<BlastBattlePageProps> = ({ initialEntry, 
             {t('Clear your board or make your opponent top out. Every 10 destroyed blocks sends a garbage row.')}
           </p>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-            {t('A link-cable duel: best of five rounds, and no credits are awarded.')}
+            {t('Duel another player in Blast to three round wins. Empty your board or make your opponent top out to win.')}
           </p>
           {errorMsg && <div style={{ color: 'var(--accent-red)', marginBottom: '1rem' }}>{errorMsg}</div>}
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>

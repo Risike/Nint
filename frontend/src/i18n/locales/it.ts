@@ -790,7 +790,7 @@ export const it: Record<string, string> = {
   'Each cleared line in Classic (except Practice), Versus CPU, Boss Battle, online versus and Co-op Boss earns one credit for the Shop. Practice and Blast award no credits.': 'Ogni linea cancellata in Classica (tranne Allenamento), Contro il computer, Battaglia contro il boss, versus online e Co-op Boss dà un credito per il negozio. Allenamento e Blast non danno crediti.',
   'Basics': 'Basi',
   'Blast Battle': 'Duello Blast',
-  'A link-cable duel: best of five rounds, and no credits are awarded.': 'Un duello stile cavo link: al meglio delle cinque manche e senza crediti.',
+  'Duel another player in Blast to three round wins. Empty your board or make your opponent top out to win.': 'Sfida un altro giocatore in Blast fino a vincere tre manche. Svuota il tuo campo o fai sforare quello dell’avversario per vincere.',
   'Clear your board or make your opponent top out. Every 10 destroyed blocks sends a garbage row.': 'Svuota il campo o fai sforare l’avversario. Ogni 10 blocchi distrutti invia una riga di spazzatura.',
   'Blast Quick Search': 'Ricerca rapida Blast',
   'Find an opponent': 'Trova un avversario',

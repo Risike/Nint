@@ -89,3 +89,22 @@ describe('Blast duel guide translations', () => {
     expect(translate('it', source)).toContain('crediti');
   });
 });
+
+describe('Blast duel description', () => {
+  const source = 'Duel another player in Blast to three round wins. Empty your board or make your opponent top out to win.';
+
+  it('uses the requested French description', () => {
+    expect(translate('fr', source)).toBe(
+      'Affrontez un autre joueur en mode Blast en 3 manches. Videz votre grille ou faites déborder celle de l’adversaire pour gagner.'
+    );
+  });
+
+  it('describes the same rules in every language', () => {
+    expect(translate('de', source)).toContain('drei Runden');
+    expect(translate('es', source)).toContain('tres rondas');
+    expect(translate('it', source)).toContain('tre manche');
+    for (const language of ['fr', 'de', 'es', 'it'] as const) {
+      expect(translate(language, source)).not.toBe(source);
+    }
+  });
+});

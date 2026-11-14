@@ -790,7 +790,7 @@ export const fr: Record<string, string> = {
   'Each cleared line in Classic (except Practice), Versus CPU, Boss Battle, online versus and Co-op Boss earns one credit for the Shop. Practice and Blast award no credits.': 'Chaque ligne effacée en Classique (sauf Entraînement), Versus CPU, Combat de boss, versus en ligne et Co-op de boss rapporte un crédit pour la boutique. L’Entraînement et Blast n’en donnent aucun.',
   'Basics': 'Bases',
   'Blast Battle': 'Duel Blast',
-  'A link-cable duel: best of five rounds, and no credits are awarded.': 'Un duel façon câble link : première à trois manches, et aucun crédit n’est accordé.',
+  'Duel another player in Blast to three round wins. Empty your board or make your opponent top out to win.': 'Affrontez un autre joueur en mode Blast en 3 manches. Videz votre grille ou faites déborder celle de l’adversaire pour gagner.',
   'Clear your board or make your opponent top out. Every 10 destroyed blocks sends a garbage row.': 'Videz votre plateau ou faites déborder votre adversaire. Tous les 10 blocs détruits envoient une ligne de déchets.',
   'Blast Quick Search': 'Recherche rapide Blast',
   'Find an opponent': 'Trouver un adversaire',

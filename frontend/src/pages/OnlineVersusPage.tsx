@@ -1174,7 +1174,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, 
                 {t('Blast Battle')}
               </h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '0.25rem' }}>
-                {t('A link-cable duel: best of five rounds, and no credits are awarded.')}
+                {t('Duel another player in Blast to three round wins. Empty your board or make your opponent top out to win.')}
               </p>
             </div>
 
