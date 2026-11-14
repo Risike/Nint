@@ -6,7 +6,7 @@
     "matches": {
       "$matchId": {
         ".read": "auth != null && (data.child('players').child(auth.uid).exists() || data.child('status').val() === 'waiting')",
-        ".write": "auth != null && !data.exists() && newData.child('players').child(auth.uid).exists()",
+        ".write": "auth != null && ((!data.exists() && newData.child('players').child(auth.uid).exists()) || (!newData.exists() && data.child('players').child(auth.uid).exists() && (data.child('createdAt').val() < now - 86400000 || (data.child('createdAt').val() < now - 7200000 && data.child('status').val() != 'active'))))",
 
         "status": {
           ".write": "auth != null && (!data.exists() || root.child('matches').child($matchId).child('players').child(auth.uid).exists())",
@@ -71,6 +71,7 @@
           }
         },
         "attacks": {
+          ".write": "auth != null && !newData.exists() && root.child('matches').child($matchId).child('players').child(auth.uid).exists()",
           "$attackId": {
             ".write": "auth != null && root.child('matches').child($matchId).child('players').child(auth.uid).exists() && newData.child('from').val() == auth.uid && newData.child('amount').isNumber() && newData.child('amount').val() >= 0 && newData.child('amount').val() <= 20 && newData.child('timestamp').isNumber() && newData.child('timestamp').val() > now - 300000 && newData.child('timestamp').val() < now + 60000",
             "from": {
@@ -96,7 +97,7 @@
     "rooms": {
       "$roomCode": {
         ".read": "auth != null",
-        ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid)",
+        ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid || (!newData.exists() && data.child('createdAt').val() < now - 86400000))",
         "hostUid": {
           ".validate": "newData.isString() && newData.val() == auth.uid"
         },
@@ -118,7 +119,7 @@
     "matchmaking_queue": {
       ".read": "auth != null",
       "$uid": {
-        ".write": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && (auth.uid == $uid || (!newData.exists() && data.child('createdAt').val() < now - 600000))",
         "uid": {
           ".validate": "newData.isString() && newData.val() == auth.uid"
         },

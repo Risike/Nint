@@ -222,7 +222,10 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, 
   // abandoned match may have changed it while this page was unmounted.
   useEffect(() => {
     refreshProfile().catch(() => {});
-  }, []);
+    // Signing in here also lets the stale-match janitor run for players who
+    // open the lobby without starting a game.
+    void FirebaseRealtimeService.authenticate(user?.display_name || 'Player').catch(() => {});
+  }, [user?.display_name]);
 
   useEffect(() => {
     if (user?.rating !== undefined) {

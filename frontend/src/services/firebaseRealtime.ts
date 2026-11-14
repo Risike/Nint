@@ -12,11 +12,13 @@ import {
   push,
   onDisconnect,
   runTransaction,
+  remove,
   Database
 } from 'firebase/database';
 import { getAuth, connectAuthEmulator, signInAnonymously, Auth } from 'firebase/auth';
 import { normalizeNameColor } from '../utils/nameColor';
 import { ApiClient } from './api';
+import { LocalStorageManager } from './storage';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
@@ -117,6 +119,9 @@ export class FirebaseRealtimeService {
   // Firebase uid of the known opponent per match. Attacks from anyone else are
   // ignored, so a third account cannot inject garbage into a duel.
   private static opponentUids = new Map<string, string>();
+  // Matches and rooms this browser created or joined, so old nodes can be
+  // deleted later instead of piling up in the database forever.
+  private static janitorScheduled = false;
 
   private static unavailableError(): Error {
     return new Error(
@@ -195,11 +200,13 @@ export class FirebaseRealtimeService {
         if (this.auth.currentUser) {
           this.currentUid = this.auth.currentUser.uid;
           this.uidLocked = true;
+          this.scheduleJanitor();
           return this.currentUid;
         }
         const cred = await signInAnonymously(this.auth);
         this.currentUid = cred.user.uid;
         this.uidLocked = true;
+        this.scheduleJanitor();
         return this.currentUid;
       } catch (e) {
         console.warn('Anonymous auth failed, falling back to local UID:', e);
@@ -284,6 +291,8 @@ export class FirebaseRealtimeService {
       throw this.unavailableError();
     }
 
+    this.rememberNode('matches', matchId);
+    this.rememberNode('rooms', roomCode);
     return { matchId, seed };
   }
 
@@ -374,6 +383,8 @@ export class FirebaseRealtimeService {
       startedAt: Date.now()
     });
 
+    this.rememberNode('matches', matchId);
+    this.rememberNode('rooms', roomCode);
     return { matchId, seed: joined.seed };
   }
 
@@ -957,6 +968,84 @@ export class FirebaseRealtimeService {
   }
 
   // Clean room when leaving
+  // The database keeps no index of finished games: a browser only knows the
+  // nodes it took part in. Recording them lets the janitor below delete them
+  // once they are old enough, so the tree does not grow without bound.
+  private static rememberNode(kind: 'matches' | 'rooms', id: string): void {
+    if (!id) return;
+    const key = kind === 'matches' ? 'rtdb_matches' : 'rtdb_rooms';
+    const list = LocalStorageManager.getItem<string[]>(key, []);
+    LocalStorageManager.setItem(key, [id, ...list.filter((entry) => entry !== id)].slice(0, 50));
+  }
+
+  private static scheduleJanitor(): void {
+    if (this.janitorScheduled || !this.isConfigured || !this.db) return;
+    this.janitorScheduled = true;
+    setTimeout(() => {
+      void this.cleanupStaleData();
+    }, 2500);
+  }
+
+  private static nodeTimestamp(data: any): number {
+    let newest = typeof data?.createdAt === 'number' ? data.createdAt : 0;
+    for (const player of Object.values<any>(data?.players || {})) {
+      if (typeof player?.lastSeen === 'number' && player.lastSeen > newest) {
+        newest = player.lastSeen;
+      }
+    }
+    return newest;
+  }
+
+  /**
+   * Deletes the matches and rooms this browser took part in once they are old.
+   * A finished match is kept for two hours so a late result or rematch screen
+   * still works; an abandoned active match is dropped after a day. The rules
+   * only accept these deletes for a participant and an old node, so a stale tab
+   * can never wipe a game that is still being played.
+   */
+  public static async cleanupStaleData(): Promise<void> {
+    if (!this.isConfigured || !this.db) return;
+    const db = this.db;
+
+    const matchIds = LocalStorageManager.getItem<string[]>('rtdb_matches', []);
+    const remainingMatches: string[] = [];
+    for (const matchId of matchIds) {
+      try {
+        const snapshot = await get(ref(db, `matches/${matchId}`));
+        if (!snapshot.exists()) continue;
+        const data = snapshot.val();
+        const age = Date.now() - this.nodeTimestamp(data);
+        const ttl = data?.status === 'active' ? 24 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000;
+        if (age < ttl) {
+          remainingMatches.push(matchId);
+          continue;
+        }
+        await remove(ref(db, `matches/${matchId}`));
+      } catch {
+        remainingMatches.push(matchId);
+      }
+    }
+    LocalStorageManager.setItem('rtdb_matches', remainingMatches);
+
+    const roomCodes = LocalStorageManager.getItem<string[]>('rtdb_rooms', []);
+    const remainingRooms: string[] = [];
+    for (const roomCode of roomCodes) {
+      try {
+        const snapshot = await get(ref(db, `rooms/${roomCode}`));
+        if (!snapshot.exists()) continue;
+        const createdAt = typeof snapshot.val()?.createdAt === 'number' ? snapshot.val().createdAt : 0;
+        if (createdAt === 0 || Date.now() - createdAt < 24 * 60 * 60 * 1000) {
+          remainingRooms.push(roomCode);
+          continue;
+        }
+        await remove(ref(db, `rooms/${roomCode}`));
+      } catch {
+        remainingRooms.push(roomCode);
+      }
+    }
+    LocalStorageManager.setItem('rtdb_rooms', remainingRooms);
+  }
+
   public static async leaveRoom(roomCode: string, matchId: string, isHost: boolean = false) {
     if (this.isConfigured && this.db) {
       try {
