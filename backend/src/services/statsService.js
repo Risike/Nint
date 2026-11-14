@@ -8,6 +8,9 @@ const ALLOWED_MODES = new Set(['versus_1v1', 'versus_online']);
 const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
 const MAX_PIECES_PER_SECOND = 12;
 const MAX_LINES_PER_SECOND = 4;
+// A single co-op match spans several boss rounds; cap the total it can credit
+// so a client cannot mint credits by submitting endless round reports.
+const MAX_COOP_LINES_PER_MATCH = 1000;
 
 function httpError(status, message) {
   const err = new Error(message);
@@ -642,6 +645,77 @@ export class StatsService {
     };
   }
 
+  /**
+   * Credits a co-op boss round from the reporting player's own board. The
+   * match is server-owned and both players win or lose together, so this is
+   * deliberately not an ELO match report: it only converts validated lines
+   * into credits, once per round and with a per-match cap.
+   */
+  static awardCoopCredits(userId, matchId, data = {}) {
+    const db = getDatabase();
+    const match = OnlineMatchService.getParticipantMatch(userId, matchId);
+    if (match.mode !== 'coop_boss') {
+      throw httpError(400, 'Co-op credits are only available for co-op boss matches');
+    }
+    if (match.status !== 'active' || !match.guest_user_id) {
+      throw httpError(409, 'This co-op match is not active');
+    }
+
+    const roundKey = typeof data.roundKey === 'string' ? data.roundKey.trim() : '';
+    if (!roundKey || roundKey.length > 64) {
+      throw httpError(400, 'A valid roundKey is required');
+    }
+
+    const lines = requireInt(data.lines, 'lines', { max: 1000 });
+    const piecesPlaced = requireInt(data.piecesPlaced, 'piecesPlaced', { max: 100_000 });
+    const duration = requireInt(data.duration, 'duration', { max: MAX_DURATION_MS });
+
+    if (lines > 0 && (piecesPlaced === 0 || duration === 0)) {
+      throw httpError(400, 'Co-op line counts require pieces placed and a duration');
+    }
+    if (lines > piecesPlaced * 4) {
+      throw httpError(400, 'Implausible line count for pieces placed');
+    }
+    const durationSeconds = duration / 1000;
+    if (
+      durationSeconds > 0
+      && (piecesPlaced / durationSeconds > MAX_PIECES_PER_SECOND
+        || lines / durationSeconds > MAX_LINES_PER_SECOND)
+    ) {
+      throw httpError(400, 'Implausible co-op round rate');
+    }
+
+    const award = db.transaction(() => {
+      const now = Date.now();
+      const existing = db.prepare(
+        'SELECT credits FROM coop_credit_awards WHERE match_id = ? AND user_id = ? AND round_key = ?'
+      ).get(match.id, userId, roundKey);
+      if (existing) {
+        const total = db.prepare('SELECT credits FROM users WHERE id = ?').get(userId)?.credits ?? 0;
+        return { creditsAwarded: 0, credits: total, duplicate: true };
+      }
+
+      const credited = db.prepare(`
+        SELECT COALESCE(SUM(credits), 0) AS credits
+        FROM coop_credit_awards WHERE match_id = ? AND user_id = ?
+      `).get(match.id, userId).credits;
+      const creditsAwarded = Math.max(0, Math.min(lines, MAX_COOP_LINES_PER_MATCH - credited));
+
+      if (creditsAwarded > 0) {
+        awardLineCredits(db, userId, creditsAwarded, now);
+      }
+      db.prepare(`
+        INSERT INTO coop_credit_awards (match_id, user_id, round_key, lines, credits, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(match.id, userId, roundKey, lines, creditsAwarded, now);
+
+      const total = db.prepare('SELECT credits FROM users WHERE id = ?').get(userId)?.credits ?? 0;
+      return { creditsAwarded, credits: total, duplicate: false };
+    });
+
+    return { success: true, matchId: match.id, ...award() };
+  }
+
   static recordMatch(userId, matchData) {
     const db = getDatabase();
     const online = matchData.opponentType !== 'ai';
@@ -652,6 +726,11 @@ export class StatsService {
       // The match id, opponent and ranked flag are server-owned. Client values
       // for these fields are ignored completely.
       onlineMatch = OnlineMatchService.getParticipantMatch(userId, matchData.matchId);
+      // Co-op and Blast matches are not versus results: they award no credits,
+      // wins or ELO, even if a client posts a hand-made report for them.
+      if (onlineMatch.mode && onlineMatch.mode !== 'versus') {
+        throw httpError(400, 'This online match does not record versus results');
+      }
       if (onlineMatch.status === 'completed') {
         // A disconnect or forfeit already settled this match. Returning the
         // player's own recorded row makes this endpoint idempotent and lets the

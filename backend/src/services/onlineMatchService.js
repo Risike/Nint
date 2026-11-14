@@ -7,7 +7,8 @@ const COMPLETED = 'completed';
 const CANCELLED = 'cancelled';
 const MODE_VERSUS = 'versus';
 const MODE_COOP_BOSS = 'coop_boss';
-const ONLINE_MODES = new Set([MODE_VERSUS, MODE_COOP_BOSS]);
+const MODE_BLAST = 'blast';
+const ONLINE_MODES = new Set([MODE_VERSUS, MODE_COOP_BOSS, MODE_BLAST]);
 
 function normalizeMode(mode) {
   return ONLINE_MODES.has(mode) ? mode : MODE_VERSUS;
@@ -79,8 +80,8 @@ export class OnlineMatchService {
     }
 
     const normalizedMode = normalizeMode(mode);
-    if (normalizedMode === MODE_COOP_BOSS && ranked === true) {
-      throw httpError(400, 'Co-op boss matches cannot be ranked');
+    if (normalizedMode !== MODE_VERSUS && ranked === true) {
+      throw httpError(400, 'Only versus matches can be ranked');
     }
 
     const id = crypto.randomUUID();

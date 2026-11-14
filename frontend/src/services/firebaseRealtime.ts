@@ -1,4 +1,4 @@
-import { initializeApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import {
   getDatabase,
   connectDatabaseEmulator,
@@ -34,7 +34,7 @@ export interface PlayerCosmetics {
   title?: string;
 }
 
-export type OnlineMatchMode = 'versus' | 'coop_boss';
+export type OnlineMatchMode = 'versus' | 'coop_boss' | 'blast';
 
 export interface CoopBossState {
   hp: number;
@@ -75,8 +75,20 @@ export interface RemotePlayerState {
     y: number;
     rotation: number;
   } | null;
+  activeBombs?: { x: number; y: number }[];
   holdPiece?: string | null;
   queue?: string[];
+  roundWins?: number;
+  round?: number;
+  /** Result of the round stored in `round`; the other client uses it to close
+   * the round exactly once instead of trusting a running win counter. */
+  roundOutcome?: 'win' | 'loss' | null;
+  /** Shared start of the next round, written only by the round winner. */
+  nextRound?: number | null;
+  nextRoundAt?: number | null;
+  /** Set by the winner of the third round so the other client ends the duel
+   * even after its own round banner has already closed the round. */
+  matchWon?: boolean;
   clearingRows?: number[];
   combo?: number;
   b2b?: boolean;
@@ -100,6 +112,7 @@ export class FirebaseRealtimeService {
   private static db: Database | null = null;
   private static auth: Auth | null = null;
   private static currentUid: string = '';
+  private static uidLocked: boolean = false;
   private static isConfigured: boolean = false;
 
   private static unavailableError(): Error {
@@ -121,16 +134,29 @@ export class FirebaseRealtimeService {
         || (import.meta.env.DEV && isDemoConfig);
 
       if (!isDemoConfig || useEmulator) {
-        this.app = initializeApp(firebaseConfig);
+        // Hot reloads and duplicate module instances must reuse the existing
+        // Firebase app; initializing a second one throws duplicate-app and
+        // would wrongly surface as "Realtime Database is unavailable".
+        const existingApp = getApps()[0];
+        this.app = existingApp ?? initializeApp(firebaseConfig);
         this.db = getDatabase(this.app);
         this.auth = getAuth(this.app);
 
-        if (useEmulator) {
-          const host = import.meta.env.VITE_FIREBASE_EMULATOR_HOST || '127.0.0.1';
-          const databasePort = Number(import.meta.env.VITE_FIREBASE_EMULATOR_PORT || 9000);
-          const authPort = Number(import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_PORT || 9099);
-          connectDatabaseEmulator(this.db, host, databasePort);
-          connectAuthEmulator(this.auth, `http://${host}:${authPort}`, { disableWarnings: true });
+        // Only a freshly created app needs emulator wiring: calling it again
+        // on the shared, already-connected database throws and used to mark
+        // this instance as unavailable.
+        if (useEmulator && !existingApp) {
+          try {
+            const host = import.meta.env.VITE_FIREBASE_EMULATOR_HOST || '127.0.0.1';
+            const databasePort = Number(import.meta.env.VITE_FIREBASE_EMULATOR_PORT || 9000);
+            const authPort = Number(import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_PORT || 9099);
+            connectDatabaseEmulator(this.db, host, databasePort);
+            connectAuthEmulator(this.auth, `http://${host}:${authPort}`, { disableWarnings: true });
+          } catch (emulatorError) {
+            // The shared app is already connected (for example after an HMR
+            // module reload); its emulator connection is still valid.
+            console.warn('Firebase emulator connection notice:', emulatorError);
+          }
         }
 
         this.isConfigured = true;
@@ -149,7 +175,14 @@ export class FirebaseRealtimeService {
   }
 
   public static getUid(): string {
-    return this.auth?.currentUser?.uid || this.currentUid;
+    // The uid decides which players/{uid} entry this client owns. It must not
+    // change between joining a room and writing/listening to that match, or a
+    // late anonymous sign-in would make a client read its own entry as the
+    // opponent and write updates to a second, orphaned one.
+    if (this.uidLocked) return this.currentUid;
+    const authUid = this.auth?.currentUser?.uid;
+    if (authUid) this.currentUid = authUid;
+    return this.currentUid;
   }
 
   public static async authenticate(_displayName: string = 'Player'): Promise<string> {
@@ -158,10 +191,12 @@ export class FirebaseRealtimeService {
       try {
         if (this.auth.currentUser) {
           this.currentUid = this.auth.currentUser.uid;
+          this.uidLocked = true;
           return this.currentUid;
         }
         const cred = await signInAnonymously(this.auth);
         this.currentUid = cred.user.uid;
+        this.uidLocked = true;
         return this.currentUid;
       } catch (e) {
         console.warn('Anonymous auth failed, falling back to local UID:', e);
@@ -173,6 +208,7 @@ export class FirebaseRealtimeService {
   // Create an online room. The match id and seed come from the API so a
   // client can never invent a match that will later be accepted for ELO.
   public static async createRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false, cosmetics?: PlayerCosmetics, mode: OnlineMatchMode = 'versus'): Promise<{ matchId: string; seed: number }> {
+    await this.authenticate(displayName);
     if (!this.isConfigured || !this.db) {
       throw this.unavailableError();
     }
@@ -251,6 +287,7 @@ export class FirebaseRealtimeService {
 
   // Join an online room
   public static async joinRoom(roomCode: string, displayName: string, rating: number = 1000, userId?: string, ranked: boolean = false, cosmetics?: PlayerCosmetics, mode: OnlineMatchMode = 'versus'): Promise<{ matchId: string; seed: number }> {
+    await this.authenticate(displayName);
     const uid = this.getUid();
 
     if (!this.isConfigured || !this.db) {
@@ -279,9 +316,7 @@ export class FirebaseRealtimeService {
       throw new Error(ranked ? 'This room is not a ranked match.' : 'This room is ranked. Use Ranked Match to join.');
     }
     if ((roomData.mode || 'versus') !== mode) {
-      throw new Error(mode === 'coop_boss'
-        ? 'This room is not a co-op boss room.'
-        : 'This room is for co-op boss battles.');
+      throw new Error('This room was created for a different game mode.');
     }
 
     const matchId = roomData.matchId;
@@ -416,7 +451,11 @@ export class FirebaseRealtimeService {
   }
 
   // Listen to remote opponent state
-  public static listenToOpponent(matchId: string, onOpponentUpdate: (opponent: RemotePlayerState) => void): () => void {
+  public static listenToOpponent(
+    matchId: string,
+    onOpponentUpdate: (opponent: RemotePlayerState) => void,
+    selfUserId?: string
+  ): () => void {
     if (!this.isConfigured || !this.db) {
       return () => {};
     }
@@ -428,7 +467,10 @@ export class FirebaseRealtimeService {
       if (snapshot.exists()) {
         const players = snapshot.val();
         for (const [pUid, pState] of Object.entries<any>(players)) {
-          if (pUid !== uid) {
+          // Match on the server account id as well: it stays correct even if
+          // this browser's anonymous uid was assigned late.
+          const isSelf = pUid === uid || (selfUserId && pState?.userId === selfUserId);
+          if (!isSelf) {
             onOpponentUpdate(pState);
             break;
           }
@@ -681,8 +723,46 @@ export class FirebaseRealtimeService {
     return { nextMatchId, seed };
   }
 
+  // Create a fresh Blast duel after both players asked for a rematch. The new
+  // match is a normal unranked Blast room; its code and seed are shared through
+  // the finished match so both clients attach to it at the same time.
+  public static async createBlastRematch(
+    currentMatchId: string,
+    roomCode: string,
+    displayName: string,
+    rating: number = 1000,
+    userId?: string,
+    cosmetics?: PlayerCosmetics
+  ): Promise<{ nextMatchId: string; seed: number; roomCode: string }> {
+    if (!this.isConfigured || !this.db) {
+      throw this.unavailableError();
+    }
+
+    const { matchId: nextMatchId, seed } = await this.createRoom(
+      roomCode,
+      displayName,
+      rating,
+      userId,
+      false,
+      cosmetics,
+      'blast'
+    );
+
+    await update(ref(this.db, `rooms/${roomCode}`), { status: 'active' });
+    await set(ref(this.db, `matches/${currentMatchId}/nextMatch`), {
+      nextMatchId,
+      seed,
+      roomCode
+    });
+
+    return { nextMatchId, seed, roomCode };
+  }
+
   // Listen to next match trigger
-  public static listenToNextMatch(matchId: string, onNextMatch: (data: { nextMatchId: string; seed: number }) => void): () => void {
+  public static listenToNextMatch(
+    matchId: string,
+    onNextMatch: (data: { nextMatchId: string; seed: number; roomCode?: string }) => void
+  ): () => void {
     if (!this.isConfigured || !this.db) {
       return () => {};
     }

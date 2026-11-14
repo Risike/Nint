@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Gamepad2, Megaphone, Settings, ShoppingBag, Trophy, UserRound, Users } from 'lucide-react';
+import { BookOpen, Gamepad2, Megaphone, Settings, ShoppingBag, Trophy, UserRound, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ApiClient } from '../services/api';
 import { useI18n } from '../i18n/useI18n';
@@ -56,6 +56,14 @@ const HOME_LINKS = [
     icon: Settings,
     color: 'var(--accent-pink)',
     background: 'rgba(236, 72, 153, 0.2)'
+  },
+  {
+    tab: 'guide',
+    label: 'Guide',
+    description: 'How to play, how to win and how to score in every mode.',
+    icon: BookOpen,
+    color: 'var(--accent-blue)',
+    background: 'rgba(59, 130, 246, 0.2)'
   }
 ] as const;
 

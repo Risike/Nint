@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import request from 'supertest';
 
-export async function createOnlineMatch(app, hostToken, guestToken, { ranked = false } = {}) {
+export async function createOnlineMatch(app, hostToken, guestToken, { ranked = false, mode = 'versus' } = {}) {
   const created = await request(app)
     .post('/api/matches/online')
     .set('Authorization', `Bearer ${hostToken}`)
-    .send({ ranked });
+    .send({ ranked, mode });
 
   assert.equal(created.status, 201, JSON.stringify(created.body));
 

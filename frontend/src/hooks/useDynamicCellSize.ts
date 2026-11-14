@@ -3,7 +3,8 @@ import { useState, useLayoutEffect, RefObject } from 'react';
 const VERSUS_ARENA_HEADER_FALLBACK = 44; // fixed title slot + its gap before layout
 const VERSUS_ARENA_VERTICAL_SAFETY = 6; // board borders and rounding
 const VERSUS_BOTTOM_GAP = 12; // keep the last row clear of the footer
-const VERSUS_FIXED_WIDTH = 600; // four side panels, the VS badge and all gaps
+const VERSUS_FIXED_WIDTH = 620; // fallback: four side panels, the VS badge and all gaps
+const VERSUS_FIXED_WIDTH_SAFETY = 8;
 const MAIN_CONTENT_MAX_WIDTH = 1440;
 const MAIN_CONTENT_HORIZONTAL_PADDING = 32;
 
@@ -12,6 +13,37 @@ const MAIN_CONTENT_HORIZONTAL_PADDING = 32;
  * For versus pages the arena is measured directly, so the boards fill the
  * viewport between the navbar and footer instead of relying on estimates.
  */
+/**
+ * Width taken by everything that is not a playfield: the four hold/NEXT
+ * rails, their gaps, the VS badge, the arena gaps and padding. Measured from
+ * the live DOM so a wider badge or a browser font never pushes the right rail
+ * out of the arena.
+ */
+function measureVersusFixedWidth(arena: HTMLElement): number {
+  const panels = Array.from(arena.querySelectorAll<HTMLElement>('.versus-side-panel'));
+  if (panels.length === 0) return 0;
+
+  let width = panels.reduce((sum, panel) => sum + panel.getBoundingClientRect().width, 0);
+
+  for (const body of Array.from(arena.querySelectorAll<HTMLElement>('.versus-side-body'))) {
+    const style = window.getComputedStyle(body);
+    const gap = Number.parseFloat(style.columnGap || style.gap || '0');
+    if (Number.isFinite(gap)) width += gap * Math.max(0, body.children.length - 1);
+  }
+
+  const vs = arena.querySelector<HTMLElement>('.versus-vs');
+  if (vs) width += vs.getBoundingClientRect().width;
+
+  const arenaStyle = window.getComputedStyle(arena);
+  const arenaGap = Number.parseFloat(arenaStyle.columnGap || arenaStyle.gap || '0');
+  if (Number.isFinite(arenaGap)) width += arenaGap * 2;
+
+  width += (Number.parseFloat(arenaStyle.paddingLeft) || 0)
+    + (Number.parseFloat(arenaStyle.paddingRight) || 0);
+
+  return width + VERSUS_FIXED_WIDTH_SAFETY;
+}
+
 export function useDynamicCellSize(
   isVersus: boolean = false,
   containerRef?: RefObject<HTMLElement>,
@@ -62,9 +94,14 @@ export function useDynamicCellSize(
       // so a large viewport never starts with an oversized board that pushes
       // the side rails off-screen.
       const contentWidth = Math.min(vw, MAIN_CONTENT_MAX_WIDTH) - MAIN_CONTENT_HORIZONTAL_PADDING;
+      // The side rails are fixed-width, but their real width depends on the VS
+      // badge, panel widths and gaps. Measuring them avoids a board that is a
+      // few pixels too wide, which used to clip the right-hand NEXT column.
+      const measuredReservedWidth = arena ? measureVersusFixedWidth(arena) : 0;
+      const fixedWidth = measuredReservedWidth > 0 ? measuredReservedWidth : reservedWidth;
       const availableWidth = arena && arena.clientWidth > 0
-        ? Math.max(0, arena.clientWidth - reservedWidth) / 2
-        : Math.max(0, contentWidth - reservedWidth) / 2;
+        ? Math.max(0, arena.clientWidth - fixedWidth) / 2
+        : Math.max(0, contentWidth - fixedWidth) / 2;
 
       const heightCell = Math.floor(availableHeight / 20);
       const widthCell = Math.floor(availableWidth / 10);

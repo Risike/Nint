@@ -42,6 +42,19 @@ export class MatchController {
     }
   }
 
+  static awardCoopCredits(req, res, next) {
+    try {
+      const result = StatsService.awardCoopCredits(
+        req.user.id,
+        req.params.matchId,
+        req.body || {}
+      );
+      res.status(201).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static recordMatch(req, res, next) {
     try {
       const result = StatsService.recordMatch(req.user.id, req.body || {});

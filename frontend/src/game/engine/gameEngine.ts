@@ -55,6 +55,9 @@ export interface GameEngineOptions {
   lineClearDelay?: number; // Duration of line clear flash in ms (default 240ms)
   blast?: boolean;
   blastMode?: BlastMode;
+  // Training normally wipes the board on a top-out. A versus duel must keep
+  // the top-out so it can decide the round.
+  blastResetOnTopOut?: boolean;
   blastStage?: number;
   blastRound?: number;
   blastBudget?: number;
@@ -178,6 +181,7 @@ export class GameEngine {
   private blastBombQueue: Point[][] = [];
   private blastEnemyActionId: number = 0;
   private blastRng: () => number;
+  private blastResetOnTopOut: boolean;
   private blastTransition: 'stage' | 'enemy' | 'complete' | null = null;
   private gravityCurve: (level: number) => number;
 
@@ -214,6 +218,7 @@ export class GameEngine {
     this.immortal = Boolean(options.immortal);
     this.lineClearDelay = options.lineClearDelay ?? DEFAULT_TIMING.LINE_CLEAR_DELAY;
     this.blast = Boolean(options.blast);
+    this.blastResetOnTopOut = options.blastResetOnTopOut !== false;
     this.blastMode = this.blast ? (options.blastMode ?? 'contest') : null;
     this.blastStage = Math.max(1, options.blastStage ?? 1);
     this.blastRound = Math.max(1, options.blastRound ?? 1);
@@ -1213,6 +1218,19 @@ export class GameEngine {
       return;
     }
 
+    // Blast does not use the normal line-clear path, so incoming garbage has
+    // to be pushed into the board here, once the explosion has settled.
+    if (this.garbageManager.getPendingCount() > 0) {
+      const { insertedLines, toppedOut } = this.garbageManager.insertGarbage(this.board);
+      if (toppedOut) {
+        this.gameOver('top_out');
+        return;
+      }
+      if (insertedLines > 0) {
+        this.events.onGarbageReceived?.(insertedLines);
+      }
+    }
+
     this.canHold = true;
     this.spawnPiece();
   }
@@ -1669,7 +1687,7 @@ export class GameEngine {
   }
 
   public gameOver(reason: string = 'top_out') {
-    if (this.blast && this.blastMode === 'training') {
+    if (this.blast && this.blastMode === 'training' && this.blastResetOnTopOut) {
       this.board = this.createEmptyBoard();
       this.canHold = true;
       this.spawnPiece();

@@ -10,6 +10,7 @@ router.get('/online/:matchId', authenticateToken, MatchController.getOnline);
 router.get('/online/:matchId/result', authenticateToken, MatchController.getOnlineResult);
 router.post('/online/:matchId/join', writeLimiter, authenticateToken, MatchController.joinOnline);
 router.post('/online/:matchId/rematch', writeLimiter, authenticateToken, MatchController.rematchOnline);
+router.post('/online/:matchId/coop-credits', writeLimiter, authenticateToken, MatchController.awardCoopCredits);
 router.post('/record', writeLimiter, authenticateToken, MatchController.recordMatch);
 router.post('/forfeit', writeLimiter, authenticateTokenOrBody, MatchController.settleForfeit);
 

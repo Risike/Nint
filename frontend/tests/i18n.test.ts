@@ -64,3 +64,28 @@ describe('i18n', () => {
     expect(Object.keys(italian).sort()).toEqual(reference);
   });
 });
+
+describe('Blast duel guide translations', () => {
+  it('translates the Blast duel entry in every supported language', () => {
+    expect(translate('fr', 'Blast Battle (1v1)')).toBe('Duel Blast (1v1)');
+    expect(translate('de', 'Blast Battle (1v1)')).toBe('Blast-Duell (1v1)');
+    expect(translate('es', 'Blast Battle (1v1)')).toBe('Duelo Blast (1v1)');
+    expect(translate('it', 'Blast Battle (1v1)')).toBe('Duello Blast (1v1)');
+  });
+
+  it('translates the round rules in every supported language', () => {
+    const source = 'Take a round by emptying your whole board or by making your opponent top out. The first player to win three rounds takes the best-of-five duel.';
+    for (const language of ['fr', 'de', 'es', 'it'] as const) {
+      expect(translate(language, source)).not.toBe(source);
+      expect(translate(language, source)).toMatch(/3|trois|drei|tres|tre/);
+    }
+  });
+
+  it('explains that Blast awards no credits', () => {
+    const source = 'Blast awards no credits and no rating: only the rounds decide the winner. Garbage rows can only be removed by blasting them.';
+    expect(translate('fr', source)).toContain('crédits');
+    expect(translate('de', source)).toContain('Credits');
+    expect(translate('es', source)).toContain('créditos');
+    expect(translate('it', source)).toContain('crediti');
+  });
+});

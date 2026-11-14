@@ -112,6 +112,16 @@ CREATE TABLE IF NOT EXISTS online_matches (
     completed_at INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS coop_credit_awards (
+    match_id TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    round_key TEXT NOT NULL,
+    lines INTEGER NOT NULL,
+    credits INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (match_id, user_id, round_key)
+);
+
 CREATE TABLE IF NOT EXISTS user_statistics (
     user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     games_played INTEGER DEFAULT 0,

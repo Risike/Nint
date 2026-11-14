@@ -48,7 +48,7 @@ describe('Home page navigation', () => {
     });
 
     const headings = Array.from(container!.querySelectorAll('h3')).map((heading) => heading.textContent);
-    expect(headings).toEqual(['Solo', 'Multiplayer', 'Leaderboards', 'Player', 'Shop', 'Settings']);
+    expect(headings).toEqual(['Solo', 'Multiplayer', 'Leaderboards', 'Player', 'Shop', 'Settings', 'Guide']);
 
     const shopCard = Array.from(container!.querySelectorAll<HTMLElement>('.panel-card[role="button"]'))
       .find((card) => card.textContent?.includes('Shop'));
@@ -59,5 +59,15 @@ describe('Home page navigation', () => {
     });
 
     expect(onNavigate).toHaveBeenCalledWith('shop');
+
+    const guideCard = Array.from(container!.querySelectorAll<HTMLElement>('.panel-card[role="button"]'))
+      .find((card) => card.textContent?.includes('Guide'));
+    expect(guideCard).toBeTruthy();
+
+    await act(async () => {
+      guideCard!.click();
+    });
+
+    expect(onNavigate).toHaveBeenCalledWith('guide');
   });
 });

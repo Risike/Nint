@@ -85,7 +85,7 @@ function useCompactCoopArena(): boolean {
 }
 
 export const CoopBossPage: React.FC<CoopBossPageProps> = ({ initialEntry, onExit }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshProfile } = useAuth();
   const { settings } = useSettings();
   const { t } = useI18n();
   const arenaRef = useRef<HTMLDivElement>(null);
@@ -163,6 +163,7 @@ export const CoopBossPage: React.FC<CoopBossPageProps> = ({ initialEntry, onExit
   const roundStartingRef = useRef<boolean>(false);
   const roundRestartRef = useRef<boolean>(false);
   const bossLevelRef = useRef<number>(1);
+  const roundStartedAtRef = useRef<number>(Date.now());
   const bossMaxHpRef = useRef<number>(1);
   const bossHpWasPositiveRef = useRef<boolean>(false);
   const bossSpeedLevelRef = useRef<number>(1);
@@ -340,10 +341,27 @@ export const CoopBossPage: React.FC<CoopBossPageProps> = ({ initialEntry, onExit
     });
   }
 
+  function reportCoopCredits() {
+    const activeMatchId = matchIdRef.current;
+    if (!activeMatchId || !isAuthenticated) return;
+    const stats = playerEngineRef.current.getStats();
+    void ApiClient.awardCoopCredits(activeMatchId, {
+      roundKey: `${bossLevelRef.current}:${roundStartedAtRef.current}`,
+      lines: stats.lines,
+      piecesPlaced: stats.piecesPlaced,
+      duration: Math.round(stats.duration)
+    }).then((res) => {
+      if (res?.creditsAwarded > 0) void refreshProfile();
+    }).catch(() => {});
+  }
+
   function finishRound(nextResult: 'victory' | 'defeat') {
     if (resultShownRef.current) return;
     resultShownRef.current = true;
     roundRestartRef.current = false;
+    // Credits are credited from this round's cleared lines, whether the boss
+    // falls or the team wipes out; the server dedupes by round.
+    reportCoopCredits();
     setResult(nextResult);
     setPhase('finished');
     setIsResultOpen(true);
@@ -416,6 +434,7 @@ export const CoopBossPage: React.FC<CoopBossPageProps> = ({ initialEntry, onExit
     const level = clampBossLevel(nextLevel);
     const maxHp = getCoopBossMaxHp(level);
     resultShownRef.current = false;
+    roundStartedAtRef.current = Date.now();
     localEliminatedRef.current = false;
     opponentEliminatedRef.current = false;
     setLocalEliminated(false);

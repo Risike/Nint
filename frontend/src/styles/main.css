@@ -1016,3 +1016,184 @@ html {
   color: var(--text-secondary);
 }
 
+/* Game guide: fixed table of contents on the left, selected topic on the right */
+.guide-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 1.75rem;
+  align-items: start;
+  width: 100%;
+  max-width: 1050px;
+}
+
+.guide-sidebar {
+  position: sticky;
+  top: 90px;
+  /* Keep the list clear of the sticky navbar and the fixed gamepad bar. */
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  padding: 1rem 0.85rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  scrollbar-width: thin;
+}
+
+.guide-nav-group + .guide-nav-group {
+  margin-top: 1.15rem;
+}
+
+.guide-nav-title {
+  padding-left: 0.55rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.guide-nav-link {
+  display: block;
+  width: 100%;
+  padding: 0.38rem 0.55rem;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.guide-nav-link:hover,
+.guide-nav-link:focus-visible {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.guide-nav-link.is-active {
+  color: var(--text-primary);
+  font-weight: 700;
+  border-left-color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.14);
+}
+
+.guide-article {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.6rem 1.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.guide-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+}
+
+.guide-article h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.9rem;
+  font-weight: 800;
+}
+
+.guide-lead {
+  margin-bottom: 1.35rem;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.guide-block + .guide-block {
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.guide-block-label {
+  margin-bottom: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-blue);
+}
+
+.guide-block p {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 820px) {
+  .guide-layout {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* On narrow screens the table of contents becomes a compact chip strip so
+     the selected topic stays visible without a long scroll. */
+  .guide-sidebar {
+    position: static;
+    max-height: none;
+    padding: 0.5rem;
+  }
+
+  .guide-nav {
+    display: flex;
+    gap: 0.35rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .guide-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .guide-nav-group {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.35rem;
+  }
+
+  .guide-nav-group + .guide-nav-group {
+    margin-top: 0;
+  }
+
+  .guide-nav-title {
+    display: none;
+  }
+
+  .guide-nav-link {
+    width: auto;
+    padding: 0.4rem 0.6rem;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  .guide-nav-link.is-active {
+    border-bottom-color: var(--accent-cyan);
+  }
+
+  .guide-article {
+    padding: 1.25rem 1.1rem;
+  }
+}
+

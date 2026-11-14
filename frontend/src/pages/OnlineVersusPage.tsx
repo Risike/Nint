@@ -12,12 +12,13 @@ import { UserName } from '../components/user/UserName';
 import { ApiClient } from '../services/api';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
-import { Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2, Lock, Trophy, Skull } from 'lucide-react';
+import { Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2, Lock, Trophy, Skull, Bomb } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 
 interface OnlineVersusPageProps {
   onNavigate?: (tab: string) => void;
   onStartCoop?: (intent: 'quick' | 'create' | 'join', roomCode?: string) => void;
+  onStartBlast?: (intent: 'quick' | 'create' | 'join', roomCode?: string) => void;
 }
 
 const categorySectionStyle: React.CSSProperties = {
@@ -57,7 +58,7 @@ const modeButtonStyle: React.CSSProperties = {
   fontWeight: 700
 };
 
-export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, onStartCoop }) => {
+export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, onStartCoop, onStartBlast }) => {
   const { user, isAuthenticated, refreshProfile } = useAuth();
   const { settings } = useSettings();
   const { t } = useI18n();
@@ -68,6 +69,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, 
   const [roomCode, setRoomCode] = useState<string>('');
   const [inputCode, setInputCode] = useState<string>('');
   const [coopInputCode, setCoopInputCode] = useState<string>('');
+  const [blastInputCode, setBlastInputCode] = useState<string>('');
   const [matchStatus, setMatchStatus] = useState<'lobby' | 'waiting' | 'quick_searching' | 'in_game' | 'finished'>('lobby');
   const [quickSearchSeconds, setQuickSearchSeconds] = useState<number>(0);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
@@ -923,7 +925,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, 
           <div style={{ marginBottom: '2rem' }}>
             <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Online Multiplayer')}</h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1rem' }}>
-              {t('Real-time multiplayer. Play casual or ranked 1v1, or team up against a boss.')}
+              {t('Real-time multiplayer. Play casual or ranked 1v1, team up against a boss, or duel in Blast.')}
             </p>
             <div style={{
               display: 'inline-flex',
@@ -1157,6 +1159,104 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, 
                     className="btn-secondary"
                     style={{ padding: '0.55rem 1rem', whiteSpace: 'nowrap', fontWeight: 600, fontSize: '0.85rem' }}
                     onClick={() => coopInputCode.trim() && onStartCoop?.('join', coopInputCode.trim())}
+                  >
+                    {t('Join')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section style={{ ...categorySectionStyle, marginTop: '1.25rem' }} aria-labelledby="blast-heading">
+            <div>
+              <h2 id="blast-heading" style={categoryTitleStyle}>
+                <Bomb size={20} color="var(--accent-orange)" />
+                {t('Blast Battle')}
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '0.25rem' }}>
+                {t('A link-cable duel: best of five rounds, and no credits are awarded.')}
+              </p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.85rem' }}>
+              <div className="panel-card" style={modeCardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.55rem' }}>
+                  <div style={{ background: 'rgba(249, 115, 22, 0.2)', color: 'var(--accent-orange)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                    <Search size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('Blast Quick Search')}</h3>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('Find an opponent')}</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+                  {t('Duel another player in Tetris Blast: bombs, chain reactions and garbage. First to 3 rounds wins.')}
+                </p>
+                <button className="btn-primary" style={modeButtonStyle} onClick={() => onStartBlast?.('quick')}>
+                  <Bomb size={18} /> {t('Blast Quick Play')}
+                </button>
+              </div>
+
+              <div className="panel-card" style={modeCardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.55rem' }}>
+                  <div style={{ background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                    <Plus size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('Create Blast Room')}</h3>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('Generate 6-letter room code')}</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+                  {t('Host a Blast duel and share the code with a friend.')}
+                </p>
+                <button className="btn-secondary" style={modeButtonStyle} onClick={() => onStartBlast?.('create')}>
+                  <Plus size={18} /> {t('Host Blast Room')}
+                </button>
+              </div>
+
+              <div className="panel-card" style={modeCardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.55rem' }}>
+                  <div style={{ background: 'rgba(59, 130, 246, 0.2)', color: 'var(--accent-blue)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                    <LogIn size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('Join Blast Room')}</h3>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t("Enter your friend's code")}</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+                  {t('Enter the 6-letter Blast room code to join the duel.')}
+                </p>
+                <div style={{ display: 'flex', gap: '0.5rem', width: '100%', marginTop: 'auto' }}>
+                  <input
+                    type="text"
+                    placeholder={t('CODE')}
+                    value={blastInputCode}
+                    onChange={(e) => setBlastInputCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && blastInputCode.trim()) onStartBlast?.('join', blastInputCode.trim());
+                    }}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      width: '100%',
+                      padding: '0.55rem 0.6rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-tertiary)',
+                      color: 'var(--text-primary)',
+                      fontWeight: 700,
+                      fontSize: '0.9rem',
+                      textAlign: 'center',
+                      letterSpacing: '0.15em'
+                    }}
+                    maxLength={6}
+                  />
+                  <button
+                    className="btn-secondary"
+                    style={{ padding: '0.55rem 1rem', whiteSpace: 'nowrap', fontWeight: 600, fontSize: '0.85rem' }}
+                    onClick={() => blastInputCode.trim() && onStartBlast?.('join', blastInputCode.trim())}
                   >
                     {t('Join')}
                   </button>

@@ -657,3 +657,82 @@ describe('Blast progression', () => {
     }
   });
 });
+
+describe('Blast versus rules', () => {
+  it('keeps a top-out fatal when the duel needs it to end the round', () => {
+    const engine = new GameEngine({
+      blast: true,
+      blastMode: 'training',
+      blastResetOnTopOut: false,
+      seed: 3
+    });
+    let gameOvers = 0;
+    engine.events = { onGameOver: () => { gameOvers += 1; } };
+
+    engine.start();
+    for (let row = 0; row < BOARD_TOTAL_HEIGHT; row += 1) engine.board[row].fill('#ef4444');
+    engine.spawnPiece();
+
+    expect(engine.state).toBe('gameover');
+    expect(gameOvers).toBe(1);
+  });
+
+  it('still wipes the board on a training top-out by default', () => {
+    const engine = new GameEngine({ blast: true, blastMode: 'training', seed: 3 });
+    engine.start();
+    for (let row = 0; row < BOARD_TOTAL_HEIGHT; row += 1) engine.board[row].fill('#ef4444');
+    engine.spawnPiece();
+
+    expect(engine.state).not.toBe('gameover');
+    expect(engine.board.every(row => row.every(cell => cell === null))).toBe(true);
+  });
+
+  it('inserts received garbage rows into the blast board', () => {
+    const engine = new GameEngine({
+      blast: true,
+      blastMode: 'training',
+      blastResetOnTopOut: false,
+      seed: 5
+    });
+    let received = 0;
+    engine.events = { onGarbageReceived: (amount) => { received += amount; } };
+
+    engine.start();
+    engine.garbageManager.enqueueGarbage(2);
+    engine.activePiece = 'O';
+    engine.activeRotation = 0;
+    engine.activeX = 0;
+    engine.activeY = 20;
+    engine.activeBombLocal = [];
+    engine.lockPiece();
+
+    expect(received).toBe(2);
+    expect(engine.garbageManager.getPendingCount()).toBe(0);
+    const bottomRow = engine.board[BOARD_TOTAL_HEIGHT - 1];
+    expect(bottomRow.filter(cell => cell === '#64748b')).toHaveLength(BOARD_WIDTH - 1);
+  });
+
+  it('tops the player out when incoming garbage reaches the spawn area', () => {
+    const engine = new GameEngine({
+      blast: true,
+      blastMode: 'training',
+      blastResetOnTopOut: false,
+      seed: 6
+    });
+    let gameOvers = 0;
+    engine.events = { onGameOver: () => { gameOvers += 1; } };
+
+    engine.start();
+    for (let row = 0; row < 20; row += 1) engine.board[row].fill('#ef4444');
+    engine.garbageManager.enqueueGarbage(4);
+    engine.activePiece = 'O';
+    engine.activeRotation = 0;
+    engine.activeX = 0;
+    engine.activeY = 20;
+    engine.activeBombLocal = [];
+    engine.lockPiece();
+
+    expect(gameOvers).toBe(1);
+    expect(engine.state).toBe('gameover');
+  });
+});

@@ -11,6 +11,7 @@ import { SoloPage } from './pages/SoloPage';
 import { VersusAiPage } from './pages/VersusAiPage';
 import { OnlineVersusPage } from './pages/OnlineVersusPage';
 import { CoopBossPage, type CoopBossEntry } from './pages/CoopBossPage';
+import { BlastBattlePage, type BlastBattleEntry } from './pages/BlastBattlePage';
 import { LeaderboardsPage } from './pages/LeaderboardsPage';
 import { StatsPage } from './pages/StatsPage';
 import { PlayerPage } from './pages/PlayerPage';
@@ -22,6 +23,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { AdminPage } from './pages/AdminPage';
 import { ShopPage } from './pages/ShopPage';
+import { GuidePage } from './pages/GuidePage';
 import { useI18n } from './i18n/useI18n';
 import { ThemeProvider, useThemeCatalog } from './context/ThemeContext';
 import { NameDecorationProvider } from './context/NameDecorationContext';
@@ -47,9 +49,13 @@ export const AppContent: React.FC = () => {
   const [cpuInitialLevel, setCpuInitialLevel] = useState<number | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [coopEntry, setCoopEntry] = useState<CoopBossEntry | null>(null);
+  const [blastEntry, setBlastEntry] = useState<BlastBattleEntry | null>(null);
   // Solo keeps normal page scrolling so its scrollbar stays at the far right,
   // like the leaderboards. The versus arena still uses the locked game layout.
-  const isGameRoute = activeTab === 'versus_ai' || activeTab === 'online' || activeTab === 'coop_boss';
+  const isGameRoute = activeTab === 'versus_ai'
+    || activeTab === 'online'
+    || activeTab === 'coop_boss'
+    || activeTab === 'blast_battle';
 
   const handleNavigate = (tab: string) => {
     if (resetToken) {
@@ -57,6 +63,7 @@ export const AppContent: React.FC = () => {
       window.history.replaceState({}, '', window.location.pathname.startsWith('/reset-password') ? '/' : window.location.pathname);
     }
     if (tab !== 'coop_boss') setCoopEntry(null);
+    if (tab !== 'blast_battle') setBlastEntry(null);
     setActiveTab(tab);
   };
 
@@ -88,10 +95,22 @@ export const AppContent: React.FC = () => {
               setCoopEntry({ intent, roomCode });
               setActiveTab('coop_boss');
             }}
+            onStartBlast={(intent, roomCode) => {
+              setBlastEntry({ intent, roomCode });
+              setActiveTab('blast_battle');
+            }}
           />
         );
       case 'coop_boss':
         return <CoopBossPage initialEntry={coopEntry} onExit={() => handleNavigate('online')} />;
+      case 'blast_battle':
+        return (
+          <BlastBattlePage
+            initialEntry={blastEntry}
+            onExit={() => handleNavigate('online')}
+            onNavigate={handleNavigate}
+          />
+        );
       case 'leaderboards':
         return (
           <LeaderboardsPage
@@ -111,6 +130,8 @@ export const AppContent: React.FC = () => {
         );
       case 'stats':
         return <PlayerPage onNavigate={handleNavigate} />;
+      case 'guide':
+        return <GuidePage onNavigate={handleNavigate} />;
       case 'shop':
         return <ShopPage onNavigate={handleNavigate} />;
       case 'settings':

@@ -174,7 +174,7 @@ export class ApiClient {
   }
 
   // Matches
-  public static createOnlineMatch(ranked: boolean, mode: 'versus' | 'coop_boss' = 'versus') {
+  public static createOnlineMatch(ranked: boolean, mode: 'versus' | 'coop_boss' | 'blast' = 'versus') {
     return this.request<{ matchId: string; seed: number; ranked: boolean; mode: string; status: string }>('/matches/online', {
       method: 'POST',
       body: JSON.stringify({ ranked, mode })
@@ -225,6 +225,16 @@ export class ApiClient {
     return this.request<{ matchId: string; seed: number; ranked: boolean; mode: string; status: string }>(
       `/matches/online/${encodeURIComponent(matchId)}/rematch`,
       { method: 'POST', body: JSON.stringify({}) }
+    );
+  }
+
+  public static awardCoopCredits(
+    matchId: string,
+    data: { roundKey: string; lines: number; piecesPlaced: number; duration: number }
+  ) {
+    return this.request<{ success: boolean; creditsAwarded: number; credits: number; duplicate: boolean }>(
+      `/matches/online/${encodeURIComponent(matchId)}/coop-credits`,
+      { method: 'POST', body: JSON.stringify(data) }
     );
   }
 
