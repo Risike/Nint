@@ -73,6 +73,10 @@ function hashCode(userId, code) {
   return crypto.createHmac('sha256', config.jwtSecret).update(`${userId}:${code}`).digest('hex');
 }
 
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
 function generateVerificationCode() {
   if (config.isTest) return TEST_VERIFICATION_CODE;
   return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
@@ -410,7 +414,9 @@ export class AuthService {
     const expiresAt = Date.now() + 3600000; // 1 hour
 
     db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ? AND used = 0').run(user.id);
-    db.prepare('INSERT INTO password_reset_tokens (token, user_id, expires_at) VALUES (?, ?, ?)').run(token, user.id, expiresAt);
+    // Only the hash is stored: a leaked database cannot be turned into resets.
+    db.prepare('INSERT INTO password_reset_tokens (token, user_id, expires_at) VALUES (?, ?, ?)')
+      .run(hashResetToken(token), user.id, expiresAt);
 
     // The reset link is only delivered by email. It is never written to logs.
     sendPasswordResetEmail(user.email, token, user.display_name).catch((err) => {
@@ -427,8 +433,9 @@ export class AuthService {
     validatePassword(newPassword);
 
     const db = getDatabase();
+    const tokenHash = hashResetToken(token);
     const row = db.prepare('SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0 AND expires_at > ?')
-      .get(token, Date.now());
+      .get(tokenHash, Date.now());
     if (!row) {
       throw httpError(400, 'Invalid or expired password reset token');
     }
@@ -440,7 +447,7 @@ export class AuthService {
     const resetTx = db.transaction(() => {
       db.prepare('UPDATE users SET password_hash = ?, token_version = token_version + 1, updated_at = ? WHERE id = ?')
         .run(passwordHash, now, row.user_id);
-      db.prepare('UPDATE password_reset_tokens SET used = 1 WHERE token = ?').run(token);
+      db.prepare('UPDATE password_reset_tokens SET used = 1 WHERE token = ?').run(tokenHash);
     });
     resetTx();
 

@@ -114,6 +114,9 @@ export class FirebaseRealtimeService {
   private static currentUid: string = '';
   private static uidLocked: boolean = false;
   private static isConfigured: boolean = false;
+  // Firebase uid of the known opponent per match. Attacks from anyone else are
+  // ignored, so a third account cannot inject garbage into a duel.
+  private static opponentUids = new Map<string, string>();
 
   private static unavailableError(): Error {
     return new Error(
@@ -248,7 +251,6 @@ export class FirebaseRealtimeService {
       await set(matchRef, {
         matchId,
         roomCode,
-        seed,
         status: 'waiting',
         ranked: serverMatch.ranked,
         mode,
@@ -429,6 +431,8 @@ export class FirebaseRealtimeService {
     const listener = onChildAdded(attacksRef, (snapshot) => {
       const attack = snapshot.val();
       if (!attack || attack.from === uid) return;
+      const opponentUid = this.opponentUids.get(matchId);
+      if (opponentUid && attack.from !== opponentUid) return;
       if (typeof attack.timestamp !== 'number' || attack.timestamp < attachTime - 1000) return;
       if (typeof attack.amount !== 'number' || !Number.isFinite(attack.amount)) return;
       const amount = Math.min(Math.max(Math.round(attack.amount), 0), 20);
@@ -471,6 +475,7 @@ export class FirebaseRealtimeService {
           // this browser's anonymous uid was assigned late.
           const isSelf = pUid === uid || (selfUserId && pState?.userId === selfUserId);
           if (!isSelf) {
+            this.opponentUids.set(matchId, pUid);
             onOpponentUpdate(pState);
             break;
           }
@@ -478,7 +483,10 @@ export class FirebaseRealtimeService {
       }
     });
 
-    return () => off(playersRef, 'value', listener);
+    return () => {
+      this.opponentUids.delete(matchId);
+      off(playersRef, 'value', listener);
+    };
   }
 
   // Register onDisconnect for current player on a match
@@ -691,7 +699,6 @@ export class FirebaseRealtimeService {
       await set(ref(this.db, `matches/${nextMatchId}`), {
         matchId: nextMatchId,
         roomCode,
-        seed,
         status: 'active',
         ranked: serverMatch.ranked,
         mode: currentData.mode || 'versus',
@@ -868,8 +875,6 @@ export class FirebaseRealtimeService {
       userId: userId || null,
       rating: rating || 1000,
       roomCode,
-      matchId,
-      seed,
       ranked,
       mode,
       createdAt: myCreatedAt

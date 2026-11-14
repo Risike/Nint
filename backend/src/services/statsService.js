@@ -69,7 +69,7 @@ export class StatsService {
     };
   }
 
-  static getUserStats(userId, { includeCredits = false } = {}) {
+  static getUserStats(userId, { includeCredits = false, includeRecentMatches = true } = {}) {
     const db = getDatabase();
     const user = db.prepare(`
       SELECT
@@ -118,7 +118,7 @@ export class StatsService {
       winRate: parseFloat(winRate),
       rankings: this.getLeaderboardRankings(db, userId, stats),
       personalBests,
-      recentMatches
+      ...(includeRecentMatches ? { recentMatches } : {})
     };
   }
 
