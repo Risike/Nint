@@ -978,6 +978,12 @@ export class FirebaseRealtimeService {
     LocalStorageManager.setItem(key, [id, ...list.filter((entry) => entry !== id)].slice(0, 50));
   }
 
+  private static forgetNode(kind: 'matches' | 'rooms', id: string): void {
+    const key = kind === 'matches' ? 'rtdb_matches' : 'rtdb_rooms';
+    const list = LocalStorageManager.getItem<string[]>(key, []);
+    LocalStorageManager.setItem(key, list.filter((entry) => entry !== id));
+  }
+
   private static scheduleJanitor(): void {
     if (this.janitorScheduled || !this.isConfigured || !this.db) return;
     this.janitorScheduled = true;
@@ -1062,6 +1068,18 @@ export class FirebaseRealtimeService {
         // Only the host owns the room node; guests just mark themselves offline.
         if (roomCode && isHost) {
           await set(ref(this.db, `rooms/${roomCode}`), null);
+        }
+        // A host who walks away from an empty room takes the match with it, so
+        // an abandoned lobby does not sit in the database until the janitor is
+        // allowed to delete it two hours later.
+        if (matchId && isHost) {
+          const snapshot = await get(ref(this.db, `matches/${matchId}`));
+          const match = snapshot.val();
+          const others = Object.keys(match?.players || {}).filter((playerUid) => playerUid !== this.getUid());
+          if (match?.status === 'waiting' && others.length === 0) {
+            await remove(ref(this.db, `matches/${matchId}`));
+            this.forgetNode('matches', matchId);
+          }
         }
       } catch (e) {
         console.warn('Error cleaning up room:', e);
