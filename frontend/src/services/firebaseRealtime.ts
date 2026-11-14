@@ -177,6 +177,7 @@ export class FirebaseRealtimeService {
   private static currentUid: string = '';
   private static uidLocked: boolean = false;
   private static isConfigured: boolean = false;
+  private static initError: string = '';
   // Firebase uid of the known opponent per match. Attacks from anyone else are
   // ignored, so a third account cannot inject garbage into a duel.
   private static opponentUids = new Map<string, string>();
@@ -185,11 +186,24 @@ export class FirebaseRealtimeService {
   private static janitorScheduled = false;
 
   private static unavailableError(): Error {
-    return new Error(
-      import.meta.env.DEV
-        ? 'Firebase Realtime Database is unavailable. Start the full development stack with "npm run dev" so the local Firebase emulator runs.'
-        : 'Firebase is not configured. Set the VITE_FIREBASE_* values for the web container and restart it.'
-    );
+    if (import.meta.env.DEV) {
+      return new Error('Firebase Realtime Database is unavailable. Start the full development stack with "npm run dev" so the local Firebase emulator runs.');
+    }
+
+    // Name what is wrong: a deployment can reach this point with an empty
+    // config.js (the web container never received the variables) or with a
+    // Firebase app that refused to start.
+    if (this.initError) {
+      return new Error(`Firebase could not start: ${this.initError}`);
+    }
+
+    const missing = (['apiKey', 'authDomain', 'databaseURL', 'projectId'] as const)
+      .filter((key) => !firebaseConfig[key] || firebaseConfig[key] === FIREBASE_DEFAULTS[key]);
+    const detail = missing.length > 0
+      ? ` Missing or still on demo defaults: ${missing.join(', ')}.`
+      : '';
+
+    return new Error(`Firebase is not configured.${detail} Check /config.js of the web container: it is written from the VITE_FIREBASE_* environment variables when the container starts.`);
   }
 
   public static initialize(): boolean {
@@ -245,6 +259,7 @@ export class FirebaseRealtimeService {
       }
     } catch (e) {
       console.warn('Firebase initialization notice:', e);
+      this.initError = e instanceof Error ? e.message : String(e);
       this.isConfigured = false;
     }
 
