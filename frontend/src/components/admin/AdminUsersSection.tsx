@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle, RotateCcw, Search, UserX } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Plus, RotateCcw, Search, UserX } from 'lucide-react';
 import { ApiClient } from '../../services/api';
 import { useI18n } from '../../i18n/useI18n';
 
@@ -11,6 +11,8 @@ export const AdminUsersSection: React.FC = () => {
   const [confirmAction, setConfirmAction] = useState<{ type: 'clear_stats' | 'delete'; userId: string; email: string; displayName: string } | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [creditAmounts, setCreditAmounts] = useState<Record<string, string>>({});
+  const [creditBusy, setCreditBusy] = useState<string | null>(null);
 
   const handleSearch = async (event?: React.FormEvent) => {
     if (event) event.preventDefault();
@@ -29,6 +31,34 @@ export const AdminUsersSection: React.FC = () => {
   useEffect(() => {
     void handleSearch();
   }, []);
+
+  const handleAddCredits = async (user: any) => {
+    const amount = Number(creditAmounts[user.id] ?? '');
+    if (!Number.isInteger(amount) || amount === 0) {
+      setActionError(t('Enter a non-zero number of credits.'));
+      return;
+    }
+
+    setActionError(null);
+    setCreditBusy(user.id);
+    try {
+      const result = await ApiClient.adminAddUserCredits(user.id, amount);
+      setSearchResults((previous) => previous.map((entry) => (
+        entry.id === user.id ? { ...entry, credits: result.credits } : entry
+      )));
+      setCreditAmounts((previous) => ({ ...previous, [user.id]: '' }));
+      setActionSuccess(t('Balance updated by {amount} for {name}. New balance: {credits}.', {
+        amount,
+        name: user.display_name,
+        credits: result.credits
+      }));
+      setTimeout(() => setActionSuccess(null), 3500);
+    } catch (e: any) {
+      setActionError(e?.message || t('Failed to add credits.'));
+    } finally {
+      setCreditBusy(null);
+    }
+  };
 
   const handleClearUserStats = async (userId: string) => {
     setActionError(null);
@@ -241,12 +271,62 @@ export const AdminUsersSection: React.FC = () => {
                   <strong>{user.games_played}</strong>
                 </div>
                 <div>
+                  <span style={{ color: 'var(--text-muted)' }}>{t('Credits')}: </span>
+                  <strong style={{ color: 'var(--accent-yellow)' }}>{user.credits ?? 0}</strong>
+                </div>
+                <div>
                   <span style={{ color: 'var(--text-muted)' }}>{t('W/L:')} </span>
                   <span style={{ color: 'var(--accent-green)' }}>{user.wins}</span> / <span style={{ color: 'var(--accent-red)' }}>{user.losses}</span>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.4rem', marginLeft: 'auto' }}>
+              <div style={{ display: 'flex', gap: '0.4rem', marginLeft: 'auto', flexWrap: 'wrap', alignItems: 'center' }}>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void handleAddCredits(user);
+                  }}
+                  style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}
+                >
+                  <input
+                    type="number"
+                    step={1}
+                    inputMode="numeric"
+                    value={creditAmounts[user.id] ?? ''}
+                    onChange={(event) => setCreditAmounts((previous) => ({ ...previous, [user.id]: event.target.value }))}
+                    placeholder={t('Credits')}
+                    aria-label={t('Number of credits to add')}
+                    style={{
+                      width: '96px',
+                      padding: '0.4rem 0.55rem',
+                      fontSize: '0.78rem',
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-sm)',
+                      color: 'var(--text-primary)'
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={creditBusy === user.id}
+                    title={t('Add or remove credits for this account')}
+                    style={{
+                      padding: '0.4rem 0.75rem',
+                      fontSize: '0.78rem',
+                      background: 'rgba(34, 197, 94, 0.15)',
+                      color: 'var(--accent-green)',
+                      border: '1px solid rgba(34, 197, 94, 0.3)',
+                      borderRadius: 'var(--radius-sm)',
+                      cursor: creditBusy === user.id ? 'progress' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    <Plus size={12} /> {t('Apply')}
+                  </button>
+                </form>
                 <button
                   type="button"
                   onClick={() => setConfirmAction({ type: 'clear_stats', userId: user.id, email: user.email, displayName: user.display_name })}

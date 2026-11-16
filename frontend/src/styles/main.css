@@ -1053,6 +1053,23 @@ html {
   color: var(--text-muted);
 }
 
+/* Top-level guide section (Solo, Multiplayer) above its mode groups. */
+.guide-nav-category {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.guide-nav-subgroup + .guide-nav-subgroup {
+  margin-top: 0.55rem;
+}
+
 .guide-nav-link {
   display: block;
   width: 100%;
@@ -1174,8 +1191,18 @@ html {
     margin-top: 0;
   }
 
-  .guide-nav-title {
+  .guide-nav-title,
+  .guide-nav-category {
     display: none;
+  }
+
+  .guide-nav-subgroup {
+    display: flex;
+    gap: 0.35rem;
+  }
+
+  .guide-nav-subgroup + .guide-nav-subgroup {
+    margin-top: 0;
   }
 
   .guide-nav-link {

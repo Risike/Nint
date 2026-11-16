@@ -29,6 +29,15 @@ export class AdminController {
     }
   }
 
+  static addUserCredits(req, res, next) {
+    try {
+      const result = AdminService.addUserCredits(req.params.userId, req.body?.amount);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static clearUserStats(req, res, next) {
     try {
       const result = AdminService.clearUserStats(req.params.userId);

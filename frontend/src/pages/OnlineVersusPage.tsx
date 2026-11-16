@@ -12,7 +12,7 @@ import { UserName } from '../components/user/UserName';
 import { ApiClient } from '../services/api';
 import { useDynamicCellSize } from '../hooks/useDynamicCellSize';
 import { useGamepadActive, useGamepadBack } from '../context/GamepadNavContext';
-import { Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2, Lock, Trophy, Skull, Bomb } from 'lucide-react';
+import { ArrowLeft, Users, Plus, LogIn, Copy, Check, Search, Zap, X, Loader2, Lock, Trophy, Skull, Bomb, type LucideIcon } from 'lucide-react';
 import { useI18n } from '../i18n/useI18n';
 
 interface OnlineVersusPageProps {
@@ -47,6 +47,44 @@ const modeCardStyle: React.CSSProperties = {
   padding: '1.15rem'
 };
 
+type OnlineLobbyCategory = 'versus' | 'coop' | 'blast';
+
+interface OnlineCategoryCard {
+  id: OnlineLobbyCategory;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  color: string;
+  background: string;
+}
+
+const ONLINE_CATEGORY_CARDS: readonly OnlineCategoryCard[] = [
+  {
+    id: 'versus',
+    title: 'Player VS Player',
+    description: 'Play online against another player.',
+    icon: Users,
+    color: 'var(--accent-purple)',
+    background: 'rgba(168, 85, 247, 0.2)'
+  },
+  {
+    id: 'coop',
+    title: 'Co-op Boss Battle',
+    description: 'Team up with another player to defeat the boss.',
+    icon: Skull,
+    color: 'var(--accent-red)',
+    background: 'rgba(239, 68, 68, 0.2)'
+  },
+  {
+    id: 'blast',
+    title: 'Blast Battle',
+    description: 'Duel another player in Blast to three round wins. Empty your board or make your opponent top out to win.',
+    icon: Bomb,
+    color: 'var(--accent-orange)',
+    background: 'rgba(249, 115, 22, 0.2)'
+  }
+];
+
 const modeButtonStyle: React.CSSProperties = {
   marginTop: 'auto',
   display: 'flex',
@@ -71,6 +109,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, 
   const [coopInputCode, setCoopInputCode] = useState<string>('');
   const [blastInputCode, setBlastInputCode] = useState<string>('');
   const [matchStatus, setMatchStatus] = useState<'lobby' | 'waiting' | 'quick_searching' | 'in_game' | 'finished'>('lobby');
+  const [lobbyCategory, setLobbyCategory] = useState<OnlineLobbyCategory | null>(null);
   const [quickSearchSeconds, setQuickSearchSeconds] = useState<number>(0);
   const [isCountingDown, setIsCountingDown] = useState<boolean>(false);
   const [opponentName, setOpponentName] = useState<string>(() => t('Opponent'));
@@ -120,8 +159,13 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, 
       handleLeaveRoom();
       return true;
     }
+    // Inside a multiplayer category, back returns to the category menu.
+    if (matchStatus === 'lobby' && lobbyCategory !== null) {
+      setLobbyCategory(null);
+      return true;
+    }
     return false;
-  }, [isGameOverOpen, matchStatus]);
+  }, [isGameOverOpen, matchStatus, lobbyCategory]);
 
   const keyboardRef = useRef<KeyboardManager | null>(null);
   const gamepadRef = useRef<GamepadManager | null>(null);
@@ -925,26 +969,76 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, 
 
       {matchStatus === 'lobby' && (
         <div style={{ width: '100%', maxWidth: '980px', textAlign: 'center', marginTop: '1rem' }}>
-          <div style={{ marginBottom: '2rem' }}>
-            <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Online Multiplayer')}</h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1rem' }}>
-              {t('Real-time multiplayer. Play casual or ranked 1v1, team up against a boss, or duel in Blast.')}
-            </p>
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              background: 'rgba(6, 182, 212, 0.1)',
-              border: '1px solid rgba(6, 182, 212, 0.3)',
-              borderRadius: '999px',
-              padding: '0.4rem 1rem'
-            }}>
-              <Trophy size={16} color="var(--accent-cyan)" />
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('Your Rating:')}</span>
-              <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.95rem' }}>{user?.rating ?? 1000} ELO</strong>
-            </div>
-          </div>
+          {lobbyCategory === null ? (
+            <>
+              <div style={{ marginBottom: '2rem' }}>
+                <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.4rem' }}>{t('Online Multiplayer')}</h1>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1rem' }}>
+                  {t('Real-time multiplayer. Play casual or ranked 1v1, team up against a boss, or duel in Blast.')}
+                </p>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'rgba(6, 182, 212, 0.1)',
+                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                  borderRadius: '999px',
+                  padding: '0.4rem 1rem'
+                }}>
+                  <Trophy size={16} color="var(--accent-cyan)" />
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{t('Your Rating:')}</span>
+                  <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.95rem' }}>{user?.rating ?? 1000} ELO</strong>
+                </div>
+              </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', textAlign: 'left' }}>
+                {ONLINE_CATEGORY_CARDS.map((category) => {
+                  const Icon = category.icon;
+                  return (
+                    <div
+                      key={category.id}
+                      className="panel-card"
+                      role="button"
+                      tabIndex={0}
+                      data-online-category={category.id}
+                      style={{ padding: '1.35rem', cursor: 'pointer', transition: 'transform 0.2s' }}
+                      onClick={() => setLobbyCategory(category.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setLobbyCategory(category.id);
+                        }
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.65rem' }}>
+                        <div style={{ background: category.background, color: category.color, padding: '0.6rem', borderRadius: 'var(--radius-sm)', display: 'flex' }}>
+                          <Icon size={22} />
+                        </div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{t(category.title)}</h3>
+                      </div>
+                      <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                        {t(category.description)}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '1rem' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                data-online-back="true"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                onClick={() => setLobbyCategory(null)}
+              >
+                <ArrowLeft size={16} /> {t('Back')}
+              </button>
+            </div>
+          )}
+
+          {lobbyCategory === 'versus' && (
           <section style={categorySectionStyle} aria-labelledby="online-pvp-heading">
             <div>
               <h2 id="online-pvp-heading" style={categoryTitleStyle}>
@@ -1071,8 +1165,10 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, 
               </div>
             </div>
           </section>
+          )}
 
-          <section style={{ ...categorySectionStyle, marginTop: '1.25rem' }} aria-labelledby="coop-boss-heading">
+          {lobbyCategory === 'coop' && (
+          <section style={categorySectionStyle} aria-labelledby="coop-boss-heading">
             <div>
               <h2 id="coop-boss-heading" style={categoryTitleStyle}>
                 <Skull size={20} color="var(--accent-red)" />
@@ -1169,8 +1265,10 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, 
               </div>
             </div>
           </section>
+          )}
 
-          <section style={{ ...categorySectionStyle, marginTop: '1.25rem' }} aria-labelledby="blast-heading">
+          {lobbyCategory === 'blast' && (
+          <section style={categorySectionStyle} aria-labelledby="blast-heading">
             <div>
               <h2 id="blast-heading" style={categoryTitleStyle}>
                 <Bomb size={20} color="var(--accent-orange)" />
@@ -1267,6 +1365,7 @@ export const OnlineVersusPage: React.FC<OnlineVersusPageProps> = ({ onNavigate, 
               </div>
             </div>
           </section>
+          )}
         </div>
       )}
 

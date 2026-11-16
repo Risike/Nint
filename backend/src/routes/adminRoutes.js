@@ -12,6 +12,7 @@ router.get('/news', AdminController.getNews);
 router.delete('/leaderboards', requireAdmin, AdminController.clearLeaderboards);
 router.get('/users', requireAdmin, AdminController.searchUsers);
 router.get('/firebase/matches', requireAdmin, AdminController.getOldFirebaseMatches);
+router.post('/users/:userId/credits', requireAdmin, AdminController.addUserCredits);
 router.delete('/users/:userId/stats', requireAdmin, AdminController.clearUserStats);
 router.delete('/users/:userId', requireAdmin, AdminController.deleteUser);
 router.put('/news', requireAdmin, AdminController.setNews);

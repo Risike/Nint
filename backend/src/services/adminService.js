@@ -68,6 +68,7 @@ export class AdminService {
     const pattern = `%${escaped}%`;
     return db.prepare(`
       SELECT u.id, u.email, u.display_name, u.avatar_url, u.is_admin, u.created_at,
+             COALESCE(u.credits, 0) as credits,
              COALESCE(s.rating, 1000) as rating,
              COALESCE(s.games_played, 0) as games_played,
              COALESCE(s.wins, 0) as wins,
@@ -78,6 +79,30 @@ export class AdminService {
       ORDER BY u.created_at DESC
       LIMIT 50
     `).all(pattern, pattern);
+  }
+
+  static addUserCredits(userId, amount) {
+    const db = getDatabase();
+    const credits = Number(amount);
+    if (!Number.isInteger(credits) || credits === 0 || Math.abs(credits) > 1000000) {
+      const err = new Error('Credits must be a non-zero whole number of at most 1000000');
+      err.status = 400;
+      throw err;
+    }
+
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+    if (!user) {
+      const err = new Error('User not found');
+      err.status = 404;
+      throw err;
+    }
+
+    // A negative amount removes credits, and the balance never goes below zero.
+    db.prepare('UPDATE users SET credits = MAX(0, COALESCE(credits, 0) + ?), updated_at = ? WHERE id = ?')
+      .run(credits, Date.now(), userId);
+
+    const updated = db.prepare('SELECT credits FROM users WHERE id = ?').get(userId);
+    return { success: true, added: credits, credits: updated.credits };
   }
 
   static clearUserStats(userId) {

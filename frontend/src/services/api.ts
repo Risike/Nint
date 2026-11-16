@@ -300,6 +300,16 @@ export class ApiClient {
     return this.request<any[]>(`/admin/users?q=${encodeURIComponent(q)}`);
   }
 
+  public static adminAddUserCredits(userId: string, amount: number) {
+    return this.request<{ success: boolean; added: number; credits: number }>(
+      `/admin/users/${userId}/credits`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ amount })
+      }
+    );
+  }
+
   public static adminClearUserStats(userId: string) {
     return this.request<{ success: boolean }>(`/admin/users/${userId}/stats`, {
       method: 'DELETE'

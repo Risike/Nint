@@ -87,6 +87,46 @@ test('Admin auto-creation and full admin capabilities', async () => {
   assert.ok(searchRes.body.length >= 1);
   assert.equal(searchRes.body[0].email, regularEmail);
 
+  // 8b. Admin credits the player through the admin panel endpoint
+  const creditsBefore = searchRes.body[0].credits;
+  assert.equal(typeof creditsBefore, 'number');
+
+  const creditRes = await request(app)
+    .post(`/api/admin/users/${regularUserId}/credits`)
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ amount: 250 });
+  assert.equal(creditRes.status, 200);
+  assert.equal(creditRes.body.success, true);
+  assert.equal(creditRes.body.added, 250);
+  assert.equal(creditRes.body.credits, creditsBefore + 250);
+
+  const playerAfterCredit = await request(app)
+    .get('/api/auth/me')
+    .set('Authorization', `Bearer ${regularToken}`);
+  assert.equal(playerAfterCredit.body.credits, creditsBefore + 250);
+
+  // A negative amount removes credits.
+  const debitRes = await request(app)
+    .post(`/api/admin/users/${regularUserId}/credits`)
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ amount: -250 });
+  assert.equal(debitRes.status, 200);
+  assert.equal(debitRes.body.credits, creditsBefore);
+
+  // The balance is clamped at zero instead of going negative.
+  const overDebitRes = await request(app)
+    .post(`/api/admin/users/${regularUserId}/credits`)
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ amount: -1000000 });
+  assert.equal(overDebitRes.status, 200);
+  assert.equal(overDebitRes.body.credits, 0);
+
+  const zeroCreditRes = await request(app)
+    .post(`/api/admin/users/${regularUserId}/credits`)
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ amount: 0 });
+  assert.equal(zeroCreditRes.status, 400);
+
   // 9. Admin clears player stats
   const clearStatsRes = await request(app)
     .delete(`/api/admin/users/${regularUserId}/stats`)
